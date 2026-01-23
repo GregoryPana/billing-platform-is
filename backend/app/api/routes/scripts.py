@@ -3,7 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.models.generated_file import GeneratedFile
 from app.models.script_definition import ScriptDefinition
+from app.models.script_run import ScriptRun
 from app.schemas.exports import ScriptExportRead, ScriptExportRequest
 from app.schemas.scripts import ScriptDefinitionRead, ScriptGenerateRequest
 from app.services.audit_service import record_audit_event
@@ -33,6 +35,30 @@ def generate_scripts(
 ):
     if payload.environment.lower() == "live":
         ensure_test_approved(db, payload.billing_cycle_id)
+
+    existing_definitions = list(
+        db.scalars(
+            select(ScriptDefinition).where(
+                ScriptDefinition.billing_cycle_id == payload.billing_cycle_id,
+                ScriptDefinition.environment == payload.environment.lower(),
+                ScriptDefinition.script_type == payload.script_type.lower(),
+            )
+        )
+    )
+    if existing_definitions:
+        existing_ids = [definition.id for definition in existing_definitions]
+        db.query(ScriptRun).filter(ScriptRun.script_definition_id.in_(existing_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(ScriptDefinition).filter(ScriptDefinition.id.in_(existing_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(GeneratedFile).filter(
+            GeneratedFile.billing_cycle_id == payload.billing_cycle_id,
+            GeneratedFile.environment == payload.environment.lower(),
+            GeneratedFile.script_type == payload.script_type.lower(),
+        ).delete(synchronize_session=False)
+        db.commit()
 
     created_scripts: list[ScriptDefinition] = []
     log_types = payload.log_types
