@@ -24,6 +24,7 @@ The Billing Collaboration Platform is a web application for creating billing com
 - FastAPI endpoints for cycles, scripts, runs, approvals, notifications, and audit logs
 - Approval gates to prevent live actions without test approval
 - Script generation auto-creates planned run records per cycle type
+- Billing can request finance approvals only after required test/live runs are executed
 - UTC+4 timezone handling for all timestamps
 
 **Data**
@@ -149,6 +150,8 @@ All endpoints are under `/api`.
 - `GET /approvals` → list approvals
 - `POST /approvals` → create/update approval
   - Body: `{ "billing_cycle_id": "uuid", "stage": "test|live|post_live", "status": "approved|rejected", "comments": "..." }`
+- `POST /approvals/request` → request approval (billing)
+  - Body: `{ "billing_cycle_id": "uuid", "stage": "test|post_live", "comments": "..." }`
 
 **Notifications**
 - `GET /notifications` → list notifications
@@ -280,6 +283,6 @@ Not specified.
 2. **Billing Cycles**: Create a cycle with usage/billing months.
 3. **Script Generation**: Generate test scripts first; live scripts require finance approval.
 4. **Runs Tracking**: Select a cycle and mark scripts as planned, executed, or failed to keep audit history.
-5. **Approvals**: Finance users approve test, live, or post-live stages.
+5. **Approvals**: Billing requests approvals after runs are executed; finance reviews pending requests.
 6. **Notifications**: After post-live approval, queue notifications for distribution.
 7. **Audit Log**: Review all actions recorded by user or system.

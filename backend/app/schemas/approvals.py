@@ -11,6 +11,12 @@ class ApprovalRequest(BaseSchema):
     comments: str | None = None
 
 
+class ApprovalRequestCreate(BaseSchema):
+    billing_cycle_id: str
+    stage: str
+    comments: str | None = None
+
+
 class ApprovalRead(BaseSchema):
     id: UUID
     billing_cycle_id: UUID

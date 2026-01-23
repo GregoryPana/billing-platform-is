@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.approval import Approval
 from app.models.billing_cycle import BillingCycle
-from app.schemas.approvals import ApprovalRead, ApprovalRequest
+from app.schemas.approvals import ApprovalRead, ApprovalRequest, ApprovalRequestCreate
 from app.services.audit_service import record_audit_event
 from app.services.auth_service import CurrentActor, require_role
+from app.services.workflow_service import ensure_stage_runs_executed
 from app.utils.datetime_utils import utc_plus_4_now
 
 
@@ -77,5 +78,66 @@ def create_or_update_approval(
         "approval",
         str(approval.id),
         {"stage": payload.stage, "status": payload.status},
+    )
+    return approval
+
+
+@router.post("/request", response_model=ApprovalRead)
+def request_approval(
+    payload: ApprovalRequestCreate,
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+):
+    stage = payload.stage
+    stage_rules = {
+        "test": {"environment": "test", "script_types": ["preparation", "printing"]},
+        "live": {"environment": "live", "script_types": ["preparation", "printing"]},
+        "post_live": {"environment": "live", "script_types": ["preparation", "printing"]},
+    }
+    rule = stage_rules.get(stage)
+    if not rule:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid approval stage")
+
+    ensure_stage_runs_executed(
+        db,
+        billing_cycle_id=payload.billing_cycle_id,
+        environment=rule["environment"],
+        script_types=rule["script_types"],
+    )
+
+    approval = db.scalar(
+        select(Approval).where(
+            Approval.billing_cycle_id == payload.billing_cycle_id,
+            Approval.stage == payload.stage,
+        )
+    )
+
+    if approval:
+        approval.status = "pending"
+        approval.comments = payload.comments
+        approval.approved_by = None
+        approval.approved_at = None
+        approval.updated_at = utc_plus_4_now()
+    else:
+        approval = Approval(
+            billing_cycle_id=payload.billing_cycle_id,
+            stage=payload.stage,
+            status="pending",
+            comments=payload.comments,
+            created_at=utc_plus_4_now(),
+            updated_at=utc_plus_4_now(),
+        )
+        db.add(approval)
+
+    db.commit()
+    db.refresh(approval)
+    record_audit_event(
+        db,
+        actor.id,
+        actor.actor_type,
+        "approval_requested",
+        "approval",
+        str(approval.id),
+        {"stage": payload.stage, "status": "pending"},
     )
     return approval
