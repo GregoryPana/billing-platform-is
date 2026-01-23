@@ -1,18 +1,20 @@
 from datetime import datetime
 from uuid import UUID
 
+from typing import Literal
+
 from app.schemas.base import BaseSchema
 
 
 class RunUpdateRequest(BaseSchema):
     script_run_id: str
-    status: str
+    status: Literal["planned", "executed", "failed"]
     notes: str | None = None
 
 
 class RunCreateRequest(BaseSchema):
     script_definition_id: str
-    status: str = "planned"
+    status: Literal["planned", "executed", "failed"] = "planned"
     notes: str | None = None
 
 

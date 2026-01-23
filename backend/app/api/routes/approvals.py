@@ -36,6 +36,13 @@ def create_or_update_approval(
         )
     )
 
+    if actor.role == "finance":
+        if not approval or approval.status != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Approval must be requested before review.",
+            )
+
     if approval:
         approval.status = payload.status
         approval.comments = payload.comments

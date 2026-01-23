@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
+import ReactMarkdown from "react-markdown"
 
 import { api_base_url, api_fetch } from "./api"
+import billingProcessDoc from "../../billing_process.md?raw"
 import "./App.css"
 
 const nav_items = [
@@ -11,6 +13,7 @@ const nav_items = [
   { id: "approvals", label: "Approvals" },
   { id: "notifications", label: "Notifications" },
   { id: "audit", label: "Audit Log" },
+  { id: "documentation", label: "View Documentation" },
   { id: "admin", label: "Admin" },
 ]
 
@@ -28,7 +31,71 @@ const cycle_types = [
   "A1U",
 ]
 
+const format_month_label = (value) => {
+  if (!value) {
+    return "-"
+  }
+  const [year, month] = value.split("-").map(Number)
+  if (!year || !month) {
+    return value
+  }
+  const date = new Date(year, month - 1, 1)
+  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(date)
+}
+
+
+const format_cycle_datetime = (value) => {
+  if (!value) {
+    return ""
+  }
+  const [year, month] = value.split("-").map(Number)
+  if (!year || !month) {
+    return ""
+  }
+  const first = new Date(year, month - 1, 1)
+  const last = new Date(year, month, 0)
+  const format = (date) => {
+    const yyyy = date.getFullYear()
+    const mm = String(date.getMonth() + 1).padStart(2, "0")
+    const dd = String(date.getDate()).padStart(2, "0")
+    return `${yyyy}_${mm}_${dd} 00:00:00`
+  }
+  return { first: format(first), last: format(last) }
+}
+
+const build_default_parameters = (script_type, environment, cycle_month) => {
+  const bounds = format_cycle_datetime(cycle_month)
+  if (script_type === "printing") {
+    return {
+      p1: "S",
+      p2: `PBCC={cycle}|PITM=Y|PTEST=${environment === "test" ? "Y" : "N"}`,
+      p3: bounds?.first || "YYYY_MM_DD 00:00:00",
+      p4: bounds?.last || "YYYY_MM_DD 00:00:00",
+      p5: "N",
+      p6: "",
+      p7: "0",
+      p8: "99999999",
+    }
+  }
+
+  return {
+    p1: "{cycle}",
+    p2: environment === "test" ? "T" : "N",
+    p3: bounds?.last || "YYYY_MM_DD 00:00:00",
+    p4: "28",
+    p5: "2",
+    p6: "",
+    p7: "",
+    p8: "",
+  }
+}
+
 function App() {
+  const [is_authenticated, set_is_authenticated] = useState(false)
+  const [login_form, set_login_form] = useState({
+    role: "billing",
+    display_name: "",
+  })
   const [active_view, set_active_view] = useState("overview")
   const [role, set_role] = useState("billing")
   const [cycles, set_cycles] = useState([])
@@ -52,6 +119,17 @@ function App() {
     log_types: [],
     p6: "",
   })
+  const [use_default_params, set_use_default_params] = useState(true)
+  const [parameter_overrides, set_parameter_overrides] = useState({
+    p1: "",
+    p2: "",
+    p3: "",
+    p4: "",
+    p5: "",
+    p6: "",
+    p7: "",
+    p8: "",
+  })
   const [approval_form, set_approval_form] = useState({
     billing_cycle_id: "",
     stage: "test",
@@ -74,6 +152,8 @@ function App() {
   const [run_cycle_id, set_run_cycle_id] = useState("")
   const [run_script_type, set_run_script_type] = useState("preparation")
   const [run_status_overrides, set_run_status_overrides] = useState({})
+  const [approval_notifications, set_approval_notifications] = useState([])
+  const [last_generated_count, set_last_generated_count] = useState(null)
 
   const status_cards = useMemo(() => {
     const pending_approvals = approvals.filter((item) => item.status === "pending").length
@@ -89,17 +169,46 @@ function App() {
         tone: pending_approvals ? "warning" : "success",
       },
       {
-        label: "Scripts Generated",
-        value: `${scripts.length} commands`,
-        tone: "success",
-      },
-      {
         label: "Notifications",
         value: `${notifications.length} queued/sent`,
         tone: "info",
       },
     ]
-  }, [approvals, cycles, notifications, scripts])
+  }, [approvals, cycles, notifications])
+
+  useEffect(() => {
+    if (use_default_params) {
+      return
+    }
+    const cycle = cycles.find((item) => String(item.id) === script_form.billing_cycle_id)
+    const cycle_month = cycle?.billing_month || cycle?.usage_month || ""
+    const defaults = build_default_parameters(
+      script_form.script_type,
+      script_form.environment,
+      cycle_month
+    )
+    set_parameter_overrides(defaults)
+  }, [use_default_params, script_form.script_type, script_form.environment, cycles, script_form.billing_cycle_id])
+
+  const visible_nav_items = useMemo(() => {
+    const role_permissions = {
+      billing: [
+        "overview",
+        "cycles",
+        "scripts",
+        "runs",
+        "approvals",
+        "notifications",
+        "audit",
+        "documentation",
+      ],
+      finance: ["overview", "approvals"],
+      admin: ["overview", "cycles", "scripts", "runs", "approvals", "notifications", "audit", "admin"],
+      viewer: ["overview", "runs", "approvals", "audit"],
+    }
+    const allowed = new Set(role_permissions[role] || [])
+    return nav_items.filter((item) => allowed.has(item.id))
+  }, [role])
 
   const reload_all = async () => {
     try {
@@ -142,6 +251,36 @@ function App() {
     reload_all()
   }, [role])
 
+  useEffect(() => {
+    if (role !== "billing") {
+      return
+    }
+    if (approvals.length === 0) {
+      return
+    }
+    const storage_key = "billing_last_seen_approvals"
+    const stored = localStorage.getItem(storage_key)
+    const seen = stored ? JSON.parse(stored) : {}
+    const newly_approved = approvals.filter(
+      (approval) => approval.status === "approved" && seen[approval.id] !== approval.status
+    )
+    if (newly_approved.length > 0) {
+      set_approval_notifications(newly_approved)
+    }
+    const next_seen = { ...seen }
+    approvals.forEach((approval) => {
+      next_seen[approval.id] = approval.status
+    })
+    localStorage.setItem(storage_key, JSON.stringify(next_seen))
+  }, [approvals, role])
+
+  useEffect(() => {
+    const allowed_ids = new Set(visible_nav_items.map((item) => item.id))
+    if (!allowed_ids.has(active_view)) {
+      set_active_view("overview")
+    }
+  }, [active_view, visible_nav_items])
+
   const handle_cycle_submit = async (event) => {
     event.preventDefault()
     try {
@@ -177,18 +316,24 @@ function App() {
   const handle_script_submit = async (event) => {
     event.preventDefault()
     try {
+      const overrides = use_default_params
+        ? undefined
+        : Object.fromEntries(
+            Object.entries(parameter_overrides).filter(([, value]) => value !== "")
+          )
       const payload = {
         billing_cycle_id: script_form.billing_cycle_id,
         environment: script_form.environment,
         script_type: script_form.script_type,
         log_types: script_form.log_types,
-        overrides: script_form.p6 ? { p6: script_form.p6 } : undefined,
+        overrides: overrides && Object.keys(overrides).length > 0 ? overrides : undefined,
       }
-      await api_fetch(
+      const created = await api_fetch(
         "/scripts/generate",
         { method: "POST", body: JSON.stringify(payload) },
         role
       )
+      set_last_generated_count(Array.isArray(created) ? created.length : null)
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -248,6 +393,29 @@ function App() {
         role
       )
       set_approval_request_form({ billing_cycle_id: "", stage: "test", comments: "" })
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_run_stage_request = async () => {
+    if (!run_cycle_id) {
+      return
+    }
+    try {
+      await api_fetch(
+        "/approvals/request",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            billing_cycle_id: run_cycle_id,
+            stage: run_stage,
+            comments: "",
+          }),
+        },
+        role
+      )
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -360,6 +528,13 @@ function App() {
     () => approvals.filter((approval) => approval.status === "pending"),
     [approvals]
   )
+  const approvals_by_cycle_stage = useMemo(() => {
+    const map = new Map()
+    approvals.forEach((approval) => {
+      map.set(`${approval.billing_cycle_id}:${approval.stage}`, approval)
+    })
+    return map
+  }, [approvals])
   const pending_approvals_by_cycle = useMemo(() => {
     const map = new Map()
     pending_approvals.forEach((approval) => {
@@ -368,11 +543,174 @@ function App() {
     return map
   }, [pending_approvals])
   const run_cycle_options = useMemo(() => {
+    const cycle_last_run = new Map()
+    runs.forEach((run) => {
+      const script = scripts_by_id.get(String(run.script_definition_id))
+      if (!script) {
+        return
+      }
+      const cycle_id = String(script.billing_cycle_id)
+      const timestamp = run.run_timestamp || run.created_at
+      if (!timestamp) {
+        return
+      }
+      const current = cycle_last_run.get(cycle_id)
+      const next_value = new Date(timestamp).getTime()
+      if (!current || next_value > current) {
+        cycle_last_run.set(cycle_id, next_value)
+      }
+    })
+
+    const sorted = [...cycles].sort((first, second) => {
+      const first_key =
+        cycle_last_run.get(String(first.id)) || new Date(first.created_at).getTime()
+      const second_key =
+        cycle_last_run.get(String(second.id)) || new Date(second.created_at).getTime()
+      return second_key - first_key
+    })
+
     if (role !== "finance") {
-      return cycles
+      return sorted
     }
-    return cycles.filter((cycle) => pending_approvals_by_cycle.has(String(cycle.id)))
-  }, [cycles, pending_approvals_by_cycle, role])
+    return sorted.filter((cycle) => pending_approvals_by_cycle.has(String(cycle.id)))
+  }, [cycles, pending_approvals_by_cycle, role, runs, scripts_by_id])
+  const run_stage = run_environment === "test" ? "test" : "post_live"
+  const run_stage_label = run_stage === "test" ? "Test" : "Post-live"
+  const run_stage_approval = useMemo(() => {
+    if (!run_cycle_id) {
+      return null
+    }
+    return approvals.find(
+      (approval) =>
+        String(approval.billing_cycle_id) === run_cycle_id && approval.stage === run_stage
+    )
+  }, [approvals, run_cycle_id, run_stage])
+  const run_stage_scripts = useMemo(() => {
+    if (!run_cycle_id) {
+      return []
+    }
+    return scripts.filter(
+      (script) =>
+        String(script.billing_cycle_id) === run_cycle_id && script.environment === run_environment
+    )
+  }, [scripts, run_cycle_id, run_environment])
+  const run_stage_ready = useMemo(() => {
+    if (!run_cycle_id || run_stage_scripts.length === 0) {
+      return false
+    }
+    const has_required = ["preparation", "printing"].every((script_type) =>
+      run_stage_scripts.some((script) => script.script_type === script_type)
+    )
+    if (!has_required) {
+      return false
+    }
+    return run_stage_scripts.every((script) => {
+      const run = runs_by_script_id.get(String(script.id))
+      return run?.status === "executed"
+    })
+  }, [run_cycle_id, run_stage_scripts, runs_by_script_id])
+  const can_request_run_stage = useMemo(() => {
+    if (!run_stage_ready) {
+      return false
+    }
+    if (!run_stage_approval) {
+      return true
+    }
+    return !["pending", "approved"].includes(run_stage_approval.status)
+  }, [run_stage_ready, run_stage_approval])
+  const run_stage_request_label = useMemo(() => {
+    if (!run_cycle_id) {
+      return "Select a cycle to request approval"
+    }
+    if (!run_stage_ready) {
+      return "Execute all preparation and printing scripts first"
+    }
+    if (run_stage_approval?.status === "pending") {
+      return "Approval already requested"
+    }
+    if (run_stage_approval?.status === "approved") {
+      return "Approval already granted"
+    }
+    return `Request ${run_stage_label} approval`
+  }, [run_cycle_id, run_stage_ready, run_stage_approval, run_stage_label])
+  const test_approval = useMemo(() => {
+    if (!script_form.billing_cycle_id) {
+      return null
+    }
+    return approvals_by_cycle_stage.get(`${script_form.billing_cycle_id}:test`)
+  }, [approvals_by_cycle_stage, script_form.billing_cycle_id])
+  const live_generation_blocked =
+    script_form.environment === "live" && test_approval?.status !== "approved"
+  const post_live_approval = useMemo(() => {
+    if (!notification_form.billing_cycle_id) {
+      return null
+    }
+    return approvals_by_cycle_stage.get(`${notification_form.billing_cycle_id}:post_live`)
+  }, [approvals_by_cycle_stage, notification_form.billing_cycle_id])
+  const notification_blocked = post_live_approval?.status !== "approved"
+
+  if (!is_authenticated) {
+    return (
+      <div className="login-shell">
+        <div className="login-card">
+          <div className="brand">
+            <div className="brand-mark">BL</div>
+            <div>
+              <p className="brand-title">Billing Ledger</p>
+              <p className="brand-subtitle">Automation Hub</p>
+            </div>
+          </div>
+          <div className="login-body">
+            <h2>Sign in</h2>
+            <p>Choose your role to access the workspace.</p>
+            <form
+              className="form-grid"
+              onSubmit={(event) => {
+                event.preventDefault()
+                set_role(login_form.role)
+                set_is_authenticated(true)
+                set_active_view("overview")
+              }}
+            >
+              <label>
+                Display name
+                <input
+                  value={login_form.display_name}
+                  onChange={(event) =>
+                    set_login_form((previous) => ({
+                      ...previous,
+                      display_name: event.target.value,
+                    }))
+                  }
+                  placeholder="Billing User"
+                />
+              </label>
+              <label>
+                Role
+                <select
+                  value={login_form.role}
+                  onChange={(event) =>
+                    set_login_form((previous) => ({
+                      ...previous,
+                      role: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="billing">Billing</option>
+                  <option value="finance">Finance</option>
+                  <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </label>
+              <button className="primary-button" type="submit">
+                Enter dashboard
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -385,7 +723,7 @@ function App() {
           </div>
         </div>
         <nav className="nav">
-          {nav_items.map((item) => (
+          {visible_nav_items.map((item) => (
             <button
               className={`nav-item ${active_view === item.id ? "active" : ""}`}
               key={item.id}
@@ -401,16 +739,17 @@ function App() {
             <p className="footer-label">Current role</p>
             <p className="footer-value">{role}</p>
           </div>
-          <select
-            className="select-inline"
-            value={role}
-            onChange={(event) => set_role(event.target.value)}
+          <button
+            className="ghost-button"
+            type="button"
+            onClick={() => {
+              set_is_authenticated(false)
+              set_role("billing")
+              set_login_form({ role: "billing", display_name: "" })
+            }}
           >
-            <option value="billing">Billing</option>
-            <option value="finance">Finance</option>
-            <option value="admin">Admin</option>
-            <option value="viewer">Viewer</option>
-          </select>
+            Sign out
+          </button>
         </div>
       </aside>
 
@@ -433,6 +772,15 @@ function App() {
         </header>
 
         {error_message ? <div className="alert error">{error_message}</div> : null}
+        {role === "billing" && approval_notifications.length > 0 ? (
+          <div className="alert info">
+            {approval_notifications.map((approval) => (
+              <div key={approval.id}>
+                Approval granted for {approval.stage} on cycle {approval.billing_cycle_id.slice(0, 8)}.
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {active_view === "overview" && (
           <>
@@ -446,33 +794,39 @@ function App() {
             </section>
 
             <section className="content-grid">
-              <div className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>Recent Scripts</h2>
-                    <p>Latest definitions for the current workspace.</p>
-                  </div>
-                  <button className="secondary-button" type="button" onClick={() => set_active_view("scripts")}>
-                    Generate scripts
-                  </button>
-                </div>
-                <div className="table">
-                  <div className="table-row table-head">
-                    <span>Script</span>
-                    <span>Environment</span>
-                    <span>Cycle</span>
-                    <span>Created</span>
-                  </div>
-                  {overview_runs.map((run) => (
-                    <div className="table-row" key={run.id}>
-                      <span>{run.script_type}</span>
-                      <span>{run.environment}</span>
-                      <span>{run.log_type}</span>
-                      <span>{new Date(run.created_at).toLocaleString()}</span>
+              {role !== "finance" && (
+                <div className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h2>Recent Scripts</h2>
+                      <p>Latest definitions for the current workspace.</p>
                     </div>
-                  ))}
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => set_active_view("scripts")}
+                    >
+                      Generate scripts
+                    </button>
+                  </div>
+                  <div className="table">
+                    <div className="table-row table-head">
+                      <span>Script</span>
+                      <span>Environment</span>
+                      <span>Cycle</span>
+                      <span>Created</span>
+                    </div>
+                    {overview_runs.map((run) => (
+                      <div className="table-row" key={run.id}>
+                        <span>{run.script_type}</span>
+                        <span>{run.environment}</span>
+                        <span>{run.log_type}</span>
+                        <span>{new Date(run.created_at).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="panel">
                 <div className="panel-header">
@@ -570,8 +924,8 @@ function App() {
               </div>
               {cycles.map((cycle) => (
                 <div className="table-row" key={cycle.id}>
-                  <span>{cycle.usage_month}</span>
-                  <span>{cycle.billing_month}</span>
+                  <span>{format_month_label(cycle.usage_month)}</span>
+                  <span>{format_month_label(cycle.billing_month)}</span>
                   <span className="pill neutral">{cycle.status}</span>
                   <span>{new Date(cycle.created_at).toLocaleString()}</span>
                 </div>
@@ -603,7 +957,7 @@ function App() {
                   <option value="">Select a cycle</option>
                   {cycles.map((cycle) => (
                     <option key={cycle.id} value={cycle.id}>
-                      {cycle.usage_month} → {cycle.billing_month}
+                      {format_month_label(cycle.usage_month)} - {format_month_label(cycle.billing_month)}
                     </option>
                   ))}
                 </select>
@@ -638,18 +992,36 @@ function App() {
                   <option value="printing">Printing</option>
                 </select>
               </label>
-              {script_form.script_type === "printing" && (
-                <label>
-                  P6 Billing Run UID
+              <label className="full">
+                <div className="toggle-row">
                   <input
-                    value={script_form.p6}
-                    onChange={(event) =>
-                      set_script_form((previous) => ({ ...previous, p6: event.target.value }))
-                    }
-                    placeholder="billing_run_uid"
-                    required
+                    id="use-default-params"
+                    type="checkbox"
+                    checked={use_default_params}
+                    onChange={(event) => set_use_default_params(event.target.checked)}
                   />
-                </label>
+                  <span>Use default parameters</span>
+                </div>
+              </label>
+              {!use_default_params && (
+                <div className="parameter-grid">
+                  {Object.keys(parameter_overrides).map((key) => (
+                    <label key={key}>
+                      {key.toUpperCase()}
+                      <input
+                        value={parameter_overrides[key]}
+                        onChange={(event) =>
+                          set_parameter_overrides((previous) => ({
+                            ...previous,
+                            [key]: event.target.value,
+                          }))
+                        }
+                        placeholder={key.toUpperCase()}
+                        required={script_form.script_type === "printing" && key === "p6"}
+                      />
+                    </label>
+                  ))}
+                </div>
               )}
               <div className="full">
                 <p className="helper">Cycle types</p>
@@ -672,20 +1044,24 @@ function App() {
                 </div>
               </div>
               <div className="form-actions">
-                <button className="primary-button" type="submit">
+                <button className="primary-button" type="submit" disabled={live_generation_blocked}>
                   Generate scripts
                 </button>
-                <button className="secondary-button" type="button" onClick={handle_export}>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={handle_export}
+                  disabled={live_generation_blocked}
+                >
                   Export grouped file
                 </button>
               </div>
             </form>
-            <div className="table-meta">
-              <span>
-                Showing <strong>{filtered_scripts.length}</strong> scripts
-                {script_form.billing_cycle_id ? " for the selected cycle" : ""}.
-              </span>
-            </div>
+            {live_generation_blocked && script_form.billing_cycle_id ? (
+              <div className="alert warning">
+                Test approval is required before generating live scripts.
+              </div>
+            ) : null}
             <div className="table">
               <div className="table-row table-head">
                 <span>Cycle & Command</span>
@@ -696,7 +1072,7 @@ function App() {
               {filtered_scripts.map((script) => {
                 const cycle = cycles_by_id.get(String(script.billing_cycle_id))
                 const cycle_label = cycle
-                  ? `${cycle.usage_month} → ${cycle.billing_month}`
+                  ? `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
                   : script.billing_cycle_id.slice(0, 8)
                 return (
                   <div className="table-row" key={script.id}>
@@ -711,6 +1087,11 @@ function App() {
                 )
               })}
             </div>
+            {last_generated_count !== null ? (
+              <div className="alert info">
+                Generated {last_generated_count} scripts for the selected run.
+              </div>
+            ) : null}
           </section>
         )}
 
@@ -732,7 +1113,7 @@ function App() {
                     const stage_label = pending ? ` (${pending.stage})` : ""
                     return (
                       <option key={cycle.id} value={cycle.id}>
-                        {cycle.usage_month} → {cycle.billing_month}{stage_label}
+                        {format_month_label(cycle.usage_month)} - {format_month_label(cycle.billing_month)}{stage_label}
                       </option>
                     )
                   })}
@@ -765,6 +1146,19 @@ function App() {
                 Live
               </button>
             </div>
+            {role !== "finance" && role !== "viewer" && run_cycle_id ? (
+              <div className="run-approval-row">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={handle_run_stage_request}
+                  disabled={!can_request_run_stage}
+                >
+                  {run_stage_label} approval
+                </button>
+                <span className="run-approval-note">{run_stage_request_label}</span>
+              </div>
+            ) : null}
             <div className="table">
               <div className="table-row table-head runs">
                 <span>Cycle</span>
@@ -780,7 +1174,7 @@ function App() {
                 run_scripts.map((script) => {
                   const cycle = cycles_by_id.get(String(script.billing_cycle_id))
                   const cycle_label = cycle
-                    ? `${cycle.usage_month} → ${cycle.billing_month}`
+                    ? `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
                     : String(script.billing_cycle_id).slice(0, 8)
                   const run = runs_by_script_id.get(String(script.id))
                   const current_status = run?.status || "planned"
@@ -838,7 +1232,7 @@ function App() {
                     <option value="">Select a cycle</option>
                     {cycles.map((cycle) => (
                       <option key={cycle.id} value={cycle.id}>
-                        {cycle.usage_month} → {cycle.billing_month}
+                        {format_month_label(cycle.usage_month)} - {format_month_label(cycle.billing_month)}
                       </option>
                     ))}
                   </select>
@@ -852,6 +1246,7 @@ function App() {
                         ...previous,
                         stage: event.target.value,
                       }))
+                    }
                   >
                     <option value="test">Test</option>
                     <option value="post_live">Post-live</option>
@@ -866,6 +1261,7 @@ function App() {
                         ...previous,
                         comments: event.target.value,
                       }))
+                    }
                   />
                 </label>
                 <button className="primary-button" type="submit">
@@ -888,6 +1284,7 @@ function App() {
                         ...previous,
                         billing_cycle_id: selected_id,
                         stage: selected?.stage || previous.stage,
+                        status: "approved",
                       }))
                     }}
                   >
@@ -895,7 +1292,7 @@ function App() {
                     {pending_approvals.map((approval) => {
                       const cycle = cycles_by_id.get(String(approval.billing_cycle_id))
                       const label = cycle
-                        ? `${cycle.usage_month} → ${cycle.billing_month}`
+                        ? `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
                         : approval.billing_cycle_id.slice(0, 8)
                       return (
                         <option key={approval.id} value={approval.billing_cycle_id}>
@@ -1005,7 +1402,7 @@ function App() {
                   <option value="">Select a cycle</option>
                   {cycles.map((cycle) => (
                     <option key={cycle.id} value={cycle.id}>
-                      {cycle.usage_month} → {cycle.billing_month}
+                      {format_month_label(cycle.usage_month)} - {format_month_label(cycle.billing_month)}
                     </option>
                   ))}
                 </select>
@@ -1069,6 +1466,11 @@ function App() {
                 Send notification
               </button>
             </form>
+            {notification_form.billing_cycle_id && notification_blocked ? (
+              <div className="alert warning">
+                Post-live approval is required before sending notifications.
+              </div>
+            ) : null}
             <div className="table">
               <div className="table-row table-head">
                 <span>Recipient</span>
@@ -1115,6 +1517,20 @@ function App() {
                   <span>{new Date(entry.created_at).toLocaleString()}</span>
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {active_view === "documentation" && (
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>Billing Process Documentation</h2>
+                <p>Reference guide for billing operations.</p>
+              </div>
+            </div>
+            <div className="doc-content markdown">
+              <ReactMarkdown>{billingProcessDoc}</ReactMarkdown>
             </div>
           </section>
         )}
