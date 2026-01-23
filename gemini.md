@@ -158,4 +158,4 @@
 ```
 
 ## Context Handoff
-- Added run creation endpoint and UI wiring; updated README with run creation and noted bulk updates as a gap.
+- Added GitHub Actions CI/CD workflow with deployment metadata artifact; updated README CI/CD section.

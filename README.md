@@ -234,7 +234,16 @@ Not applicable. Deployment workflows are not configured yet.
 - Restart policy: TBD
 
 ## 13. CI/CD
-Not applicable. No CI/CD workflows exist yet.
+GitHub Actions workflow: `.github/workflows/ci.yml`
+
+- Runs backend dependency install and smoke check
+- Builds the frontend
+- Deploy job (manual trigger) emits deployment visibility metadata:
+  - app name
+  - version/commit hash
+  - deploy timestamp (UTC)
+  - environment
+  - health status
 
 ## 14. Operations and Monitoring
 Not applicable. No monitoring or health dashboards are wired up yet.

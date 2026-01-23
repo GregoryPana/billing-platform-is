@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Backend smoke check
+        run: |
+          cd backend
+          python -m py_compile app/main.py
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Frontend build
+        run: |
+          cd frontend
+          npm run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Emit deployment metadata
+        env:
+          APP_NAME: billing-platform
+          ENVIRONMENT: production
+        run: |
+          echo "app_name=${APP_NAME}" | tee deploy_metadata.txt
+          echo "version=${GITHUB_SHA}" | tee -a deploy_metadata.txt
+          echo "deploy_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" | tee -a deploy_metadata.txt
+          echo "environment=${ENVIRONMENT}" | tee -a deploy_metadata.txt
+          echo "health_status=unknown" | tee -a deploy_metadata.txt
+
+      - name: Upload deployment metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy_metadata
+          path: deploy_metadata.txt
