@@ -14,7 +14,7 @@ const nav_items = [
   { id: "admin", label: "Admin" },
 ]
 
-const log_types = [
+const cycle_types = [
   "I1A",
   "M1B",
   "M1C",
@@ -65,6 +65,10 @@ function App() {
     subject: "",
     message: "",
   })
+  const [run_environment, set_run_environment] = useState("test")
+  const [run_cycle_id, set_run_cycle_id] = useState("")
+  const [run_script_type, set_run_script_type] = useState("preparation")
+  const [run_status_overrides, set_run_status_overrides] = useState({})
 
   const status_cards = useMemo(() => {
     const pending_approvals = approvals.filter((item) => item.status === "pending").length
@@ -161,7 +165,7 @@ function App() {
   const handle_select_all_cycles = () => {
     set_script_form((previous) => ({
       ...previous,
-      log_types: previous.log_types.length === log_types.length ? [] : [...log_types],
+      log_types: previous.log_types.length === cycle_types.length ? [] : [...cycle_types],
     }))
   }
 
@@ -251,15 +255,40 @@ function App() {
     }
   }
 
-  const handle_run_submit = async (event) => {
-    event.preventDefault()
+  const handle_run_status_change = async (script_id, status) => {
+    set_run_status_overrides((previous) => ({
+      ...previous,
+      [script_id]: status,
+    }))
+    const run = runs_by_script_id.get(script_id)
     try {
-      await api_fetch(
-        "/runs/",
-        { method: "POST", body: JSON.stringify(run_form) },
-        role
-      )
-      set_run_form({ script_definition_id: "", status: "planned", notes: "" })
+      if (run) {
+        await api_fetch(
+          "/runs/",
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              script_run_id: run.id,
+              status,
+              notes: run.notes || "",
+            }),
+          },
+          role
+        )
+      } else {
+        await api_fetch(
+          "/runs/",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              script_definition_id: script_id,
+              status,
+              notes: "",
+            }),
+          },
+          role
+        )
+      }
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -267,6 +296,46 @@ function App() {
   }
 
   const overview_runs = scripts.slice(0, 6)
+  const cycles_by_id = useMemo(
+    () => new Map(cycles.map((cycle) => [String(cycle.id), cycle])),
+    [cycles]
+  )
+  const scripts_by_id = useMemo(
+    () => new Map(scripts.map((script) => [String(script.id), script])),
+    [scripts]
+  )
+  const runs_by_script_id = useMemo(
+    () => new Map(runs.map((run) => [String(run.script_definition_id), run])),
+    [runs]
+  )
+  const filtered_scripts = useMemo(() => {
+    const selected_cycle = script_form.billing_cycle_id
+    const selected_environment = script_form.environment
+    const selected_type = script_form.script_type
+    if (!selected_cycle) {
+      return scripts
+    }
+    return scripts.filter(
+      (script) =>
+        String(script.billing_cycle_id) === selected_cycle &&
+        script.environment === selected_environment &&
+        script.script_type === selected_type
+    )
+  }, [scripts, script_form.billing_cycle_id, script_form.environment, script_form.script_type])
+  const run_scripts = useMemo(() => {
+    return scripts.filter((script) => {
+      if (script.environment !== run_environment) {
+        return false
+      }
+      if (script.script_type !== run_script_type) {
+        return false
+      }
+      if (!run_cycle_id) {
+        return true
+      }
+      return String(script.billing_cycle_id) === run_cycle_id
+    })
+  }, [scripts, run_environment, run_script_type, run_cycle_id])
 
   return (
     <div className="app-shell">
@@ -354,7 +423,7 @@ function App() {
                   <div className="table-row table-head">
                     <span>Script</span>
                     <span>Environment</span>
-                    <span>Log</span>
+                    <span>Cycle</span>
                     <span>Created</span>
                   </div>
                   {overview_runs.map((run) => (
@@ -479,7 +548,7 @@ function App() {
             <div className="panel-header">
               <div>
                 <h2>Script Generation</h2>
-                <p>Select a cycle, environment, and log types to generate commands.</p>
+                <p>Select a cycle, environment, and cycle types to generate commands.</p>
               </div>
             </div>
             <form className="form-grid" onSubmit={handle_script_submit}>
@@ -546,21 +615,21 @@ function App() {
                 </label>
               )}
               <div className="full">
-                <p className="helper">Log types</p>
+                <p className="helper">Cycle types</p>
                 <div className="select-all-row">
                   <button className="secondary-button" type="button" onClick={handle_select_all_cycles}>
-                    {script_form.log_types.length === log_types.length ? "Clear all" : "Select all cycles"}
+                    {script_form.log_types.length === cycle_types.length ? "Clear all" : "Select all cycles"}
                   </button>
                 </div>
                 <div className="checkbox-grid">
-                  {log_types.map((log) => (
-                    <label key={log} className="checkbox-pill">
+                  {cycle_types.map((cycle) => (
+                    <label key={cycle} className="checkbox-pill">
                       <input
                         type="checkbox"
-                        checked={script_form.log_types.includes(log)}
-                        onChange={() => handle_script_toggle(log)}
+                        checked={script_form.log_types.includes(cycle)}
+                        onChange={() => handle_script_toggle(cycle)}
                       />
-                      <span>{log}</span>
+                      <span>{cycle}</span>
                     </label>
                   ))}
                 </div>
@@ -574,21 +643,36 @@ function App() {
                 </button>
               </div>
             </form>
+            <div className="table-meta">
+              <span>
+                Showing <strong>{filtered_scripts.length}</strong> scripts
+                {script_form.billing_cycle_id ? " for the selected cycle" : ""}.
+              </span>
+            </div>
             <div className="table">
               <div className="table-row table-head">
-                <span>Command</span>
+                <span>Cycle & Command</span>
                 <span>Environment</span>
-                <span>Log</span>
+                <span>Cycle Type</span>
                 <span>Created</span>
               </div>
-              {scripts.map((script) => (
-                <div className="table-row" key={script.id}>
-                  <span className="mono">{script.command_text}</span>
-                  <span>{script.environment}</span>
-                  <span>{script.log_type}</span>
-                  <span>{new Date(script.created_at).toLocaleString()}</span>
-                </div>
-              ))}
+              {filtered_scripts.map((script) => {
+                const cycle = cycles_by_id.get(String(script.billing_cycle_id))
+                const cycle_label = cycle
+                  ? `${cycle.usage_month} → ${cycle.billing_month}`
+                  : script.billing_cycle_id.slice(0, 8)
+                return (
+                  <div className="table-row" key={script.id}>
+                    <div className="stacked-cell">
+                      <span>{cycle_label}</span>
+                      <span className="mono">{script.command_text}</span>
+                    </div>
+                    <span>{script.environment}</span>
+                    <span>{script.log_type}</span>
+                    <span>{new Date(script.created_at).toLocaleString()}</span>
+                  </div>
+                )
+              })}
             </div>
           </section>
         )}
@@ -598,76 +682,90 @@ function App() {
             <div className="panel-header">
               <div>
                 <h2>Runs Tracking</h2>
-                <p>Create and update execution records for generated scripts.</p>
+                <p>Track completion by cycle, environment, and script type.</p>
               </div>
             </div>
-            <form className="form-grid" onSubmit={handle_run_submit}>
+            <div className="form-grid">
               <label>
-                Script definition
-                <select
-                  value={run_form.script_definition_id}
-                  onChange={(event) =>
-                    set_run_form((previous) => ({
-                      ...previous,
-                      script_definition_id: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="">Select a script</option>
-                  {scripts.map((script) => (
-                    <option key={script.id} value={script.id}>
-                      {script.environment} {script.script_type} {script.log_type}
+                Billing cycle
+                <select value={run_cycle_id} onChange={(event) => set_run_cycle_id(event.target.value)}>
+                  <option value="">All cycles</option>
+                  {cycles.map((cycle) => (
+                    <option key={cycle.id} value={cycle.id}>
+                      {cycle.usage_month} → {cycle.billing_month}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Status
+                Script type
                 <select
-                  value={run_form.status}
-                  onChange={(event) =>
-                    set_run_form((previous) => ({
-                      ...previous,
-                      status: event.target.value,
-                    }))
-                  }
+                  value={run_script_type}
+                  onChange={(event) => set_run_script_type(event.target.value)}
                 >
-                  <option value="planned">Planned</option>
-                  <option value="executed">Executed</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="preparation">Preparation</option>
+                  <option value="printing">Printing</option>
                 </select>
               </label>
-              <label className="full">
-                Notes
-                <textarea
-                  value={run_form.notes}
-                  onChange={(event) =>
-                    set_run_form((previous) => ({
-                      ...previous,
-                      notes: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <button className="primary-button" type="submit">
-                Log run
+            </div>
+            <div className="tab-row">
+              <button
+                className={`tab-button ${run_environment === "test" ? "active" : ""}`}
+                type="button"
+                onClick={() => set_run_environment("test")}
+              >
+                Test
               </button>
-            </form>
+              <button
+                className={`tab-button ${run_environment === "live" ? "active" : ""}`}
+                type="button"
+                onClick={() => set_run_environment("live")}
+              >
+                Live
+              </button>
+            </div>
             <div className="table">
-              <div className="table-row table-head">
-                <span>Script</span>
+              <div className="table-row table-head runs">
+                <span>Cycle</span>
+                <span>Cycle Type</span>
                 <span>Status</span>
-                <span>Run time</span>
-                <span>Notes</span>
+                <span>Executed</span>
               </div>
-              {runs.map((run) => (
-                <div className="table-row" key={run.id}>
-                  <span>{run.script_definition_id.slice(0, 8)}</span>
-                  <span className="pill neutral">{run.status}</span>
-                  <span>{run.run_timestamp ? new Date(run.run_timestamp).toLocaleString() : "-"}</span>
-                  <span>{run.notes || "-"}</span>
-                </div>
-              ))}
+              {!run_cycle_id ? (
+                <div className="empty-state">Select a billing cycle to view run status.</div>
+              ) : run_scripts.length === 0 ? (
+                <div className="empty-state">No scripts found for this selection yet.</div>
+              ) : (
+                run_scripts.map((script) => {
+                  const cycle = cycles_by_id.get(String(script.billing_cycle_id))
+                  const cycle_label = cycle
+                    ? `${cycle.usage_month} → ${cycle.billing_month}`
+                    : String(script.billing_cycle_id).slice(0, 8)
+                  const run = runs_by_script_id.get(String(script.id))
+                  const current_status = run?.status || "planned"
+                  const selected_status =
+                    run_status_overrides[String(script.id)] || current_status
+                  const status_class = `status-select ${selected_status}`
+                  return (
+                    <div className="table-row runs" key={script.id}>
+                      <span>{cycle_label}</span>
+                      <span>{script.log_type}</span>
+                      <select
+                        className={`select-inline ${status_class}`}
+                        value={selected_status}
+                        onChange={(event) =>
+                          handle_run_status_change(String(script.id), event.target.value)
+                        }
+                      >
+                        <option value="planned">Planned</option>
+                        <option value="executed">Executed</option>
+                        <option value="failed">Failed</option>
+                      </select>
+                      <span>{run?.run_timestamp ? new Date(run.run_timestamp).toLocaleString() : "-"}</span>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </section>
         )}

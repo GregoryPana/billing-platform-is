@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -36,29 +36,27 @@ def generate_scripts(
     if payload.environment.lower() == "live":
         ensure_test_approved(db, payload.billing_cycle_id)
 
-    existing_definitions = list(
-        db.scalars(
-            select(ScriptDefinition).where(
-                ScriptDefinition.billing_cycle_id == payload.billing_cycle_id,
-                ScriptDefinition.environment == payload.environment.lower(),
-                ScriptDefinition.script_type == payload.script_type.lower(),
-            )
+    target_definitions = select(ScriptDefinition.id).where(
+        ScriptDefinition.billing_cycle_id == payload.billing_cycle_id,
+        ScriptDefinition.environment == payload.environment.lower(),
+        ScriptDefinition.script_type == payload.script_type.lower(),
+    )
+    db.execute(delete(ScriptRun).where(ScriptRun.script_definition_id.in_(target_definitions)))
+    db.execute(
+        delete(ScriptDefinition).where(
+            ScriptDefinition.billing_cycle_id == payload.billing_cycle_id,
+            ScriptDefinition.environment == payload.environment.lower(),
+            ScriptDefinition.script_type == payload.script_type.lower(),
         )
     )
-    if existing_definitions:
-        existing_ids = [definition.id for definition in existing_definitions]
-        db.query(ScriptRun).filter(ScriptRun.script_definition_id.in_(existing_ids)).delete(
-            synchronize_session=False
-        )
-        db.query(ScriptDefinition).filter(ScriptDefinition.id.in_(existing_ids)).delete(
-            synchronize_session=False
-        )
-        db.query(GeneratedFile).filter(
+    db.execute(
+        delete(GeneratedFile).where(
             GeneratedFile.billing_cycle_id == payload.billing_cycle_id,
             GeneratedFile.environment == payload.environment.lower(),
             GeneratedFile.script_type == payload.script_type.lower(),
-        ).delete(synchronize_session=False)
-        db.commit()
+        )
+    )
+    db.commit()
 
     created_scripts: list[ScriptDefinition] = []
     log_types = payload.log_types
@@ -84,6 +82,15 @@ def generate_scripts(
             created_at=utc_plus_4_now(),
         )
         db.add(definition)
+        db.flush()
+        db.add(
+            ScriptRun(
+                script_definition_id=definition.id,
+                status="planned",
+                run_by=actor.id,
+                created_at=utc_plus_4_now(),
+            )
+        )
         created_scripts.append(definition)
 
     db.commit()

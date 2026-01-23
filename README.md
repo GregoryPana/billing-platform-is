@@ -18,11 +18,12 @@ The Billing Collaboration Platform is a web application for creating billing com
 **Frontend**
 - Role-based navigation for billing, finance, admin, and viewer users
 - Dashboard with cycle status, approvals, and run summaries
-- Tables for script runs and approvals queue
+- Tables for script runs and approvals queue, filtered by cycle, environment, and script type
 
 **Backend**
 - FastAPI endpoints for cycles, scripts, runs, approvals, notifications, and audit logs
 - Approval gates to prevent live actions without test approval
+- Script generation auto-creates planned run records per cycle type
 - UTC+4 timezone handling for all timestamps
 
 **Data**
@@ -43,10 +44,11 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 
 **Data flow**
 1. Billing creates a cycle and generates test scripts.
-2. Billing records test runs and requests finance approval.
-3. Finance approves test stage, enabling live script generation.
-4. Billing records live runs and requests post-live approval.
-5. Finance approves post-live, enabling notifications and closure.
+2. Script generation creates planned run records for each cycle type.
+3. Billing marks runs executed/failed and requests finance approval.
+4. Finance approves test stage, enabling live script generation.
+5. Billing marks live runs and requests post-live approval.
+6. Finance approves post-live, enabling notifications and closure.
 
 ## 4. Tech Stack
 - Frontend: React + Vite
@@ -88,7 +90,7 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 
 **Main flows**
 - Overview dashboard for billing activity and approvals
-- Runs tracking table and approval queue
+- Runs tracking table filtered by cycle/environment/script type and approval queue
 
 **State management**
 - React component state (scaffolded)
@@ -139,9 +141,9 @@ All endpoints are under `/api`.
 **Runs**
 - `GET /runs` → list script runs
 - `POST /runs` → create a run record
-  - Body: `{ "script_definition_id": "uuid", "status": "planned|executed|cancelled", "notes": "..." }`
+  - Body: `{ "script_definition_id": "uuid", "status": "planned|executed|failed", "notes": "..." }`
 - `PATCH /runs` → update run status
-  - Body: `{ "script_run_id": "uuid", "status": "planned|executed|cancelled", "notes": "..." }`
+  - Body: `{ "script_run_id": "uuid", "status": "planned|executed|failed", "notes": "..." }`
 
 **Approvals**
 - `GET /approvals` → list approvals
@@ -254,7 +256,7 @@ Not applicable. No monitoring or health dashboards are wired up yet.
 - **Notification blocked**: Post-live approval must be recorded first.
 
 ## 16. Change Guide
-- **Add a new log type**: update UI list and backend generation defaults in `backend/app/services/command_service.py`.
+- **Add a new cycle type**: update UI list and backend generation defaults in `backend/app/services/command_service.py`.
 - **Update approval stages**: update `backend/app/services/workflow_service.py` and cycle statuses.
 - **Add a new role**: update role checks in `backend/app/services/auth_service.py`.
 
@@ -277,7 +279,7 @@ Not specified.
 1. **Overview**: Review the active cycle, pending approvals, and recent runs.
 2. **Billing Cycles**: Create a cycle with usage/billing months.
 3. **Script Generation**: Generate test scripts first; live scripts require finance approval.
-4. **Runs Tracking**: Mark scripts as planned or executed to keep audit history.
+4. **Runs Tracking**: Select a cycle and mark scripts as planned, executed, or failed to keep audit history.
 5. **Approvals**: Finance users approve test, live, or post-live stages.
 6. **Notifications**: After post-live approval, queue notifications for distribution.
 7. **Audit Log**: Review all actions recorded by user or system.
