@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import ReactMarkdown from "react-markdown"
 
 import { api_base_url, api_fetch } from "./api"
@@ -54,13 +54,14 @@ const format_cycle_datetime = (value) => {
   }
   const first = new Date(year, month - 1, 1)
   const last = new Date(year, month, 0)
+  const thirtieth = new Date(year, month - 1, Math.min(30, last.getDate()))
   const format = (date) => {
     const yyyy = date.getFullYear()
     const mm = String(date.getMonth() + 1).padStart(2, "0")
     const dd = String(date.getDate()).padStart(2, "0")
     return `${yyyy}_${mm}_${dd} 00:00:00`
   }
-  return { first: format(first), last: format(last) }
+  return { first: format(first), last: format(last), thirtieth: format(thirtieth) }
 }
 
 const build_default_parameters = (script_type, environment, cycle_month) => {
@@ -81,7 +82,7 @@ const build_default_parameters = (script_type, environment, cycle_month) => {
   return {
     p1: "{cycle}",
     p2: environment === "test" ? "T" : "N",
-    p3: bounds?.last || "YYYY_MM_DD 00:00:00",
+    p3: bounds?.thirtieth || "YYYY_MM_DD 00:00:00",
     p4: "28",
     p5: "2",
     p6: "",
@@ -199,18 +200,17 @@ function App() {
         "runs",
         "approvals",
         "notifications",
-        "audit",
         "documentation",
       ],
       finance: ["overview", "approvals"],
       admin: ["overview", "cycles", "scripts", "runs", "approvals", "notifications", "audit", "admin"],
-      viewer: ["overview", "runs", "approvals", "audit"],
+      viewer: ["overview", "runs", "approvals"],
     }
     const allowed = new Set(role_permissions[role] || [])
     return nav_items.filter((item) => allowed.has(item.id))
   }, [role])
 
-  const reload_all = async () => {
+  const reload_all = useCallback(async () => {
     try {
       set_error_message("")
       const [
@@ -245,11 +245,13 @@ function App() {
     } catch (error) {
       set_error_message(error.message)
     }
-  }
+  }, [role])
 
   useEffect(() => {
     reload_all()
-  }, [role])
+    const interval = setInterval(reload_all, 30000)
+    return () => clearInterval(interval)
+  }, [reload_all])
 
   useEffect(() => {
     if (role !== "billing") {
@@ -317,7 +319,9 @@ function App() {
     event.preventDefault()
     try {
       const overrides = use_default_params
-        ? undefined
+        ? parameter_overrides.p6
+          ? { p6: parameter_overrides.p6 }
+          : undefined
         : Object.fromEntries(
             Object.entries(parameter_overrides).filter(([, value]) => value !== "")
           )
@@ -483,7 +487,21 @@ function App() {
     }
   }
 
-  const overview_runs = scripts.slice(0, 6)
+  const overview_runs = useMemo(() => {
+    const status_priority = { failed: 0, planned: 1, executed: 2 }
+    return [...runs]
+      .sort((first, second) => {
+        const first_priority = status_priority[first.status] ?? 3
+        const second_priority = status_priority[second.status] ?? 3
+        if (first_priority !== second_priority) {
+          return first_priority - second_priority
+        }
+        const first_time = new Date(first.run_timestamp || first.created_at).getTime()
+        const second_time = new Date(second.run_timestamp || second.created_at).getTime()
+        return second_time - first_time
+      })
+      .slice(0, 6)
+  }, [runs])
   const cycles_by_id = useMemo(
     () => new Map(cycles.map((cycle) => [String(cycle.id), cycle])),
     [cycles]
@@ -798,32 +816,59 @@ function App() {
                 <div className="panel">
                   <div className="panel-header">
                     <div>
-                      <h2>Recent Scripts</h2>
-                      <p>Latest definitions for the current workspace.</p>
+                      <h2>Recent Billing Runs</h2>
+                      <p>Latest execution status updates.</p>
                     </div>
                     <button
                       className="secondary-button"
                       type="button"
-                      onClick={() => set_active_view("scripts")}
+                      onClick={() => set_active_view("runs")}
                     >
-                      Generate scripts
+                      Review runs
                     </button>
                   </div>
                   <div className="table">
                     <div className="table-row table-head">
-                      <span>Script</span>
-                      <span>Environment</span>
                       <span>Cycle</span>
-                      <span>Created</span>
+                      <span>Cycle Type</span>
+                      <span>Script</span>
+                      <span>Status</span>
+                      <span>Updated</span>
                     </div>
-                    {overview_runs.map((run) => (
-                      <div className="table-row" key={run.id}>
-                        <span>{run.script_type}</span>
-                        <span>{run.environment}</span>
-                        <span>{run.log_type}</span>
-                        <span>{new Date(run.created_at).toLocaleString()}</span>
-                      </div>
-                    ))}
+                    {overview_runs.map((run) => {
+                      const script = scripts_by_id.get(String(run.script_definition_id))
+                      const cycle = script ? cycles_by_id.get(String(script.billing_cycle_id)) : null
+                      const cycle_label = cycle
+                        ? `${format_month_label(cycle.usage_month)} - ${format_month_label(
+                            cycle.billing_month
+                          )}`
+                        : script?.billing_cycle_id
+                        ? String(script.billing_cycle_id).slice(0, 8)
+                        : "-"
+                      return (
+                        <div className="table-row" key={run.id}>
+                          <span>{cycle_label}</span>
+                          <span>{script?.log_type || "-"}</span>
+                          <span>{script?.script_type || "-"}</span>
+                          <span
+                            className={`pill ${
+                              run.status === "executed"
+                                ? "success"
+                                : run.status === "failed"
+                                ? "danger"
+                                : "warning"
+                            }`}
+                          >
+                            {run.status}
+                          </span>
+                          <span>{
+                            run.run_timestamp
+                              ? new Date(run.run_timestamp).toLocaleString()
+                              : new Date(run.created_at).toLocaleString()
+                          }</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -1003,6 +1048,22 @@ function App() {
                   <span>Use default parameters</span>
                 </div>
               </label>
+              {use_default_params && script_form.script_type === "printing" && (
+                <label>
+                  P6 Billing Run UID
+                  <input
+                    value={parameter_overrides.p6}
+                    onChange={(event) =>
+                      set_parameter_overrides((previous) => ({
+                        ...previous,
+                        p6: event.target.value,
+                      }))
+                    }
+                    placeholder="billing_run_uid"
+                    required
+                  />
+                </label>
+              )}
               {!use_default_params && (
                 <div className="parameter-grid">
                   {Object.keys(parameter_overrides).map((key) => (

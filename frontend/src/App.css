@@ -585,6 +585,11 @@
   color: #92400e;
 }
 
+.pill.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .pill.neutral {
   background: #e2e8f0;
   color: #334155;
