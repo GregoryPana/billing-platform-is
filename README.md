@@ -138,6 +138,10 @@ All endpoints are under `/api`.
 - `POST /scripts/export` → export grouped command file
   - Body: `{ "billing_cycle_id": "uuid", "environment": "test|live", "script_type": "preparation|printing" }`
   - Response includes `file_name` and `file_path`
+- `POST /scripts/export-all` → export all commands for a billing run
+  - Body: `{ "billing_cycle_id": "uuid" }`
+  - Response includes `file_name` and `file_path`
+- `GET /scripts/exports/{export_id}/download` → download grouped command file
 
 **Runs**
 - `GET /runs` → list script runs

@@ -1,4 +1,8 @@
+from pathlib import Path
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -6,12 +10,12 @@ from app.db.session import get_db
 from app.models.generated_file import GeneratedFile
 from app.models.script_definition import ScriptDefinition
 from app.models.script_run import ScriptRun
-from app.schemas.exports import ScriptExportRead, ScriptExportRequest
+from app.schemas.exports import ScriptExportAllRequest, ScriptExportRead, ScriptExportRequest
 from app.schemas.scripts import ScriptDefinitionRead, ScriptGenerateRequest
 from app.services.audit_service import record_audit_event
 from app.services.auth_service import CurrentActor, require_role
 from app.services.command_service import CYCLES, format_command, generate_parameters
-from app.services.file_export_service import create_grouped_export
+from app.services.file_export_service import EXPORT_DIR, create_full_export, create_grouped_export
 from app.services.workflow_service import ensure_test_approved
 from app.utils.datetime_utils import utc_plus_4_now
 
@@ -144,3 +148,65 @@ def export_scripts(
         {"environment": environment, "script_type": script_type},
     )
     return generated_file
+
+
+@router.post("/export-all", response_model=ScriptExportRead)
+def export_all_scripts(
+    payload: ScriptExportAllRequest,
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+):
+    has_live = db.scalar(
+        select(ScriptDefinition.id)
+        .where(
+            ScriptDefinition.billing_cycle_id == payload.billing_cycle_id,
+            ScriptDefinition.environment == "live",
+        )
+        .limit(1)
+    )
+    if has_live:
+        ensure_test_approved(db, payload.billing_cycle_id)
+
+    generated_file = create_full_export(
+        db,
+        billing_cycle_id=payload.billing_cycle_id,
+        generated_by=actor.id,
+    )
+    if not generated_file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No scripts to export")
+
+    record_audit_event(
+        db,
+        actor.id,
+        actor.actor_type,
+        "export_scripts_all",
+        "generated_file",
+        str(generated_file.id),
+        {"scope": "billing_cycle"},
+    )
+    return generated_file
+
+
+@router.get("/exports/{export_id}/download")
+def download_export(
+    export_id: UUID,
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
+):
+    generated_file = db.get(GeneratedFile, export_id)
+    if not generated_file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Export not found")
+
+    file_path = Path(generated_file.file_path)
+    resolved_path = file_path.resolve(strict=False)
+    export_root = EXPORT_DIR.resolve()
+    if export_root not in resolved_path.parents and resolved_path != export_root:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid export path")
+    if not resolved_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Export file missing")
+
+    return FileResponse(
+        path=resolved_path,
+        filename=generated_file.file_name,
+        media_type="text/plain",
+    )

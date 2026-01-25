@@ -386,6 +386,25 @@
   color: var(--text-muted);
 }
 
+.panel-subheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 10px;
+}
+
+.panel-subheader h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.panel-subheader p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .table-meta {
   margin: 6px 0 12px;
   font-size: 12px;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import ReactMarkdown from "react-markdown"
 
-import { api_base_url, api_fetch } from "./api"
+import { api_base_url, api_fetch, api_headers } from "./api"
 import billingProcessDoc from "../../billing_process.md?raw"
 import "./App.css"
 
@@ -350,7 +350,7 @@ function App() {
       return
     }
     try {
-      await api_fetch(
+      const export_record = await api_fetch(
         "/scripts/export",
         {
           method: "POST",
@@ -362,6 +362,62 @@ function App() {
         },
         role
       )
+      const response = await fetch(
+        `${api_base_url}/scripts/exports/${export_record.id}/download`,
+        { headers: api_headers(role) }
+      )
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(message || "Export download failed")
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = export_record.file_name || "billing_run_commands.log"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_export_all = async () => {
+    if (!script_form.billing_cycle_id) {
+      set_error_message("Select a billing cycle before exporting.")
+      return
+    }
+    try {
+      const export_record = await api_fetch(
+        "/scripts/export-all",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            billing_cycle_id: script_form.billing_cycle_id,
+          }),
+        },
+        role
+      )
+      const response = await fetch(
+        `${api_base_url}/scripts/exports/${export_record.id}/download`,
+        { headers: api_headers(role) }
+      )
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(message || "Export download failed")
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = export_record.file_name || "billing_run_commands.log"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -506,6 +562,28 @@ function App() {
     () => new Map(cycles.map((cycle) => [String(cycle.id), cycle])),
     [cycles]
   )
+  const format_stage_label = (stage) => {
+    if (stage === "test") {
+      return "Move to live"
+    }
+    if (stage === "post_live") {
+      return "Move to notifications"
+    }
+    if (stage === "live") {
+      return "Live complete"
+    }
+    return stage || "-"
+  }
+  const format_cycle_label = (cycle_id) => {
+    if (!cycle_id) {
+      return "-"
+    }
+    const cycle = cycles_by_id.get(String(cycle_id))
+    if (!cycle) {
+      return String(cycle_id).slice(0, 8)
+    }
+    return `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
+  }
   const scripts_by_id = useMemo(
     () => new Map(scripts.map((script) => [String(script.id), script])),
     [scripts]
@@ -593,7 +671,7 @@ function App() {
     return sorted.filter((cycle) => pending_approvals_by_cycle.has(String(cycle.id)))
   }, [cycles, pending_approvals_by_cycle, role, runs, scripts_by_id])
   const run_stage = run_environment === "test" ? "test" : "post_live"
-  const run_stage_label = run_stage === "test" ? "Test" : "Post-live"
+  const run_stage_label = format_stage_label(run_stage)
   const run_stage_approval = useMemo(() => {
     if (!run_cycle_id) {
       return null
@@ -794,7 +872,7 @@ function App() {
           <div className="alert info">
             {approval_notifications.map((approval) => (
               <div key={approval.id}>
-                Approval granted for {approval.stage} on cycle {approval.billing_cycle_id.slice(0, 8)}.
+                Approval granted for {format_stage_label(approval.stage)} on cycle {format_cycle_label(approval.billing_cycle_id)}.
               </div>
             ))}
           </div>
@@ -889,16 +967,34 @@ function App() {
                     <span>Cycle</span>
                     <span>Stage</span>
                     <span>Status</span>
-                    <span>Updated</span>
+                    <span>{role === "finance" ? "Action" : "Updated"}</span>
                   </div>
-                  {approvals.slice(0, 6).map((approval) => (
+                  {(role === "finance" ? pending_approvals : approvals.slice(0, 6)).map((approval) => (
                     <div className="table-row" key={approval.id}>
-                      <span>{approval.billing_cycle_id.slice(0, 8)}</span>
-                      <span>{approval.stage}</span>
+                      <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                      <span>{format_stage_label(approval.stage)}</span>
                       <span className={`pill ${approval.status === "pending" ? "warning" : "success"}`}>
                         {approval.status}
                       </span>
-                      <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                      {role === "finance" ? (
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={() => {
+                            set_approval_form((previous) => ({
+                              ...previous,
+                              billing_cycle_id: String(approval.billing_cycle_id),
+                              stage: approval.stage,
+                              status: "approved",
+                            }))
+                            set_active_view("approvals")
+                          }}
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1116,6 +1212,14 @@ function App() {
                 >
                   Export grouped file
                 </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={handle_export_all}
+                  disabled={live_generation_blocked}
+                >
+                  Export all scripts
+                </button>
               </div>
             </form>
             {live_generation_blocked && script_form.billing_cycle_id ? (
@@ -1309,8 +1413,8 @@ function App() {
                       }))
                     }
                   >
-                    <option value="test">Test</option>
-                    <option value="post_live">Post-live</option>
+                    <option value="test">Move to live</option>
+                    <option value="post_live">Move to notifications</option>
                   </select>
                 </label>
                 <label className="full">
@@ -1331,112 +1435,172 @@ function App() {
               </form>
             )}
             {role === "finance" && (
-              <form className="form-grid" onSubmit={handle_approval_submit}>
-                <label>
-                  Billing cycle
-                  <select
-                    value={approval_form.billing_cycle_id}
-                    onChange={(event) => {
-                      const selected_id = event.target.value
-                      const selected = pending_approvals.find(
-                        (approval) => String(approval.billing_cycle_id) === selected_id
-                      )
-                      set_approval_form((previous) => ({
-                        ...previous,
-                        billing_cycle_id: selected_id,
-                        stage: selected?.stage || previous.stage,
-                        status: "approved",
-                      }))
-                    }}
-                  >
-                    <option value="">Select a cycle</option>
-                    {pending_approvals.map((approval) => {
-                      const cycle = cycles_by_id.get(String(approval.billing_cycle_id))
-                      const label = cycle
-                        ? `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
-                        : approval.billing_cycle_id.slice(0, 8)
-                      return (
-                        <option key={approval.id} value={approval.billing_cycle_id}>
-                          {label} ({approval.stage})
-                        </option>
-                      )
-                    })}
-                  </select>
-                </label>
-                <label>
-                  Stage
-                  <select
-                    value={approval_form.stage}
-                    onChange={(event) =>
-                      set_approval_form((previous) => ({
-                        ...previous,
-                        stage: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="test">Test</option>
-                    <option value="live">Live</option>
-                    <option value="post_live">Post-live</option>
-                  </select>
-                </label>
-                <label>
-                  Status
-                  <select
-                    value={approval_form.status}
-                    onChange={(event) =>
-                      set_approval_form((previous) => ({
-                        ...previous,
-                        status: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </label>
-                <label className="full">
-                  Comments
-                  <textarea
-                    value={approval_form.comments}
-                    onChange={(event) =>
-                      set_approval_form((previous) => ({
-                        ...previous,
-                        comments: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <button className="primary-button" type="submit">
-                  Submit approval
-                </button>
-              </form>
-            )}
-            <div className="table">
-              <div className="table-row table-head">
-                <span>Cycle</span>
-                <span>Stage</span>
-                <span>Status</span>
-                <span>Updated</span>
-              </div>
-              {(role === "finance" ? pending_approvals : approvals).map((approval) => (
-                <div className="table-row" key={approval.id}>
-                  <span>{approval.billing_cycle_id.slice(0, 8)}</span>
-                  <span>{approval.stage}</span>
-                  <span
-                    className={`pill ${
-                      approval.status === "approved"
-                        ? "success"
-                        : approval.status === "rejected"
-                        ? "warning"
-                        : "neutral"
-                    }`}
-                  >
-                    {approval.status}
-                  </span>
-                  <span>{new Date(approval.updated_at).toLocaleString()}</span>
+              <>
+                <div className="panel-subheader">
+                  <h3>Requested approvals</h3>
+                  <p>Pick a request to approve or reject.</p>
                 </div>
-              ))}
-            </div>
+                <div className="table">
+                  <div className="table-row table-head">
+                    <span>Cycle</span>
+                    <span>Stage</span>
+                    <span>Requested</span>
+                    <span>Action</span>
+                  </div>
+                  {pending_approvals.length === 0 ? (
+                    <div className="empty-state">No pending approvals.</div>
+                  ) : (
+                    pending_approvals.map((approval) => (
+                      <div className="table-row" key={approval.id}>
+                        <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                        <span>{format_stage_label(approval.stage)}</span>
+                        <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={() =>
+                            set_approval_form((previous) => ({
+                              ...previous,
+                              billing_cycle_id: String(approval.billing_cycle_id),
+                              stage: approval.stage,
+                              status: "approved",
+                            }))
+                          }
+                        >
+                          Review
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <form className="form-grid" onSubmit={handle_approval_submit}>
+                  <label>
+                    Billing cycle
+                    <input
+                      value={
+                        approval_form.billing_cycle_id
+                          ? format_cycle_label(approval_form.billing_cycle_id)
+                          : ""
+                      }
+                      disabled
+                      placeholder="Select a requested approval"
+                    />
+                  </label>
+                  <label>
+                    Stage
+                    <select
+                      value={approval_form.stage}
+                      onChange={(event) =>
+                        set_approval_form((previous) => ({
+                          ...previous,
+                          stage: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="test">Move to live</option>
+                      <option value="live">Live complete</option>
+                      <option value="post_live">Move to notifications</option>
+                    </select>
+                  </label>
+                  <label>
+                    Status
+                    <select
+                      value={approval_form.status}
+                      onChange={(event) =>
+                        set_approval_form((previous) => ({
+                          ...previous,
+                          status: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </label>
+                  <label className="full">
+                    Comments
+                    <textarea
+                      value={approval_form.comments}
+                      onChange={(event) =>
+                        set_approval_form((previous) => ({
+                          ...previous,
+                          comments: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <button className="primary-button" type="submit" disabled={!approval_form.billing_cycle_id}>
+                    Submit approval
+                  </button>
+                </form>
+
+                <div className="panel-subheader">
+                  <h3>Past approvals</h3>
+                  <p>Completed approvals for this billing run history.</p>
+                </div>
+                <div className="table">
+                  <div className="table-row table-head">
+                    <span>Cycle</span>
+                    <span>Stage</span>
+                    <span>Status</span>
+                    <span>Updated</span>
+                  </div>
+                  {approvals.filter((approval) => approval.status !== "pending").length === 0 ? (
+                    <div className="empty-state">No completed approvals yet.</div>
+                  ) : (
+                    approvals
+                      .filter((approval) => approval.status !== "pending")
+                      .map((approval) => (
+                        <div className="table-row" key={approval.id}>
+                          <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                          <span>{format_stage_label(approval.stage)}</span>
+                          <span
+                            className={`pill ${
+                              approval.status === "approved"
+                                ? "success"
+                                : approval.status === "rejected"
+                                ? "warning"
+                                : "neutral"
+                            }`}
+                          >
+                            {approval.status}
+                          </span>
+                          <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </>
+            )}
+            {role !== "finance" && (
+              <div className="table">
+                <div className="table-row table-head">
+                  <span>Cycle</span>
+                  <span>Stage</span>
+                  <span>Status</span>
+                  <span>Updated</span>
+                </div>
+                {approvals.map((approval) => (
+                  <div className="table-row" key={approval.id}>
+                    <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                    <span>{format_stage_label(approval.stage)}</span>
+                    <span
+                      className={`pill ${
+                        approval.status === "approved"
+                          ? "success"
+                          : approval.status === "rejected"
+                          ? "warning"
+                          : "neutral"
+                      }`}
+                    >
+                      {approval.status}
+                    </span>
+                    <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

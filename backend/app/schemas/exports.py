@@ -10,6 +10,10 @@ class ScriptExportRequest(BaseSchema):
     script_type: str
 
 
+class ScriptExportAllRequest(BaseSchema):
+    billing_cycle_id: str
+
+
 class ScriptExportRead(BaseSchema):
     id: UUID
     billing_cycle_id: UUID
