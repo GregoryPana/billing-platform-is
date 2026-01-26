@@ -2,17 +2,34 @@ const DEFAULT_API_URL = "http://localhost:8000/api"
 
 export const api_base_url = import.meta.env.VITE_API_URL || DEFAULT_API_URL
 export const approval_webhook_url = import.meta.env.VITE_APPROVAL_WEBHOOK_URL || ""
-export const default_user_id = "00000000-0000-0000-0000-000000000001"
 
-export function api_headers(role = "billing", headers = {}) {
+const auth_storage_key = "billing_auth_token"
+
+export function set_auth_token(token) {
+  if (token) {
+    localStorage.setItem(auth_storage_key, token)
+  } else {
+    localStorage.removeItem(auth_storage_key)
+  }
+}
+
+export function get_auth_token() {
+  return localStorage.getItem(auth_storage_key)
+}
+
+export function api_headers(headers = {}, include_auth = true) {
   const next_headers = new Headers(headers)
-  next_headers.set("x-user-id", default_user_id)
-  next_headers.set("x-user-role", role)
+  if (include_auth) {
+    const token = get_auth_token()
+    if (token) {
+      next_headers.set("Authorization", `Bearer ${token}`)
+    }
+  }
   return next_headers
 }
 
-export async function api_fetch(path, options = {}, role = "billing") {
-  const headers = api_headers(role, options.headers)
+export async function api_fetch(path, options = {}, include_auth = true) {
+  const headers = api_headers(options.headers, include_auth)
   headers.set("Content-Type", "application/json")
 
   const response = await fetch(`${api_base_url}${path}`, {

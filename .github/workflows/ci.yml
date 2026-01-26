@@ -72,6 +72,8 @@ jobs:
           DATABASE_URL="${{ secrets.BILLING_DATABASE_URL }}"
           TIMEZONE_OFFSET_HOURS=4
           N8N_WEBHOOK_URL="${{ secrets.BILLING_N8N_WEBHOOK_URL }}"
+          JWT_SECRET="${{ secrets.BILLING_JWT_SECRET }}"
+          JWT_EXP_MINUTES=${{ secrets.BILLING_JWT_EXP_MINUTES || 480 }}
           EOF
 
       - name: Write frontend env

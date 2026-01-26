@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import ReactMarkdown from "react-markdown"
 
-import { api_base_url, api_fetch, api_headers, approval_webhook_url } from "./api"
+import { api_base_url, api_fetch, approval_webhook_url, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../billing_process.md?raw"
 import "./App.css"
 
@@ -114,11 +114,23 @@ const build_default_parameters = (script_type, environment, cycle_month) => {
 function App() {
   const [is_authenticated, set_is_authenticated] = useState(false)
   const [login_form, set_login_form] = useState({
-    role: "billing",
-    display_name: "",
+    username_or_email: "",
+    password: "",
   })
+  const [login_errors, set_login_errors] = useState({
+    username: "",
+    password: "",
+  })
+  const [signup_form, set_signup_form] = useState({
+    username: "",
+    email: "",
+    password: "",
+  })
+  const [auth_mode, set_auth_mode] = useState("login")
+  const [current_user, set_current_user] = useState(null)
+  const [signup_status, set_signup_status] = useState("")
   const [active_view, set_active_view] = useState("overview")
-  const [role, set_role] = useState("billing")
+  const [role, set_role] = useState("viewer")
   const [cycles, set_cycles] = useState([])
   const [scripts, set_scripts] = useState([])
   const [runs, set_runs] = useState([])
@@ -126,6 +138,7 @@ function App() {
   const [notifications, set_notifications] = useState([])
   const [audit_logs, set_audit_logs] = useState([])
   const [users, set_users] = useState([])
+  const [signup_requests, set_signup_requests] = useState([])
   const [error_message, set_error_message] = useState("")
 
   const [cycle_form, set_cycle_form] = useState({
@@ -174,6 +187,22 @@ function App() {
   const [notification_form, set_notification_form] = useState({
     billing_cycle_id: "",
   })
+  const [admin_user_form, set_admin_user_form] = useState({
+    username: "",
+    email: "",
+    role: "billing",
+    password: "",
+    is_active: true,
+  })
+  const [admin_edit_user, set_admin_edit_user] = useState(null)
+  const [admin_edit_form, set_admin_edit_form] = useState({
+    username: "",
+    email: "",
+    role: "billing",
+    password: "",
+    is_active: true,
+  })
+  const [signup_role_selection, set_signup_role_selection] = useState({})
   const [run_environment, set_run_environment] = useState("test")
   const [run_cycle_id, set_run_cycle_id] = useState("")
   const [run_script_type, set_run_script_type] = useState("preparation")
@@ -248,12 +277,12 @@ function App() {
         audit_data,
       ] =
         await Promise.all([
-          api_fetch("/cycles/", {}, role),
-          api_fetch("/scripts/", {}, role),
-          api_fetch("/runs/", {}, role),
-          api_fetch("/approvals/", {}, role),
-          api_fetch("/notifications/", {}, role),
-          api_fetch("/audit/", {}, role),
+          api_fetch("/cycles/"),
+          api_fetch("/scripts/"),
+          api_fetch("/runs/"),
+          api_fetch("/approvals/"),
+          api_fetch("/notifications/"),
+          api_fetch("/audit/"),
         ])
       set_cycles(cycles_data)
       set_scripts(scripts_data)
@@ -263,10 +292,15 @@ function App() {
       set_audit_logs(audit_data)
 
       if (role === "admin") {
-        const users_data = await api_fetch("/users/", {}, role)
+        const [users_data, signup_data] = await Promise.all([
+          api_fetch("/users/"),
+          api_fetch("/auth/requests"),
+        ])
         set_users(users_data)
+        set_signup_requests(signup_data)
       } else {
         set_users([])
+        set_signup_requests([])
       }
     } catch (error) {
       set_error_message(error.message)
@@ -332,10 +366,32 @@ function App() {
   }, [recipient_error, selected_finance_recipients])
 
   useEffect(() => {
+    if (!is_authenticated) {
+      return
+    }
     reload_all()
     const interval = setInterval(reload_all, 30000)
     return () => clearInterval(interval)
-  }, [reload_all])
+  }, [is_authenticated, reload_all])
+
+  useEffect(() => {
+    const token = get_auth_token()
+    if (!token) {
+      return
+    }
+    const load_user = async () => {
+      try {
+        const me = await api_fetch("/auth/me")
+        set_current_user(me)
+        set_role(me.role)
+        set_is_authenticated(true)
+      } catch (error) {
+        set_auth_token(null)
+        set_is_authenticated(false)
+      }
+    }
+    load_user()
+  }, [])
 
   useEffect(() => {
     if (role !== "billing") {
@@ -370,11 +426,7 @@ function App() {
   const handle_cycle_submit = async (event) => {
     event.preventDefault()
     try {
-      await api_fetch(
-        "/cycles/",
-        { method: "POST", body: JSON.stringify(cycle_form) },
-        role
-      )
+      await api_fetch("/cycles/", { method: "POST", body: JSON.stringify(cycle_form) })
       set_cycle_form({ usage_month: "", billing_month: "", notes: "" })
       await reload_all()
     } catch (error) {
@@ -416,11 +468,10 @@ function App() {
         log_types: script_form.log_types,
         overrides: overrides && Object.keys(overrides).length > 0 ? overrides : undefined,
       }
-      const created = await api_fetch(
-        "/scripts/generate",
-        { method: "POST", body: JSON.stringify(payload) },
-        role
-      )
+      const created = await api_fetch("/scripts/generate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
       set_last_generated_count(Array.isArray(created) ? created.length : null)
       await reload_all()
     } catch (error) {
@@ -434,21 +485,18 @@ function App() {
       return
     }
     try {
-      const export_record = await api_fetch(
-        "/scripts/export",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            billing_cycle_id: script_form.billing_cycle_id,
-            environment: script_form.environment,
-            script_type: script_form.script_type,
-          }),
-        },
-        role
-      )
+      const export_record = await api_fetch("/scripts/export", {
+        method: "POST",
+        body: JSON.stringify({
+          billing_cycle_id: script_form.billing_cycle_id,
+          environment: script_form.environment,
+          script_type: script_form.script_type,
+        }),
+      })
+      const token = get_auth_token()
       const response = await fetch(
         `${api_base_url}/scripts/exports/${export_record.id}/download`,
-        { headers: api_headers(role) }
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       )
       if (!response.ok) {
         const message = await response.text()
@@ -475,19 +523,16 @@ function App() {
       return
     }
     try {
-      const export_record = await api_fetch(
-        "/scripts/export-all",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            billing_cycle_id: script_form.billing_cycle_id,
-          }),
-        },
-        role
-      )
+      const export_record = await api_fetch("/scripts/export-all", {
+        method: "POST",
+        body: JSON.stringify({
+          billing_cycle_id: script_form.billing_cycle_id,
+        }),
+      })
+      const token = get_auth_token()
       const response = await fetch(
         `${api_base_url}/scripts/exports/${export_record.id}/download`,
-        { headers: api_headers(role) }
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       )
       if (!response.ok) {
         const message = await response.text()
@@ -511,11 +556,7 @@ function App() {
   const handle_approval_submit = async (event) => {
     event.preventDefault()
     try {
-      await api_fetch(
-        "/approvals/",
-        { method: "POST", body: JSON.stringify(approval_form) },
-        role
-      )
+      await api_fetch("/approvals/", { method: "POST", body: JSON.stringify(approval_form) })
       set_approval_form({
         billing_cycle_id: "",
         stage: "test",
@@ -523,6 +564,60 @@ function App() {
         comments: "",
       })
       await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_login_submit = async (event) => {
+    event.preventDefault()
+    try {
+      set_error_message("")
+      set_login_errors({ username: "", password: "" })
+      const login_identifier = login_form.username_or_email.trim()
+      if (login_identifier.includes("@") && !is_valid_email(login_identifier)) {
+        set_login_errors({
+          username: "Enter a valid email address or use your username instead.",
+          password: "",
+        })
+        return
+      }
+      const response = await api_fetch(
+        "/auth/login",
+        { method: "POST", body: JSON.stringify(login_form) },
+        false
+      )
+      set_auth_token(response.access_token)
+      set_current_user(response.user)
+      set_role(response.user.role)
+      set_signup_status("")
+      set_is_authenticated(true)
+      set_active_view("overview")
+    } catch (error) {
+      const message = error?.message || "Sign in failed"
+      if (message.includes("Invalid credentials") || message.includes("invalid credentials")) {
+        set_login_errors({ username: "", password: "Incorrect username/email or password." })
+        set_error_message("")
+        return
+      }
+      set_error_message(message)
+    }
+  }
+
+  const handle_signup_submit = async (event) => {
+    event.preventDefault()
+    try {
+      set_error_message("")
+      const response = await api_fetch(
+        "/auth/signup",
+        { method: "POST", body: JSON.stringify(signup_form) },
+        false
+      )
+      set_signup_status(
+        `Request submitted for ${response.username}. Admin has been notified and will review shortly.`
+      )
+      set_auth_mode("login")
+      set_signup_form({ username: "", email: "", password: "" })
     } catch (error) {
       set_error_message(error.message)
     }
@@ -566,11 +661,7 @@ function App() {
       if (!webhook_response.ok) {
         throw new Error(`n8n webhook failed (${webhook_response.status})`)
       }
-      await api_fetch(
-        "/approvals/request",
-        { method: "POST", body: JSON.stringify(approval_request_form) },
-        role
-      )
+      await api_fetch("/approvals/request", { method: "POST", body: JSON.stringify(approval_request_form) })
       set_approval_request_form({
         billing_cycle_id: "",
         stage: "test",
@@ -592,6 +683,66 @@ function App() {
       stage: run_stage,
     }))
     set_active_view("approvals")
+  }
+
+  const handle_admin_user_create = async (event) => {
+    event.preventDefault()
+    try {
+      await api_fetch("/users/", { method: "POST", body: JSON.stringify(admin_user_form) })
+      set_admin_user_form({ username: "", email: "", role: "billing", password: "", is_active: true })
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_admin_user_update = async (event) => {
+    event.preventDefault()
+    if (!admin_edit_user) {
+      return
+    }
+    try {
+      await api_fetch(`/users/${admin_edit_user.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(admin_edit_form),
+      })
+      set_admin_edit_user(null)
+      set_admin_edit_form({ username: "", email: "", role: "billing", password: "", is_active: true })
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_admin_user_delete = async (user_id) => {
+    try {
+      await api_fetch(`/users/${user_id}`, { method: "DELETE" })
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_signup_approve = async (request_id) => {
+    const selected_role = signup_role_selection[request_id] || "billing"
+    try {
+      await api_fetch(`/auth/requests/${request_id}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ role: selected_role }),
+      })
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
+  }
+
+  const handle_signup_reject = async (request_id) => {
+    try {
+      await api_fetch(`/auth/requests/${request_id}/reject`, { method: "POST" })
+      await reload_all()
+    } catch (error) {
+      set_error_message(error.message)
+    }
   }
 
   const normalize_email = (value) => value.trim().toLowerCase()
@@ -631,11 +782,7 @@ function App() {
   const handle_notification_submit = async (event) => {
     event.preventDefault()
     try {
-      await api_fetch(
-        "/notifications/",
-        { method: "POST", body: JSON.stringify(notification_form) },
-        role
-      )
+      await api_fetch("/notifications/", { method: "POST", body: JSON.stringify(notification_form) })
       set_notification_form({ billing_cycle_id: "" })
       await reload_all()
     } catch (error) {
@@ -651,31 +798,23 @@ function App() {
     const run = runs_by_script_id.get(script_id)
     try {
       if (run) {
-        await api_fetch(
-          "/runs/",
-          {
-            method: "PATCH",
-            body: JSON.stringify({
-              script_run_id: run.id,
-              status,
-              notes: run.notes || "",
-            }),
-          },
-          role
-        )
+        await api_fetch("/runs/", {
+          method: "PATCH",
+          body: JSON.stringify({
+            script_run_id: run.id,
+            status,
+            notes: run.notes || "",
+          }),
+        })
       } else {
-        await api_fetch(
-          "/runs/",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              script_definition_id: script_id,
-              status,
-              notes: "",
-            }),
-          },
-          role
-        )
+        await api_fetch("/runs/", {
+          method: "POST",
+          body: JSON.stringify({
+            script_definition_id: script_id,
+            status,
+            notes: "",
+          }),
+        })
       }
       await reload_all()
     } catch (error) {
@@ -898,51 +1037,131 @@ function App() {
             </div>
           </div>
           <div className="login-body">
-            <h2>Sign in</h2>
-            <p>Choose your role to access the workspace.</p>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault()
-                set_role(login_form.role)
-                set_is_authenticated(true)
-                set_active_view("overview")
-              }}
-            >
-              <label>
-                Display name
-                <input
-                  value={login_form.display_name}
-                  onChange={(event) =>
-                    set_login_form((previous) => ({
-                      ...previous,
-                      display_name: event.target.value,
-                    }))
-                  }
-                  placeholder="Billing User"
-                />
-              </label>
-              <label>
-                Role
-                <select
-                  value={login_form.role}
-                  onChange={(event) =>
-                    set_login_form((previous) => ({
-                      ...previous,
-                      role: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="billing">Billing</option>
-                  <option value="finance">Finance</option>
-                  <option value="admin">Admin</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-              </label>
-              <button className="primary-button" type="submit">
-                Enter dashboard
+            <h2>{auth_mode === "login" ? "Sign in" : "Request access"}</h2>
+            <p>
+              {auth_mode === "login"
+                ? "Use your billing platform credentials."
+                : "Submit your details for admin approval."}
+            </p>
+            {error_message ? <div className="alert error">{error_message}</div> : null}
+            {signup_status ? <div className="alert info">{signup_status}</div> : null}
+            {auth_mode === "login" ? (
+              <form className="form-grid" onSubmit={handle_login_submit}>
+                <label>
+                  Username or email
+                  <input
+                    value={login_form.username_or_email}
+                    onChange={(event) =>
+                      set_login_form((previous) => ({
+                        ...previous,
+                        username_or_email: event.target.value,
+                      }))
+                    }
+                    onInput={() =>
+                      set_login_errors((previous) => ({
+                        ...previous,
+                        username: "",
+                      }))
+                    }
+                    placeholder="username or email"
+                    required
+                  />
+                  {login_errors.username ? (
+                    <span className="field-error">{login_errors.username}</span>
+                  ) : null}
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={login_form.password}
+                    onChange={(event) =>
+                      set_login_form((previous) => ({
+                        ...previous,
+                        password: event.target.value,
+                      }))
+                    }
+                    onInput={() =>
+                      set_login_errors((previous) => ({
+                        ...previous,
+                        password: "",
+                      }))
+                    }
+                    required
+                  />
+                  {login_errors.password ? (
+                    <span className="field-error">{login_errors.password}</span>
+                  ) : null}
+                </label>
+                <button className="primary-button" type="submit">
+                  Sign in
+                </button>
+              </form>
+            ) : (
+              <form className="form-grid" onSubmit={handle_signup_submit}>
+                <label>
+                  Username
+                  <input
+                    value={signup_form.username}
+                    onChange={(event) =>
+                      set_signup_form((previous) => ({
+                        ...previous,
+                        username: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={signup_form.email}
+                    onChange={(event) =>
+                      set_signup_form((previous) => ({
+                        ...previous,
+                        email: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={signup_form.password}
+                    onChange={(event) =>
+                      set_signup_form((previous) => ({
+                        ...previous,
+                        password: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <button className="primary-button" type="submit">
+                  Submit request
+                </button>
+              </form>
+            )}
+            <div className="login-cta">
+              <button
+                className={auth_mode === "login" ? "primary-button cta-button" : "ghost-button"}
+                type="button"
+                onClick={() => {
+                  set_auth_mode(auth_mode === "login" ? "signup" : "login")
+                  set_error_message("")
+                  set_signup_status("")
+                  set_login_errors({ username: "", password: "" })
+                }}
+              >
+                {auth_mode === "login" ? "Request account access" : "Back to sign in"}
               </button>
-            </form>
+              {auth_mode === "login" ? (
+                <span className="cta-note">Submit your details and admin will grant access.</span>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -980,9 +1199,13 @@ function App() {
             className="ghost-button"
             type="button"
             onClick={() => {
+              set_auth_token(null)
               set_is_authenticated(false)
-              set_role("billing")
-              set_login_form({ role: "billing", display_name: "" })
+              set_current_user(null)
+              set_role("viewer")
+              set_login_form({ username_or_email: "", password: "" })
+              set_signup_status("")
+              set_error_message("")
             }}
           >
             Sign out
@@ -1994,28 +2217,299 @@ function App() {
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2>Admin Overview</h2>
-                <p>Visibility into registered users.</p>
+                <h2>Admin Controls</h2>
+                <p>Review access requests and manage users.</p>
               </div>
             </div>
+            <div className="panel-subheader">
+              <h3>Signup requests</h3>
+              <p>Approve or reject pending access requests.</p>
+            </div>
             <div className="table">
-              <div className="table-row table-head">
+              <div className="table-row table-head admin">
+                <span>Username</span>
+                <span>Email</span>
+                <span>Status</span>
+                <span>Role</span>
+                <span>Action</span>
+              </div>
+              {signup_requests.length === 0 ? (
+                <div className="empty-state">No signup requests pending.</div>
+              ) : (
+                signup_requests.map((request) => (
+                  <div className="table-row admin" key={request.id}>
+                    <span>{request.username}</span>
+                    <span>{request.email}</span>
+                    <span className={`pill ${request.status === "pending" ? "warning" : "neutral"}`}>
+                      {request.status}
+                    </span>
+                    <select
+                      className="select-inline"
+                      value={signup_role_selection[request.id] || request.assigned_role || "billing"}
+                      onChange={(event) =>
+                        set_signup_role_selection((previous) => ({
+                          ...previous,
+                          [request.id]: event.target.value,
+                        }))
+                      }
+                      disabled={request.status !== "pending"}
+                    >
+                      <option value="billing">Billing</option>
+                      <option value="finance">Finance</option>
+                      <option value="admin">Admin</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <div className="form-actions">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => handle_signup_approve(request.id)}
+                        disabled={request.status !== "pending"}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="ghost-button"
+                        type="button"
+                        onClick={() => handle_signup_reject(request.id)}
+                        disabled={request.status !== "pending"}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="panel-subheader">
+              <h3>Create user</h3>
+              <p>Add a user directly without approval.</p>
+            </div>
+            <form className="form-grid" onSubmit={handle_admin_user_create}>
+              <label>
+                Username
+                <input
+                  value={admin_user_form.username}
+                  onChange={(event) =>
+                    set_admin_user_form((previous) => ({
+                      ...previous,
+                      username: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={admin_user_form.email}
+                  onChange={(event) =>
+                    set_admin_user_form((previous) => ({
+                      ...previous,
+                      email: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Role
+                <select
+                  value={admin_user_form.role}
+                  onChange={(event) =>
+                    set_admin_user_form((previous) => ({
+                      ...previous,
+                      role: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="billing">Billing</option>
+                  <option value="finance">Finance</option>
+                  <option value="admin">Admin</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </label>
+              <label>
+                Password
+                <input
+                  type="password"
+                  value={admin_user_form.password}
+                  onChange={(event) =>
+                    set_admin_user_form((previous) => ({
+                      ...previous,
+                      password: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={admin_user_form.is_active ? "active" : "inactive"}
+                  onChange={(event) =>
+                    set_admin_user_form((previous) => ({
+                      ...previous,
+                      is_active: event.target.value === "active",
+                    }))
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <button className="primary-button" type="submit">
+                Create user
+              </button>
+            </form>
+
+            <div className="panel-subheader">
+              <h3>Manage users</h3>
+              <p>Edit user details, roles, and status.</p>
+            </div>
+            <div className="table">
+              <div className="table-row table-head admin">
                 <span>Username</span>
                 <span>Email</span>
                 <span>Role</span>
                 <span>Status</span>
+                <span>Action</span>
               </div>
               {users.map((user) => (
-                <div className="table-row" key={user.id}>
+                <div className="table-row admin" key={user.id}>
                   <span>{user.username}</span>
                   <span>{user.email}</span>
                   <span>{user.role}</span>
                   <span className={`pill ${user.is_active ? "success" : "warning"}`}>
                     {user.is_active ? "Active" : "Inactive"}
                   </span>
+                  <div className="form-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => {
+                        set_admin_edit_user(user)
+                        set_admin_edit_form({
+                          username: user.username,
+                          email: user.email,
+                          role: user.role,
+                          password: "",
+                          is_active: user.is_active,
+                        })
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      onClick={() => handle_admin_user_delete(user.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
+            {admin_edit_user ? (
+              <form className="form-grid" onSubmit={handle_admin_user_update}>
+                <label>
+                  Username
+                  <input
+                    value={admin_edit_form.username}
+                    onChange={(event) =>
+                      set_admin_edit_form((previous) => ({
+                        ...previous,
+                        username: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={admin_edit_form.email}
+                    onChange={(event) =>
+                      set_admin_edit_form((previous) => ({
+                        ...previous,
+                        email: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Role
+                  <select
+                    value={admin_edit_form.role}
+                    onChange={(event) =>
+                      set_admin_edit_form((previous) => ({
+                        ...previous,
+                        role: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="billing">Billing</option>
+                    <option value="finance">Finance</option>
+                    <option value="admin">Admin</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select
+                    value={admin_edit_form.is_active ? "active" : "inactive"}
+                    onChange={(event) =>
+                      set_admin_edit_form((previous) => ({
+                        ...previous,
+                        is_active: event.target.value === "active",
+                      }))
+                    }
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </label>
+                <label>
+                  Reset password
+                  <input
+                    type="password"
+                    value={admin_edit_form.password}
+                    onChange={(event) =>
+                      set_admin_edit_form((previous) => ({
+                        ...previous,
+                        password: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <div className="form-actions">
+                  <button className="primary-button" type="submit">
+                    Save changes
+                  </button>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    onClick={() => {
+                      set_admin_edit_user(null)
+                      set_admin_edit_form({
+                        username: "",
+                        email: "",
+                        role: "billing",
+                        password: "",
+                        is_active: true,
+                      })
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </section>
         )}
       </main>

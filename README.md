@@ -120,6 +120,8 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - `DATABASE_URL` (psycopg3 driver)
 - `TIMEZONE_OFFSET_HOURS`
 - `N8N_WEBHOOK_URL`
+- `JWT_SECRET`
+- `JWT_EXP_MINUTES`
 
 ## 8. API Reference
 All endpoints are under `/api`.
@@ -171,7 +173,15 @@ All endpoints are under `/api`.
 - `GET /users` → list users (admin only)
 
 **Authentication**
-- Header-based placeholder: `x-user-id`, `x-user-role`
+- JWT bearer token from `/auth/login`
+
+**Default users (seeded)**
+- billing_user / ChangeMe123!
+- finance_user / ChangeMe123!
+- admin / AdminChange123!
+- viewer / ChangeMe123!
+
+Change these passwords after first login.
 
 ## 9. Data Model
 Tables (draft):
@@ -283,7 +293,7 @@ GitHub Actions workflow: `.github/workflows/ci.yml`
 Not applicable. No monitoring or health dashboards are wired up yet.
 
 ## 15. Common Errors and Fixes
-- **Missing user headers**: Add `x-user-id` and `x-user-role` headers to API calls.
+- **Unauthorized**: Login to get a bearer token and include `Authorization: Bearer <token>`.
 - **Live action blocked**: Finance test approval must be recorded first.
 - **Notification blocked**: Post-live approval must be recorded first.
 

@@ -135,6 +135,7 @@ Example secrets:
 - `APP_DATABASE_URL`
 - `APP_API_URL`
 - `APP_WEBHOOK_URL`
+- `APP_JWT_SECRET`
 
 Avoid committing `.env` files. Use `.env.example` for documentation.
 
