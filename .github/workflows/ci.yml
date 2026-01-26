@@ -47,7 +47,7 @@ jobs:
           npm run build
 
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, billing]
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
