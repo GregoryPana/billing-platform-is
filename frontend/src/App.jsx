@@ -737,7 +737,7 @@ function App() {
     const selected_environment = script_form.environment
     const selected_type = script_form.script_type
     if (!selected_cycle) {
-      return scripts
+      return []
     }
     return scripts.filter(
       (script) =>
@@ -1375,23 +1375,27 @@ function App() {
                 <span>Cycle Type</span>
                 <span>Created</span>
               </div>
-              {filtered_scripts.map((script) => {
-                const cycle = cycles_by_id.get(String(script.billing_cycle_id))
-                const cycle_label = cycle
-                  ? `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
-                  : script.billing_cycle_id.slice(0, 8)
-                return (
-                  <div className="table-row" key={script.id}>
-                    <div className="stacked-cell">
-                      <span>{cycle_label}</span>
-                      <span className="mono">{script.command_text}</span>
+              {!script_form.billing_cycle_id ? (
+                <div className="empty-state">Select a billing cycle to view generated scripts.</div>
+              ) : (
+                filtered_scripts.map((script) => {
+                  const cycle = cycles_by_id.get(String(script.billing_cycle_id))
+                  const cycle_label = cycle
+                    ? `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
+                    : script.billing_cycle_id.slice(0, 8)
+                  return (
+                    <div className="table-row" key={script.id}>
+                      <div className="stacked-cell">
+                        <span>{cycle_label}</span>
+                        <span className="mono">{script.command_text}</span>
+                      </div>
+                      <span>{script.environment}</span>
+                      <span>{script.log_type}</span>
+                      <span>{new Date(script.created_at).toLocaleString()}</span>
                     </div>
-                    <span>{script.environment}</span>
-                    <span>{script.log_type}</span>
-                    <span>{new Date(script.created_at).toLocaleString()}</span>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
             {last_generated_count !== null ? (
               <div className="alert info">
