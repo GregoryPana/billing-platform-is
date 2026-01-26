@@ -323,6 +323,43 @@
   color: var(--text-muted);
 }
 
+.summary-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.summary-card .label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.recipient-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.text-button {
+  border: none;
+  background: transparent;
+  color: #0f766e;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
 .checkbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));

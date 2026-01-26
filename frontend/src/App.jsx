@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import ReactMarkdown from "react-markdown"
 
-import { api_base_url, api_fetch, api_headers } from "./api"
+import { api_base_url, api_fetch, api_headers, approval_webhook_url } from "./api"
 import billingProcessDoc from "../../billing_process.md?raw"
 import "./App.css"
 
@@ -11,6 +11,7 @@ const nav_items = [
   { id: "scripts", label: "Script Generation" },
   { id: "runs", label: "Runs Tracking" },
   { id: "approvals", label: "Approvals" },
+  { id: "request-settings", label: "Request Settings" },
   { id: "notifications", label: "Notifications" },
   { id: "audit", label: "Audit Log" },
   { id: "documentation", label: "View Documentation" },
@@ -62,6 +63,25 @@ const format_cycle_datetime = (value) => {
     return `${yyyy}_${mm}_${dd} 00:00:00`
   }
   return { first: format(first), last: format(last), thirtieth: format(thirtieth) }
+}
+
+const format_cycle_status = (status) => {
+  if (!status) {
+    return "-"
+  }
+  if (status === "draft") {
+    return "Test Run Phase"
+  }
+  if (status === "test_approved") {
+    return "Live Run Phase"
+  }
+  if (status === "live_approved") {
+    return "Notification Phase"
+  }
+  if (status === "post_live_approved") {
+    return "Completed"
+  }
+  return status
 }
 
 const build_default_parameters = (script_type, environment, cycle_month) => {
@@ -142,12 +162,17 @@ function App() {
     stage: "test",
     comments: "",
   })
+  const [request_settings, set_request_settings] = useState({
+    requester_name: "",
+    billing_email: "information-system@cwseychelles.com",
+    default_message: "",
+  })
+  const [finance_recipient_input, set_finance_recipient_input] = useState("")
+  const [finance_recipients, set_finance_recipients] = useState([])
+  const [selected_finance_recipients, set_selected_finance_recipients] = useState([])
+  const [recipient_error, set_recipient_error] = useState("")
   const [notification_form, set_notification_form] = useState({
     billing_cycle_id: "",
-    channel: "smtp",
-    recipient: "",
-    subject: "",
-    message: "",
   })
   const [run_environment, set_run_environment] = useState("test")
   const [run_cycle_id, set_run_cycle_id] = useState("")
@@ -171,7 +196,7 @@ function App() {
       },
       {
         label: "Notifications",
-        value: `${notifications.length} queued/sent`,
+        value: `${notifications.length} commands`,
         tone: "info",
       },
     ]
@@ -199,6 +224,7 @@ function App() {
         "scripts",
         "runs",
         "approvals",
+        "request-settings",
         "notifications",
         "documentation",
       ],
@@ -246,6 +272,64 @@ function App() {
       set_error_message(error.message)
     }
   }, [role])
+
+  useEffect(() => {
+    const stored = localStorage.getItem("billing_finance_recipients")
+    if (!stored) {
+      return
+    }
+    try {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        set_finance_recipients(parsed)
+      }
+    } catch (error) {
+      set_finance_recipients([])
+    }
+  }, [])
+
+  useEffect(() => {
+    const stored = localStorage.getItem("billing_request_settings")
+    if (!stored) {
+      return
+    }
+    try {
+      const parsed = JSON.parse(stored)
+      if (parsed && typeof parsed === "object") {
+        set_request_settings((previous) => ({
+          ...previous,
+          requester_name: parsed.requester_name ?? previous.requester_name,
+          billing_email: parsed.billing_email ?? previous.billing_email,
+          default_message: parsed.default_message ?? previous.default_message,
+        }))
+      }
+    } catch (error) {
+      set_request_settings((previous) => ({ ...previous }))
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem("billing_finance_recipients", JSON.stringify(finance_recipients))
+  }, [finance_recipients])
+
+  useEffect(() => {
+    localStorage.setItem("billing_request_settings", JSON.stringify(request_settings))
+  }, [request_settings])
+
+  useEffect(() => {
+    if (!approval_request_form.comments && request_settings.default_message) {
+      set_approval_request_form((previous) => ({
+        ...previous,
+        comments: request_settings.default_message,
+      }))
+    }
+  }, [approval_request_form.comments, request_settings.default_message])
+
+  useEffect(() => {
+    if (selected_finance_recipients.length > 0 && recipient_error) {
+      set_recipient_error("")
+    }
+  }, [recipient_error, selected_finance_recipients])
 
   useEffect(() => {
     reload_all()
@@ -447,39 +531,101 @@ function App() {
   const handle_approval_request_submit = async (event) => {
     event.preventDefault()
     try {
+      if (selected_finance_recipients.length === 0) {
+        set_recipient_error("Select at least one finance recipient.")
+        return
+      }
+      if (!request_settings.requester_name || !request_settings.billing_email) {
+        set_recipient_error("Add the requester name and billing email in Request Settings.")
+        return
+      }
+      if (!approval_webhook_url) {
+        set_recipient_error("Set VITE_APPROVAL_WEBHOOK_URL before requesting approval.")
+        return
+      }
+      set_recipient_error("")
+      const cycle_label = format_cycle_label(approval_request_form.billing_cycle_id)
+      const approval_label =
+        approval_request_form.stage === "post_live"
+          ? "Request to Send Billing Notifications"
+          : "Request to Move to Live Billing"
+      const payload = {
+        recipients: selected_finance_recipients,
+        billing_email: request_settings.billing_email,
+        requested_by: request_settings.requester_name,
+        timestamp: new Date().toISOString(),
+        cycle: cycle_label,
+        approval_request: approval_label,
+        message: approval_request_form.comments || request_settings.default_message || "",
+      }
+      const webhook_response = await fetch(approval_webhook_url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!webhook_response.ok) {
+        throw new Error(`n8n webhook failed (${webhook_response.status})`)
+      }
       await api_fetch(
         "/approvals/request",
         { method: "POST", body: JSON.stringify(approval_request_form) },
         role
       )
-      set_approval_request_form({ billing_cycle_id: "", stage: "test", comments: "" })
+      set_approval_request_form({
+        billing_cycle_id: "",
+        stage: "test",
+        comments: request_settings.default_message || "",
+      })
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
     }
   }
 
-  const handle_run_stage_request = async () => {
+  const handle_run_stage_request = () => {
     if (!run_cycle_id) {
       return
     }
-    try {
-      await api_fetch(
-        "/approvals/request",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            billing_cycle_id: run_cycle_id,
-            stage: run_stage,
-            comments: "",
-          }),
-        },
-        role
-      )
-      await reload_all()
-    } catch (error) {
-      set_error_message(error.message)
+    set_approval_request_form((previous) => ({
+      ...previous,
+      billing_cycle_id: run_cycle_id,
+      stage: run_stage,
+    }))
+    set_active_view("approvals")
+  }
+
+  const normalize_email = (value) => value.trim().toLowerCase()
+  const is_valid_email = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)
+
+  const handle_add_finance_recipient = () => {
+    const normalized = normalize_email(finance_recipient_input)
+    if (!normalized) {
+      set_recipient_error("Enter a finance email address to add.")
+      return
     }
+    if (!is_valid_email(normalized)) {
+      set_recipient_error("Enter a valid email address.")
+      return
+    }
+    set_recipient_error("")
+    set_finance_recipients((previous) =>
+      previous.includes(normalized) ? previous : [...previous, normalized]
+    )
+    set_selected_finance_recipients((previous) =>
+      previous.includes(normalized) ? previous : [...previous, normalized]
+    )
+    set_finance_recipient_input("")
+  }
+
+  const toggle_finance_recipient = (email) => {
+    set_selected_finance_recipients((previous) =>
+      previous.includes(email) ? previous.filter((item) => item !== email) : [...previous, email]
+    )
+  }
+
+  const remove_finance_recipient = (email) => {
+    set_finance_recipients((previous) => previous.filter((item) => item !== email))
+    set_selected_finance_recipients((previous) => previous.filter((item) => item !== email))
   }
 
   const handle_notification_submit = async (event) => {
@@ -490,13 +636,7 @@ function App() {
         { method: "POST", body: JSON.stringify(notification_form) },
         role
       )
-      set_notification_form({
-        billing_cycle_id: "",
-        channel: "smtp",
-        recipient: "",
-        subject: "",
-        message: "",
-      })
+      set_notification_form({ billing_cycle_id: "" })
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -729,6 +869,7 @@ function App() {
     }
     return `Request ${run_stage_label} approval`
   }, [run_cycle_id, run_stage_ready, run_stage_approval, run_stage_label])
+  const approval_recipients_missing = selected_finance_recipients.length === 0
   const test_approval = useMemo(() => {
     if (!script_form.billing_cycle_id) {
       return null
@@ -1067,7 +1208,7 @@ function App() {
                 <div className="table-row" key={cycle.id}>
                   <span>{format_month_label(cycle.usage_month)}</span>
                   <span>{format_month_label(cycle.billing_month)}</span>
-                  <span className="pill neutral">{cycle.status}</span>
+                  <span className="pill neutral">{format_cycle_status(cycle.status)}</span>
                   <span>{new Date(cycle.created_at).toLocaleString()}</span>
                 </div>
               ))}
@@ -1382,6 +1523,19 @@ function App() {
             </div>
             {role !== "finance" && (
               <form className="form-grid" onSubmit={handle_approval_request_submit}>
+                <div className="full">
+                  <p className="helper">Request details</p>
+                  <div className="summary-card">
+                    <div>
+                      <span className="label">Cycle</span>
+                      <span>{format_cycle_label(approval_request_form.billing_cycle_id)}</span>
+                    </div>
+                    <div>
+                      <span className="label">Stage</span>
+                      <span>{format_stage_label(approval_request_form.stage)}</span>
+                    </div>
+                  </div>
+                </div>
                 <label>
                   Billing cycle
                   <select
@@ -1417,8 +1571,27 @@ function App() {
                     <option value="post_live">Move to notifications</option>
                   </select>
                 </label>
+                <div className="full">
+                  <p className="helper">Finance recipients</p>
+                  {finance_recipients.length === 0 ? (
+                    <div className="empty-state">Add finance recipients in Request Settings.</div>
+                  ) : (
+                    <div className="checkbox-grid">
+                      {finance_recipients.map((email) => (
+                        <label key={email} className="checkbox-pill">
+                          <input
+                            type="checkbox"
+                            checked={selected_finance_recipients.includes(email)}
+                            onChange={() => toggle_finance_recipient(email)}
+                          />
+                          <span>{email}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <label className="full">
-                  Comments
+                  Message to finance
                   <textarea
                     value={approval_request_form.comments}
                     onChange={(event) =>
@@ -1427,11 +1600,17 @@ function App() {
                         comments: event.target.value,
                       }))
                     }
+                    required
                   />
                 </label>
-                <button className="primary-button" type="submit">
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={!approval_request_form.billing_cycle_id || approval_recipients_missing}
+                >
                   Request approval
                 </button>
+                {recipient_error ? <div className="alert warning full">{recipient_error}</div> : null}
               </form>
             )}
             {role === "finance" && (
@@ -1609,7 +1788,7 @@ function App() {
             <div className="panel-header">
               <div>
                 <h2>Notifications</h2>
-                <p>Send notifications after post-live approval.</p>
+                <p>Generate the backend command after post-live approval.</p>
               </div>
             </div>
             <form className="form-grid" onSubmit={handle_notification_submit}>
@@ -1632,90 +1811,137 @@ function App() {
                   ))}
                 </select>
               </label>
-              <label>
-                Channel
-                <select
-                  value={notification_form.channel}
-                  onChange={(event) =>
-                    set_notification_form((previous) => ({
-                      ...previous,
-                      channel: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="smtp">SMTP</option>
-                  <option value="n8n">n8n</option>
-                </select>
-              </label>
-              <label>
-                Recipient
-                <input
-                  value={notification_form.recipient}
-                  onChange={(event) =>
-                    set_notification_form((previous) => ({
-                      ...previous,
-                      recipient: event.target.value,
-                    }))
-                  }
-                  placeholder="finance@example.com"
-                  required
-                />
-              </label>
-              <label>
-                Subject
-                <input
-                  value={notification_form.subject}
-                  onChange={(event) =>
-                    set_notification_form((previous) => ({
-                      ...previous,
-                      subject: event.target.value,
-                    }))
-                  }
-                  placeholder="Billing cycle approved"
-                  required
-                />
-              </label>
-              <label className="full">
-                Message
-                <textarea
-                  value={notification_form.message}
-                  onChange={(event) =>
-                    set_notification_form((previous) => ({
-                      ...previous,
-                      message: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <button className="primary-button" type="submit">
-                Send notification
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={!notification_form.billing_cycle_id || notification_blocked}
+              >
+                Generate command
               </button>
             </form>
             {notification_form.billing_cycle_id && notification_blocked ? (
               <div className="alert warning">
-                Post-live approval is required before sending notifications.
+                Post-live approval is required before generating the command.
               </div>
             ) : null}
             <div className="table">
               <div className="table-row table-head">
-                <span>Recipient</span>
-                <span>Channel</span>
+                <span>Cycle</span>
+                <span>Command</span>
                 <span>Status</span>
-                <span>Sent</span>
+                <span>Created</span>
               </div>
               {notifications.map((notification) => (
                 <div className="table-row" key={notification.id}>
-                  <span>{notification.recipient}</span>
-                  <span>{notification.channel}</span>
-                  <span className={`pill ${notification.status === "sent" ? "success" : "warning"}`}>
+                  <span>{format_cycle_label(notification.billing_cycle_id)}</span>
+                  <span className="mono">{notification.message}</span>
+                  <span className={`pill ${notification.status === "ready" ? "success" : "warning"}`}>
                     {notification.status}
                   </span>
                   <span>
-                    {notification.sent_at ? new Date(notification.sent_at).toLocaleString() : "-"}
+                    {notification.created_at ? new Date(notification.created_at).toLocaleString() : "-"}
                   </span>
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {active_view === "request-settings" && role === "billing" && (
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>Request Settings</h2>
+                <p>Configure approval request defaults for finance notifications.</p>
+              </div>
+            </div>
+            <form className="form-grid">
+              <div className="full">
+                <p className="helper">Finance recipients</p>
+                <div className="recipient-row">
+                  <input
+                    value={finance_recipient_input}
+                    onChange={(event) => set_finance_recipient_input(event.target.value)}
+                    placeholder="finance@example.com"
+                  />
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={handle_add_finance_recipient}
+                  >
+                    Add
+                  </button>
+                </div>
+                {finance_recipients.length === 0 ? (
+                  <div className="empty-state">Add at least one finance email.</div>
+                ) : (
+                  <div className="checkbox-grid">
+                    {finance_recipients.map((email) => (
+                      <label key={email} className="checkbox-pill">
+                        <input
+                          type="checkbox"
+                          checked={selected_finance_recipients.includes(email)}
+                          onChange={() => toggle_finance_recipient(email)}
+                        />
+                        <span>{email}</span>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            remove_finance_recipient(email)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <label>
+                Requester name
+                <input
+                  value={request_settings.requester_name}
+                  onChange={(event) =>
+                    set_request_settings((previous) => ({
+                      ...previous,
+                      requester_name: event.target.value,
+                    }))
+                  }
+                  placeholder="Name used in approval requests"
+                  required
+                />
+              </label>
+              <label>
+                Billing department email
+                <input
+                  value={request_settings.billing_email}
+                  onChange={(event) =>
+                    set_request_settings((previous) => ({
+                      ...previous,
+                      billing_email: event.target.value,
+                    }))
+                  }
+                  placeholder="information-system@cwseychelles.com"
+                  required
+                />
+              </label>
+              <label className="full">
+                Default message
+                <textarea
+                  value={request_settings.default_message}
+                  onChange={(event) =>
+                    set_request_settings((previous) => ({
+                      ...previous,
+                      default_message: event.target.value,
+                    }))
+                  }
+                  placeholder="Add a default message for approval requests"
+                />
+              </label>
+            </form>
           </section>
         )}
 

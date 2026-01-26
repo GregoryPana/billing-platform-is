@@ -1,6 +1,7 @@
 const DEFAULT_API_URL = "http://localhost:8000/api"
 
 export const api_base_url = import.meta.env.VITE_API_URL || DEFAULT_API_URL
+export const approval_webhook_url = import.meta.env.VITE_APPROVAL_WEBHOOK_URL || ""
 export const default_user_id = "00000000-0000-0000-0000-000000000001"
 
 export function api_headers(role = "billing", headers = {}) {
