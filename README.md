@@ -115,9 +115,10 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - SQLAlchemy models in `backend/app/models/`
 
 **Environment variables**
+- Local: `backend/.env.local`
+- Production: `backend/.env`
 - `DATABASE_URL` (psycopg3 driver)
 - `TIMEZONE_OFFSET_HOURS`
-- `SMTP_*` fields
 - `N8N_WEBHOOK_URL`
 
 ## 8. API Reference
@@ -217,16 +218,40 @@ Seed users are created on startup with fixed UUIDs for local development:
    ```
 
 **Frontend configuration**
-Create `frontend/.env` if you need a custom API base URL:
+- Local: `frontend/.env.local`
+- Production build: `frontend/.env.production`
+
+Create one of the following as needed:
 ```
 VITE_API_URL=http://localhost:8000/api
+VITE_APPROVAL_WEBHOOK_URL=https://n8n-lan.cwsey.com:8443/webhook-test/billing-approval-request
 ```
 
 ## 11. Testing
 Not implemented yet. Planned: pytest for API tests and Vitest/Playwright for UI.
 
 ## 12. Deployment
-Not applicable. Deployment workflows are not configured yet.
+### Self-hosted VM deployment
+Target: `/opt/billing` on the Ubuntu VM.
+
+**Backend service (systemd)**
+- Install `ops/billing-api.service` to `/etc/systemd/system/billing-api.service`
+- Enable and start:
+  ```bash
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now billing-api
+  ```
+
+**Environment files**
+- Backend (production): `/opt/billing/backend/.env`
+- Frontend (production build): `/opt/billing/frontend/.env.production`
+
+**Nginx (example)**
+- API: `/billing-api/` → `http://localhost:8010/`
+- UI: `/billing/` → `/opt/billing/frontend/dist/`
+
+**GitHub Actions deploy**
+- Uses the self-hosted runner to pull to `/opt/billing`, write env files, build the frontend, and restart `billing-api`.
 
 **Deployment visibility requirement (planned)**
 - App name

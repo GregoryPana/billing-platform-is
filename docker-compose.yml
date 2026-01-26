@@ -4,6 +4,7 @@ services:
   postgres:
     image: postgres:16
     container_name: billing_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: billing
       POSTGRES_PASSWORD: billing

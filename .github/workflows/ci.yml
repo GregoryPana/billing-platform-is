@@ -47,12 +47,55 @@ jobs:
           npm run build
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: test
-    if: github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Ensure repo at /opt/billing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          if [ -d /opt/billing/.git ]; then
+            git -C /opt/billing fetch --prune
+            git -C /opt/billing checkout main
+            git -C /opt/billing pull --ff-only
+          else
+            git clone https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git /opt/billing
+          fi
+
+      - name: Write backend env
+        run: |
+          cat > /opt/billing/backend/.env <<'EOF'
+          APP_NAME="Billing Platform API"
+          ENVIRONMENT="production"
+          DATABASE_URL="${{ secrets.BILLING_DATABASE_URL }}"
+          TIMEZONE_OFFSET_HOURS=4
+          N8N_WEBHOOK_URL="${{ secrets.BILLING_N8N_WEBHOOK_URL }}"
+          EOF
+
+      - name: Write frontend env
+        run: |
+          cat > /opt/billing/frontend/.env.production <<'EOF'
+          VITE_API_URL=${{ secrets.BILLING_API_URL }}
+          VITE_APPROVAL_WEBHOOK_URL=${{ secrets.BILLING_APPROVAL_WEBHOOK_URL }}
+          EOF
+
+      - name: Build frontend
+        run: |
+          cd /opt/billing/frontend
+          npm ci
+          npm run build
+
+      - name: Install backend deps
+        run: |
+          cd /opt/billing/backend
+          python3 -m venv .venv
+          ./.venv/bin/pip install --upgrade pip
+          ./.venv/bin/pip install -r requirements.txt
+
+      - name: Restart billing API
+        run: sudo systemctl restart billing-api
 
       - name: Emit deployment metadata
         env:
