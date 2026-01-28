@@ -117,6 +117,7 @@ function App() {
     username_or_email: "",
     password: "",
   })
+  const [show_login_password, set_show_login_password] = useState(false)
   const [login_errors, set_login_errors] = useState({
     username: "",
     password: "",
@@ -1060,7 +1061,7 @@ function App() {
           <div className="brand">
             <div className="brand-mark">BL</div>
             <div>
-              <p className="brand-title">Billing Ledger</p>
+              <p className="brand-title">Billing Platform</p>
               <p className="brand-subtitle">Automation Hub</p>
             </div>
           </div>
@@ -1101,7 +1102,7 @@ function App() {
                 <label>
                   Password
                   <input
-                    type="password"
+                    type={show_login_password ? "text" : "password"}
                     value={login_form.password}
                     onChange={(event) =>
                       set_login_form((previous) => ({
@@ -1120,6 +1121,14 @@ function App() {
                   {login_errors.password ? (
                     <span className="field-error">{login_errors.password}</span>
                   ) : null}
+                  <label className="checkbox-inline">
+                    <input
+                      type="checkbox"
+                      checked={show_login_password}
+                      onChange={(event) => set_show_login_password(event.target.checked)}
+                    />
+                    <span>Show password</span>
+                  </label>
                 </label>
                 <button className="primary-button" type="submit">
                   Sign in
@@ -1215,7 +1224,7 @@ function App() {
         <div className="brand">
           <div className="brand-mark">BL</div>
           <div>
-            <p className="brand-title">Billing Ledger</p>
+            <p className="brand-title">Billing Platform</p>
             <p className="brand-subtitle">Automation Hub</p>
           </div>
         </div>
@@ -2192,15 +2201,10 @@ function App() {
                 Billing department email
                 <input
                   value={request_settings.billing_email}
-                  onChange={(event) =>
-                    set_request_settings((previous) => ({
-                      ...previous,
-                      billing_email: event.target.value,
-                    }))
-                  }
                   placeholder="information-system@cwseychelles.com"
                   name="billing-email"
                   autoComplete="email"
+                  disabled
                   required
                 />
               </label>
