@@ -296,6 +296,7 @@ Not applicable. No monitoring or health dashboards are wired up yet.
 - **Unauthorized**: Login to get a bearer token and include `Authorization: Bearer <token>`.
 - **Live action blocked**: Finance test approval must be recorded first.
 - **Notification blocked**: Post-live approval must be recorded first.
+- **Passlib bcrypt error on startup**: Ensure `bcrypt<4.1` is installed (required by `passlib`).
 
 ## 16. Change Guide
 - **Add a new cycle type**: update UI list and backend generation defaults in `backend/app/services/command_service.py`.
