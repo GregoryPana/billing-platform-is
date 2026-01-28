@@ -2132,7 +2132,7 @@ function App() {
                 <p>Configure approval request defaults for finance notifications.</p>
               </div>
             </div>
-            <form className="form-grid">
+            <form className="form-grid" autoComplete="off">
               <div className="full">
                 <p className="helper">Finance recipients</p>
                 <div className="recipient-row">
@@ -2140,6 +2140,8 @@ function App() {
                     value={finance_recipient_input}
                     onChange={(event) => set_finance_recipient_input(event.target.value)}
                     placeholder="finance@example.com"
+                    name="finance-recipient"
+                    autoComplete="off"
                   />
                   <button
                     className="secondary-button"
@@ -2197,6 +2199,8 @@ function App() {
                     }))
                   }
                   placeholder="information-system@cwseychelles.com"
+                  name="billing-email"
+                  autoComplete="email"
                   required
                 />
               </label>

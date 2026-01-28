@@ -26,6 +26,7 @@ The Billing Collaboration Platform is a web application for creating billing com
 - Script generation auto-creates planned run records per cycle type
 - Billing can request finance approvals only after required test/live runs are executed
 - UTC+4 timezone handling for all timestamps
+- Global approval request settings (recipients + default message) stored in Postgres
 
 **Data**
 - Postgres schema for users, cycles, scripts, runs, approvals, notifications, and audit logs
@@ -120,6 +121,7 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - `DATABASE_URL` (psycopg3 driver)
 - `TIMEZONE_OFFSET_HOURS`
 - `N8N_WEBHOOK_URL`
+- `N8N_WEBHOOK_VERIFY` (set `false` only for self-signed certs in dev)
 - `JWT_SECRET`
 - `JWT_EXP_MINUTES`
 
@@ -159,6 +161,26 @@ All endpoints are under `/api`.
   - Body: `{ "billing_cycle_id": "uuid", "stage": "test|live|post_live", "status": "approved|rejected", "comments": "..." }`
 - `POST /approvals/request` → request approval (billing)
   - Body: `{ "billing_cycle_id": "uuid", "stage": "test|post_live", "comments": "..." }`
+- `GET /approvals/settings` → get global approval settings (billing/admin)
+- `PUT /approvals/settings` → update global approval settings
+  - Body: `{ "billing_email": "...", "default_message": "...", "finance_recipients": ["..."] }`
+
+**Approval webhook payload (n8n)**
+```json
+[
+  {
+    "body": {
+      "recipients": ["finance@example.com"],
+      "billing_email": "information-system@cwseychelles.com",
+      "requested_by": "Billing User",
+      "timestamp": "2026-01-26T07:38:28.974Z",
+      "cycle": "Mar 2026 - Mar 2026",
+      "approval_request": "Request to Send Billing Notifications",
+      "message": "Please approve the requested."
+    }
+  }
+]
+```
 
 **Notifications**
 - `GET /notifications` → list notifications
@@ -174,6 +196,7 @@ All endpoints are under `/api`.
 
 **Authentication**
 - JWT bearer token from `/auth/login`
+- Signup requests require `name`, `username`, `email`, and `password`.
 
 **Default users (seeded)**
 - billing_user / ChangeMe123!
@@ -185,7 +208,9 @@ Change these passwords after first login.
 
 ## 9. Data Model
 Tables (draft):
-- `users`
+- `users` (includes required `name`)
+- `signup_requests`
+- `approval_request_settings`
 - `billing_cycles`
 - `script_definitions`
 - `script_runs`
