@@ -10,6 +10,7 @@ class LoginRequest(BaseSchema):
 
 
 class SignupRequestCreate(BaseSchema):
+    name: str
     username: str
     email: str
     password: str
@@ -17,6 +18,7 @@ class SignupRequestCreate(BaseSchema):
 
 class SignupRequestRead(BaseSchema):
     id: UUID
+    name: str
     username: str
     email: str
     status: str
@@ -31,6 +33,7 @@ class SignupApproval(BaseSchema):
 
 class UserAuthRead(BaseSchema):
     id: UUID
+    name: str
     username: str
     email: str
     role: str
@@ -41,4 +44,3 @@ class TokenResponse(BaseSchema):
     access_token: str
     token_type: str = "bearer"
     user: UserAuthRead
-

@@ -1,18 +1,57 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+
+import requests
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.approval import Approval
+from app.models.approval_request_settings import ApprovalRequestSettings
 from app.models.billing_cycle import BillingCycle
+from app.models.user import User
 from app.schemas.approvals import ApprovalRead, ApprovalRequest, ApprovalRequestCreate
+from app.schemas.approval_settings import ApprovalSettingsRead, ApprovalSettingsUpdate
 from app.services.audit_service import record_audit_event
 from app.services.auth_service import CurrentActor, require_role
 from app.services.workflow_service import ensure_stage_runs_executed
 from app.utils.datetime_utils import utc_plus_4_now
+from app.config import settings
 
 
 router = APIRouter()
+
+
+def _get_or_create_settings(db: Session) -> ApprovalRequestSettings:
+    settings_record = db.scalar(select(ApprovalRequestSettings))
+    if settings_record:
+        return settings_record
+    settings_record = ApprovalRequestSettings()
+    db.add(settings_record)
+    db.commit()
+    db.refresh(settings_record)
+    return settings_record
+
+
+def _format_month_label(value: str | None) -> str:
+    if not value:
+        return "-"
+    try:
+        year_str, month_str = value.split("-")
+        year = int(year_str)
+        month = int(month_str)
+    except (ValueError, AttributeError):
+        return value
+    if not year or not month:
+        return value
+    date = datetime(year, month, 1, tzinfo=timezone.utc)
+    return date.strftime("%b %Y")
+
+
+def _format_cycle_label(cycle: BillingCycle | None) -> str:
+    if not cycle:
+        return "-"
+    return f"{_format_month_label(cycle.usage_month)} - {_format_month_label(cycle.billing_month)}"
 
 
 @router.get("/", response_model=list[ApprovalRead])
@@ -21,6 +60,42 @@ def list_approvals(
     actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
 ):
     return list(db.scalars(select(Approval).order_by(Approval.created_at.desc())))
+
+
+@router.get("/settings", response_model=ApprovalSettingsRead)
+def get_approval_settings(
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+):
+    settings_record = _get_or_create_settings(db)
+    return ApprovalSettingsRead(
+        billing_email=settings_record.billing_email,
+        default_message=settings_record.default_message,
+        finance_recipients=settings_record.finance_recipients or [],
+    )
+
+
+@router.put("/settings", response_model=ApprovalSettingsRead)
+def update_approval_settings(
+    payload: ApprovalSettingsUpdate,
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+):
+    settings_record = _get_or_create_settings(db)
+    if payload.billing_email is not None:
+        settings_record.billing_email = payload.billing_email
+    if payload.default_message is not None:
+        settings_record.default_message = payload.default_message
+    if payload.finance_recipients is not None:
+        settings_record.finance_recipients = payload.finance_recipients
+    settings_record.updated_at = utc_plus_4_now()
+    db.commit()
+    db.refresh(settings_record)
+    return ApprovalSettingsRead(
+        billing_email=settings_record.billing_email,
+        default_message=settings_record.default_message,
+        finance_recipients=settings_record.finance_recipients or [],
+    )
 
 
 @router.post("/", response_model=ApprovalRead)
@@ -95,6 +170,8 @@ def request_approval(
     db: Session = Depends(get_db),
     actor: CurrentActor = Depends(require_role({"admin", "billing"})),
 ):
+    if not settings.n8n_webhook_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Approval webhook URL not configured")
     stage = payload.stage
     stage_rules = {
         "test": {"environment": "test", "script_types": ["preparation", "printing"]},
@@ -111,6 +188,41 @@ def request_approval(
         environment=rule["environment"],
         script_types=rule["script_types"],
     )
+
+    try:
+        settings_record = _get_or_create_settings(db)
+        cycle = db.get(BillingCycle, payload.billing_cycle_id)
+        if not cycle:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing cycle not found")
+        requester = db.get(User, actor.id)
+        approval_label = (
+            "Request to Send Billing Notifications" if payload.stage == "post_live" else "Request to Move to Live Billing"
+        )
+        recipients = settings_record.finance_recipients or []
+        webhook_payload = {
+            "body": {
+                "recipients": recipients,
+                "billing_email": settings_record.billing_email,
+                "requested_by": requester.name if requester else "",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "cycle": _format_cycle_label(cycle),
+                "approval_request": approval_label,
+                "message": payload.comments or settings_record.default_message or "",
+            }
+        }
+        webhook_response = requests.post(
+            settings.n8n_webhook_url,
+            json=[webhook_payload],
+            timeout=10,
+            verify=settings.n8n_webhook_verify,
+        )
+        if not webhook_response.ok:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Approval webhook failed ({webhook_response.status_code})",
+            )
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Approval webhook unreachable") from exc
 
     approval = db.scalar(
         select(Approval).where(

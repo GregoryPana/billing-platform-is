@@ -25,6 +25,20 @@ def _apply_schema_updates() -> None:
                 text("UPDATE users SET password_hash = :password WHERE password_hash IS NULL OR password_hash = ''"),
                 {"password": hash_password("ChangeMe123!")},
             )
+    if "name" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255)"))
+            connection.execute(
+                text("UPDATE users SET name = username WHERE name IS NULL OR name = ''")
+            )
+
+    signup_columns = {column["name"] for column in inspector.get_columns("signup_requests")}
+    if "name" not in signup_columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE signup_requests ADD COLUMN IF NOT EXISTS name VARCHAR(255)"))
+            connection.execute(
+                text("UPDATE signup_requests SET name = username WHERE name IS NULL OR name = ''")
+            )
 
 
 def _seed_default_users() -> None:
@@ -38,6 +52,7 @@ def _seed_default_users() -> None:
         users = [
             models.User(
                 id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                name="Billing User",
                 username="billing_user",
                 email="billing@example.com",
                 role="billing",
@@ -48,6 +63,7 @@ def _seed_default_users() -> None:
             ),
             models.User(
                 id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+                name="Finance User",
                 username="finance_user",
                 email="finance@example.com",
                 role="finance",
@@ -58,6 +74,7 @@ def _seed_default_users() -> None:
             ),
             models.User(
                 id=uuid.UUID("00000000-0000-0000-0000-000000000003"),
+                name="Admin User",
                 username="admin",
                 email="admin@example.com",
                 role="admin",
@@ -68,6 +85,7 @@ def _seed_default_users() -> None:
             ),
             models.User(
                 id=uuid.UUID("00000000-0000-0000-0000-000000000004"),
+                name="Viewer User",
                 username="viewer",
                 email="viewer@example.com",
                 role="viewer",

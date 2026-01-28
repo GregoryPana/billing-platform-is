@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://billing:billing@localhost:5432/billing"
     timezone_offset_hours: int = 4
     n8n_webhook_url: str | None = None
+    n8n_webhook_verify: bool = True
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_exp_minutes: int = 480

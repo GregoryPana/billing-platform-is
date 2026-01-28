@@ -6,6 +6,7 @@ from app.schemas.base import BaseSchema
 
 class UserRead(BaseSchema):
     id: UUID
+    name: str
     username: str
     email: str
     role: str
@@ -15,6 +16,7 @@ class UserRead(BaseSchema):
 
 
 class UserCreate(BaseSchema):
+    name: str
     username: str
     email: str
     role: str
@@ -23,6 +25,7 @@ class UserCreate(BaseSchema):
 
 
 class UserUpdate(BaseSchema):
+    name: str | None = None
     username: str | None = None
     email: str | None = None
     role: str | None = None

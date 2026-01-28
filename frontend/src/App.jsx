@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 
-import { api_base_url, api_fetch, approval_webhook_url, get_auth_token, set_auth_token } from "./api"
+import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../billing_process.md?raw"
 import "./App.css"
 
@@ -122,6 +122,7 @@ function App() {
     password: "",
   })
   const [signup_form, set_signup_form] = useState({
+    name: "",
     username: "",
     email: "",
     password: "",
@@ -175,11 +176,16 @@ function App() {
     stage: "test",
     comments: "",
   })
+  const [approval_request_feedback, set_approval_request_feedback] = useState("")
+  const [approval_request_pending, set_approval_request_pending] = useState(false)
   const [request_settings, set_request_settings] = useState({
     requester_name: "",
     billing_email: "information-system@cwseychelles.com",
     default_message: "",
   })
+  const default_message_ref = useRef("")
+  const request_settings_loaded = useRef(false)
+  const [request_settings_status, set_request_settings_status] = useState("")
   const [finance_recipient_input, set_finance_recipient_input] = useState("")
   const [finance_recipients, set_finance_recipients] = useState([])
   const [selected_finance_recipients, set_selected_finance_recipients] = useState([])
@@ -188,6 +194,7 @@ function App() {
     billing_cycle_id: "",
   })
   const [admin_user_form, set_admin_user_form] = useState({
+    name: "",
     username: "",
     email: "",
     role: "billing",
@@ -196,6 +203,7 @@ function App() {
   })
   const [admin_edit_user, set_admin_edit_user] = useState(null)
   const [admin_edit_form, set_admin_edit_form] = useState({
+    name: "",
     username: "",
     email: "",
     role: "billing",
@@ -308,55 +316,73 @@ function App() {
   }, [role])
 
   useEffect(() => {
-    const stored = localStorage.getItem("billing_finance_recipients")
-    if (!stored) {
+    if (!is_authenticated || (role !== "billing" && role !== "admin")) {
       return
     }
-    try {
-      const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed)) {
-        set_finance_recipients(parsed)
+    const load_settings = async () => {
+      try {
+        const settings = await api_fetch("/approvals/settings")
+        set_request_settings({
+          requester_name: current_user?.name || "",
+          billing_email: settings.billing_email || "information-system@cwseychelles.com",
+          default_message: settings.default_message || "",
+        })
+        set_finance_recipients(Array.isArray(settings.finance_recipients) ? settings.finance_recipients : [])
+        request_settings_loaded.current = true
+      } catch (error) {
+        set_error_message(error.message)
       }
-    } catch (error) {
-      set_finance_recipients([])
     }
-  }, [])
+    load_settings()
+  }, [is_authenticated, role, current_user])
 
   useEffect(() => {
-    const stored = localStorage.getItem("billing_request_settings")
-    if (!stored) {
+    if (!current_user?.name) {
       return
     }
-    try {
-      const parsed = JSON.parse(stored)
-      if (parsed && typeof parsed === "object") {
-        set_request_settings((previous) => ({
+    set_request_settings((previous) => ({
+      ...previous,
+      requester_name: current_user.name,
+    }))
+  }, [current_user])
+
+  useEffect(() => {
+    if (!request_settings_loaded.current) {
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        await api_fetch("/approvals/settings", {
+          method: "PUT",
+          body: JSON.stringify({
+            billing_email: request_settings.billing_email,
+            default_message: request_settings.default_message,
+            finance_recipients,
+          }),
+        })
+        set_request_settings_status("Settings saved.")
+      } catch (error) {
+        set_request_settings_status("Failed to save settings.")
+      }
+    }, 600)
+
+    return () => clearTimeout(timer)
+  }, [request_settings, finance_recipients])
+
+  useEffect(() => {
+    const previous_default = default_message_ref.current
+    const current_default = request_settings.default_message
+    if (current_default) {
+      const should_sync =
+        !approval_request_form.comments || approval_request_form.comments === previous_default
+      if (should_sync) {
+        set_approval_request_form((previous) => ({
           ...previous,
-          requester_name: parsed.requester_name ?? previous.requester_name,
-          billing_email: parsed.billing_email ?? previous.billing_email,
-          default_message: parsed.default_message ?? previous.default_message,
+          comments: current_default,
         }))
       }
-    } catch (error) {
-      set_request_settings((previous) => ({ ...previous }))
     }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem("billing_finance_recipients", JSON.stringify(finance_recipients))
-  }, [finance_recipients])
-
-  useEffect(() => {
-    localStorage.setItem("billing_request_settings", JSON.stringify(request_settings))
-  }, [request_settings])
-
-  useEffect(() => {
-    if (!approval_request_form.comments && request_settings.default_message) {
-      set_approval_request_form((previous) => ({
-        ...previous,
-        comments: request_settings.default_message,
-      }))
-    }
+    default_message_ref.current = current_default
   }, [approval_request_form.comments, request_settings.default_message])
 
   useEffect(() => {
@@ -364,6 +390,12 @@ function App() {
       set_recipient_error("")
     }
   }, [recipient_error, selected_finance_recipients])
+
+  useEffect(() => {
+    if (approval_request_feedback) {
+      set_approval_request_feedback("")
+    }
+  }, [approval_request_form.billing_cycle_id, approval_request_form.stage])
 
   useEffect(() => {
     if (!is_authenticated) {
@@ -617,7 +649,7 @@ function App() {
         `Request submitted for ${response.username}. Admin has been notified and will review shortly.`
       )
       set_auth_mode("login")
-      set_signup_form({ username: "", email: "", password: "" })
+      set_signup_form({ name: "", username: "", email: "", password: "" })
     } catch (error) {
       set_error_message(error.message)
     }
@@ -626,50 +658,32 @@ function App() {
   const handle_approval_request_submit = async (event) => {
     event.preventDefault()
     try {
+      set_error_message("")
+      set_approval_request_feedback("")
+      set_approval_request_pending(true)
       if (selected_finance_recipients.length === 0) {
         set_recipient_error("Select at least one finance recipient.")
+        set_approval_request_pending(false)
         return
       }
-      if (!request_settings.requester_name || !request_settings.billing_email) {
-        set_recipient_error("Add the requester name and billing email in Request Settings.")
-        return
-      }
-      if (!approval_webhook_url) {
-        set_recipient_error("Set VITE_APPROVAL_WEBHOOK_URL before requesting approval.")
+      if (!current_user?.name || !request_settings.billing_email) {
+        set_recipient_error("Add the billing email in Request Settings.")
+        set_approval_request_pending(false)
         return
       }
       set_recipient_error("")
-      const cycle_label = format_cycle_label(approval_request_form.billing_cycle_id)
-      const approval_label =
-        approval_request_form.stage === "post_live"
-          ? "Request to Send Billing Notifications"
-          : "Request to Move to Live Billing"
-      const payload = {
-        recipients: selected_finance_recipients,
-        billing_email: request_settings.billing_email,
-        requested_by: request_settings.requester_name,
-        timestamp: new Date().toISOString(),
-        cycle: cycle_label,
-        approval_request: approval_label,
-        message: approval_request_form.comments || request_settings.default_message || "",
-      }
-      const webhook_response = await fetch(approval_webhook_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!webhook_response.ok) {
-        throw new Error(`n8n webhook failed (${webhook_response.status})`)
-      }
       await api_fetch("/approvals/request", { method: "POST", body: JSON.stringify(approval_request_form) })
       set_approval_request_form({
         billing_cycle_id: "",
         stage: "test",
         comments: request_settings.default_message || "",
       })
+      set_approval_request_feedback("Approval request sent to finance and recorded in the system.")
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
+    } finally {
+      set_approval_request_pending(false)
     }
   }
 
@@ -689,7 +703,14 @@ function App() {
     event.preventDefault()
     try {
       await api_fetch("/users/", { method: "POST", body: JSON.stringify(admin_user_form) })
-      set_admin_user_form({ username: "", email: "", role: "billing", password: "", is_active: true })
+      set_admin_user_form({
+        name: "",
+        username: "",
+        email: "",
+        role: "billing",
+        password: "",
+        is_active: true,
+      })
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -707,7 +728,14 @@ function App() {
         body: JSON.stringify(admin_edit_form),
       })
       set_admin_edit_user(null)
-      set_admin_edit_form({ username: "", email: "", role: "billing", password: "", is_active: true })
+      set_admin_edit_form({
+        name: "",
+        username: "",
+        email: "",
+        role: "billing",
+        password: "",
+        is_active: true,
+      })
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -1099,6 +1127,19 @@ function App() {
               </form>
             ) : (
               <form className="form-grid" onSubmit={handle_signup_submit}>
+                <label>
+                  Full name
+                  <input
+                    value={signup_form.name}
+                    onChange={(event) =>
+                      set_signup_form((previous) => ({
+                        ...previous,
+                        name: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
                 <label>
                   Username
                   <input
@@ -1752,17 +1793,21 @@ function App() {
               <form className="form-grid" onSubmit={handle_approval_request_submit}>
                 <div className="full">
                   <p className="helper">Request details</p>
-                  <div className="summary-card">
-                    <div>
-                      <span className="label">Cycle</span>
-                      <span>{format_cycle_label(approval_request_form.billing_cycle_id)}</span>
-                    </div>
-                    <div>
-                      <span className="label">Stage</span>
-                      <span>{format_stage_label(approval_request_form.stage)}</span>
-                    </div>
+                <div className="summary-card">
+                  <div>
+                    <span className="label">Cycle</span>
+                    <span>{format_cycle_label(approval_request_form.billing_cycle_id)}</span>
+                  </div>
+                  <div>
+                    <span className="label">Stage</span>
+                    <span>{format_stage_label(approval_request_form.stage)}</span>
+                  </div>
+                  <div>
+                    <span className="label">Requested by</span>
+                    <span>{current_user?.name || "-"}</span>
                   </div>
                 </div>
+              </div>
                 <label>
                   Billing cycle
                   <select
@@ -1833,10 +1878,15 @@ function App() {
                 <button
                   className="primary-button"
                   type="submit"
-                  disabled={!approval_request_form.billing_cycle_id || approval_recipients_missing}
+                  disabled={
+                    !approval_request_form.billing_cycle_id || approval_recipients_missing || approval_request_pending
+                  }
                 >
-                  Request approval
+                  {approval_request_pending ? "Sending request..." : "Request approval"}
                 </button>
+                {approval_request_feedback ? (
+                  <div className="alert info full">{approval_request_feedback}</div>
+                ) : null}
                 {recipient_error ? <div className="alert warning full">{recipient_error}</div> : null}
               </form>
             )}
@@ -2131,12 +2181,7 @@ function App() {
                 Requester name
                 <input
                   value={request_settings.requester_name}
-                  onChange={(event) =>
-                    set_request_settings((previous) => ({
-                      ...previous,
-                      requester_name: event.target.value,
-                    }))
-                  }
+                  disabled
                   placeholder="Name used in approval requests"
                   required
                 />
@@ -2168,6 +2213,9 @@ function App() {
                   placeholder="Add a default message for approval requests"
                 />
               </label>
+              {request_settings_status ? (
+                <div className="alert info full">{request_settings_status}</div>
+              ) : null}
             </form>
           </section>
         )}
@@ -2227,6 +2275,7 @@ function App() {
             </div>
             <div className="table">
               <div className="table-row table-head admin">
+                <span>Name</span>
                 <span>Username</span>
                 <span>Email</span>
                 <span>Status</span>
@@ -2238,6 +2287,7 @@ function App() {
               ) : (
                 signup_requests.map((request) => (
                   <div className="table-row admin" key={request.id}>
+                    <span>{request.name}</span>
                     <span>{request.username}</span>
                     <span>{request.email}</span>
                     <span className={`pill ${request.status === "pending" ? "warning" : "neutral"}`}>
@@ -2287,6 +2337,19 @@ function App() {
               <p>Add a user directly without approval.</p>
             </div>
             <form className="form-grid" onSubmit={handle_admin_user_create}>
+              <label>
+                Full name
+                <input
+                  value={admin_user_form.name}
+                  onChange={(event) =>
+                    set_admin_user_form((previous) => ({
+                      ...previous,
+                      name: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
               <label>
                 Username
                 <input
@@ -2371,6 +2434,7 @@ function App() {
             </div>
             <div className="table">
               <div className="table-row table-head admin">
+                <span>Name</span>
                 <span>Username</span>
                 <span>Email</span>
                 <span>Role</span>
@@ -2379,6 +2443,7 @@ function App() {
               </div>
               {users.map((user) => (
                 <div className="table-row admin" key={user.id}>
+                  <span>{user.name}</span>
                   <span>{user.username}</span>
                   <span>{user.email}</span>
                   <span>{user.role}</span>
@@ -2392,6 +2457,7 @@ function App() {
                       onClick={() => {
                         set_admin_edit_user(user)
                         set_admin_edit_form({
+                          name: user.name,
                           username: user.username,
                           email: user.email,
                           role: user.role,
@@ -2415,6 +2481,19 @@ function App() {
             </div>
             {admin_edit_user ? (
               <form className="form-grid" onSubmit={handle_admin_user_update}>
+                <label>
+                  Full name
+                  <input
+                    value={admin_edit_form.name}
+                    onChange={(event) =>
+                      set_admin_edit_form((previous) => ({
+                        ...previous,
+                        name: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
                 <label>
                   Username
                   <input
@@ -2497,6 +2576,7 @@ function App() {
                     onClick={() => {
                       set_admin_edit_user(null)
                       set_admin_edit_form({
+                        name: "",
                         username: "",
                         email: "",
                         role: "billing",

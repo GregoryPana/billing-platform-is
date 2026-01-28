@@ -33,6 +33,7 @@ def create_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
     now = utc_plus_4_now()
     user = User(
+        name=payload.name,
         username=payload.username,
         email=payload.email,
         role=payload.role,
@@ -67,6 +68,8 @@ def update_user(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
     if payload.username is not None:
         user.username = payload.username
+    if payload.name is not None:
+        user.name = payload.name
     if payload.email is not None:
         user.email = payload.email
     if payload.role is not None:

@@ -1,5 +1,6 @@
 from app.models.approval import Approval
 from app.models.audit_log import AuditLog
+from app.models.approval_request_settings import ApprovalRequestSettings
 from app.models.billing_cycle import BillingCycle
 from app.models.generated_file import GeneratedFile
 from app.models.notification import Notification
@@ -10,6 +11,7 @@ from app.models.user import User
 
 __all__ = [
     "Approval",
+    "ApprovalRequestSettings",
     "AuditLog",
     "BillingCycle",
     "GeneratedFile",
