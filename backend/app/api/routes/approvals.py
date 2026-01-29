@@ -118,6 +118,52 @@ def create_or_update_approval(
                 detail="Approval must be requested before review.",
             )
 
+    cycle = db.get(BillingCycle, payload.billing_cycle_id)
+    if not cycle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing cycle not found")
+
+    if actor.role == "finance" and payload.status == "approved":
+        if not settings.n8n_approval_webhook_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Approval webhook URL not configured",
+            )
+        try:
+            settings_record = _get_or_create_settings(db)
+            finance_user = db.get(User, actor.id)
+            requester_label = (
+                "Request to Send Billing Notifications"
+                if payload.stage == "post_live"
+                else "Request to Move to Live Billing"
+            )
+            webhook_payload = {
+                "body": {
+                    "finance_email": finance_user.email if finance_user else "",
+                    "finance_name": finance_user.name if finance_user else "",
+                    "billing_email": settings_record.billing_email,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "cycle": _format_cycle_label(cycle),
+                    "approval_request": requester_label,
+                    "comment": payload.comments or "",
+                }
+            }
+            webhook_response = requests.post(
+                settings.n8n_approval_webhook_url,
+                json=[webhook_payload],
+                timeout=10,
+                verify=settings.n8n_webhook_verify,
+            )
+            if not webhook_response.ok:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Approval webhook failed ({webhook_response.status_code})",
+                )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Approval webhook unreachable",
+            ) from exc
+
     if approval:
         approval.status = payload.status
         approval.comments = payload.comments
@@ -136,10 +182,6 @@ def create_or_update_approval(
             updated_at=utc_plus_4_now(),
         )
         db.add(approval)
-
-    cycle = db.get(BillingCycle, payload.billing_cycle_id)
-    if not cycle:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing cycle not found")
 
     if payload.stage == "test" and payload.status == "approved":
         cycle.status = "test_approved"
