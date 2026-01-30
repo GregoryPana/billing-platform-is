@@ -3,9 +3,7 @@ import ReactMarkdown from "react-markdown"
 
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
-import notificationsDoc from "../../docs/platform/Bill_Notifications_EMAIL_SMS.md?raw"
 import billingProcessPdf from "../../docs/platform/Billing Process.pdf"
-import notificationsPdf from "../../docs/platform/Bill_Notifications_EMAIL_&_SMS.pdf"
 import "./App.css"
 
 const nav_items = [
@@ -73,27 +71,6 @@ const format_input_date = (value = new Date()) => {
   const mm = String(value.getMonth() + 1).padStart(2, "0")
   const dd = String(value.getDate()).padStart(2, "0")
   return `${yyyy}-${mm}-${dd}`
-}
-
-const format_compact_date = (value) => {
-  if (!value) {
-    return ""
-  }
-  const [yyyy, mm, dd] = value.split("-")
-  return `${yyyy}${mm}${dd}`
-}
-
-const format_sql_date = (value) => {
-  if (!value) {
-    return ""
-  }
-  const [yyyy, mm, dd] = value.split("-").map(Number)
-  if (!yyyy || !mm || !dd) {
-    return ""
-  }
-  const date = new Date(yyyy, mm - 1, dd)
-  const mon = date.toLocaleString("en-US", { month: "short" }).toUpperCase()
-  return `${String(dd).padStart(2, "0")}-${mon}-${yyyy}`
 }
 
 const download_text_file = (filename, content) => {
@@ -261,14 +238,6 @@ function App() {
   const [run_status_overrides, set_run_status_overrides] = useState({})
   const [approval_notifications, set_approval_notifications] = useState([])
   const [last_generated_count, set_last_generated_count] = useState(null)
-  const notification_date_compact = useMemo(
-    () => format_compact_date(notification_form.notification_date),
-    [notification_form.notification_date]
-  )
-  const notification_date_sql = useMemo(
-    () => format_sql_date(notification_form.notification_date),
-    [notification_form.notification_date]
-  )
   const documentation_sets = useMemo(
     () => [
       {
@@ -276,12 +245,6 @@ function App() {
         label: "Billing Process",
         content: billingProcessDoc,
         pdf: billingProcessPdf,
-      },
-      {
-        id: "billing-notifications",
-        label: "Billing Notifications",
-        content: notificationsDoc,
-        pdf: notificationsPdf,
       },
     ],
     []
@@ -2176,54 +2139,20 @@ function App() {
               <div className="notification-block">
                 <h4>Email notifications</h4>
                 <p>
-                  Combine the email files for the selected date into one list, then copy the file into the
-                  Streamserve inbox. Streamserve picks it up and sends the emails automatically.
+                  Run the email notification script for the selected date. This triggers the standard
+                  Streamserve email notification flow for real billing.
                 </p>
-                <p className="helper">Step 1: Merge the latest CSV files.</p>
-                <pre className="command-block mono">{`sort -u EMAIL_???_${notification_date_compact}*.csv > EMAIL_ALL_${notification_date_compact}.csv`}</pre>
-                <p className="helper">Step 2: Copy the merged file into the Streamserve inbox.</p>
-                <pre className="command-block mono">{`cp EMAIL_ALL_${notification_date_compact}.csv /cer_cerprod/streams/streamcsv/invoiceEmail/`}</pre>
-                <p className="helper">Step 3: Check how many emails succeeded or failed.</p>
-                <pre className="command-block mono">grep -c "Mail was successfully sent" all_email.log</pre>
-                <pre className="command-block mono">grep -c "Mail was not sent" all_email.log</pre>
-                <p className="helper">Step 4: Find rows with invalid email addresses.</p>
-                <pre className="command-block mono">{`cat Email_Final_${notification_date_compact}.csv | awk -F";" '$4 !~ "@" {print $0}' | wc -l`}</pre>
+                <p className="helper">Email notifications command</p>
+                <pre className="command-block mono">/cer_cerprod/Dominique/EMAIL_NOTIFICATION_FOR_REAL_BILL_FINAL.sh</pre>
               </div>
               <div className="notification-block">
                 <h4>SMS notifications</h4>
                 <p>
-                  Create a clean SMS list for the selected date, split it into 500-line files, then run the SMS
-                  script. This keeps the process stable and easier to track.
+                  Run the SMS notification script for the selected date. This sends SMS notifications for
+                  the completed real billing cycle.
                 </p>
-                <p className="helper">Check for duplicate SMS entries for the selected date.</p>
-                <pre className="command-block mono">{`select d.account_no,d.BILL_UID,count(*), max(doc_request_uid)
-from docum_request d, subscribers s
-where s.account_no=d.account_no
-and doc_media_cd='SMS'
-and doc_profile_id='BILL_READY_SMS'
-and doc_request_dt>='${notification_date_sql}'
-and sms_text is null
-and ERROR_DESCRIPTION is null
-and s.CREATION_SOURCE_CD!='BUS'
-group by d.account_no,d.BILL_UID
-having count(*) >1;`}</pre>
-                <p className="helper">Export the SMS list for the selected date.</p>
-                <pre className="command-block mono">{`select d.account_no||','||d.BILL_UID
-from docum_request d, subscribers s
-where s.account_no=d.account_no
-and doc_media_cd='SMS'
-and doc_profile_id='BILL_READY_SMS'
-and doc_request_dt>='${notification_date_sql}'
-and sms_text is null
-and ERROR_DESCRIPTION is null
-and s.CREATION_SOURCE_CD!='BUS';`}</pre>
-                <p className="helper">Split into 500-line chunks and rename to .csv.</p>
-                <pre className="command-block mono">{`split -l 500 SMS_ALL_${notification_date_compact}.txt SMS_ALL_${notification_date_compact}_`}</pre>
-                <pre className="command-block mono">{`for file_nm in \
-ls -1 SMS_ALL_${notification_date_compact}_??
-do
-mv $file_nm $file_nm.csv
-done`}</pre>
+                <p className="helper">SMS notifications command</p>
+                <pre className="command-block mono">/cer_cerprod/Dominique/SMS_NOTIFICATION_FOR_REAL_BILL.sh</pre>
               </div>
             </div>
             <form className="form-grid" onSubmit={handle_notification_submit}>
@@ -2472,14 +2401,16 @@ done`}</pre>
               </select>
             </div>
             <div className="doc-actions">
-              <a
-                className="secondary-button"
-                href={documentation_sets.find((doc) => doc.id === active_documentation_id)?.pdf}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View original PDF
-              </a>
+              {documentation_sets.find((doc) => doc.id === active_documentation_id)?.pdf ? (
+                <a
+                  className="secondary-button"
+                  href={documentation_sets.find((doc) => doc.id === active_documentation_id)?.pdf}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View original PDF
+                </a>
+              ) : null}
             </div>
             <div className="doc-content markdown">
               <ReactMarkdown>

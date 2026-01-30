@@ -94,7 +94,6 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 
 **Documentation content**
 - `docs/platform/billing_process.md`
-- `docs/platform/Bill_Notifications_EMAIL_SMS.md`
 
 **Main flows**
 - Overview dashboard for billing activity and approvals
