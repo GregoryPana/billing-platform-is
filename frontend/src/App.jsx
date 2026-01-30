@@ -4,6 +4,8 @@ import ReactMarkdown from "react-markdown"
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
 import notificationsDoc from "../../docs/platform/Bill_Notifications_EMAIL_SMS.md?raw"
+import billingProcessPdf from "../../docs/platform/Billing Process.pdf"
+import notificationsPdf from "../../docs/platform/Bill_Notifications_EMAIL_&_SMS.pdf"
 import "./App.css"
 
 const nav_items = [
@@ -221,8 +223,18 @@ function App() {
   const [last_generated_count, set_last_generated_count] = useState(null)
   const documentation_sets = useMemo(
     () => [
-      { id: "billing-process", label: "Billing Process", content: billingProcessDoc },
-      { id: "billing-notifications", label: "Billing Notifications", content: notificationsDoc },
+      {
+        id: "billing-process",
+        label: "Billing Process",
+        content: billingProcessDoc,
+        pdf: billingProcessPdf,
+      },
+      {
+        id: "billing-notifications",
+        label: "Billing Notifications",
+        content: notificationsDoc,
+        pdf: notificationsPdf,
+      },
     ],
     []
   )
@@ -2300,6 +2312,16 @@ function App() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="doc-actions">
+              <a
+                className="secondary-button"
+                href={documentation_sets.find((doc) => doc.id === active_documentation_id)?.pdf}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View original PDF
+              </a>
             </div>
             <div className="doc-content markdown">
               <ReactMarkdown>
