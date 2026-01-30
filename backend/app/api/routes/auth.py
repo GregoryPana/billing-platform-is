@@ -154,6 +154,36 @@ def approve_signup_request(
     db.add(user)
     db.commit()
     db.refresh(user)
+    if settings.n8n_signup_approve_webhook_url:
+        try:
+            admin_user = db.get(User, actor.id)
+            timestamp = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M")
+            webhook_payload = {
+                "body": {
+                    "timestamp": timestamp,
+                    "admin_name": admin_user.name if admin_user else "",
+                    "admin_email": admin_user.email if admin_user else "",
+                    "requested_user_name": request.name,
+                    "requested_user_username": request.username,
+                    "requested_user_email": request.email,
+                }
+            }
+            webhook_response = requests.post(
+                settings.n8n_signup_approve_webhook_url,
+                json=[webhook_payload],
+                timeout=10,
+                verify=settings.n8n_webhook_verify,
+            )
+            if not webhook_response.ok:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Signup approval webhook failed ({webhook_response.status_code})",
+                )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Signup approval webhook unreachable",
+            ) from exc
     return UserRead.model_validate(user)
 
 

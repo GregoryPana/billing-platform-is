@@ -129,6 +129,7 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - `N8N_WEBHOOK_URL`
 - `N8N_APPROVAL_WEBHOOK_URL`
 - `N8N_SIGNUP_WEBHOOK_URL`
+- `N8N_SIGNUP_APPROVE_WEBHOOK_URL`
 - `N8N_WEBHOOK_VERIFY` (set `false` only for self-signed certs in dev)
 - `JWT_SECRET`
 - `JWT_EXP_MINUTES`
@@ -219,6 +220,22 @@ All endpoints are under `/api`.
       "email": "new_user@example.com",
       "timestamp": "2026-01-26T07:38:28.974Z",
       "admin_email": "admin@example.com"
+    }
+  }
+]
+```
+
+**Signup approval webhook payload (n8n)**
+```json
+[
+  {
+    "body": {
+      "timestamp": "30-01-2026 10:42",
+      "admin_name": "Admin User",
+      "admin_email": "admin@example.com",
+      "requested_user_name": "New User",
+      "requested_user_username": "new_user",
+      "requested_user_email": "new_user@example.com"
     }
   }
 ]
