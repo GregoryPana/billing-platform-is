@@ -1053,6 +1053,14 @@ function App() {
     return approvals_by_cycle_stage.get(`${notification_form.billing_cycle_id}:post_live`)
   }, [approvals_by_cycle_stage, notification_form.billing_cycle_id])
   const notification_blocked = post_live_approval?.status !== "approved"
+  const pending_signup_requests = useMemo(
+    () => signup_requests.filter((request) => request.status === "pending"),
+    [signup_requests]
+  )
+  const handled_signup_requests = useMemo(
+    () => signup_requests.filter((request) => request.status !== "pending"),
+    [signup_requests]
+  )
 
   if (!is_authenticated) {
     return (
@@ -2290,10 +2298,10 @@ function App() {
                 <span>Role</span>
                 <span>Action</span>
               </div>
-              {signup_requests.length === 0 ? (
+              {pending_signup_requests.length === 0 ? (
                 <div className="empty-state">No signup requests pending.</div>
               ) : (
-                signup_requests.map((request) => (
+                pending_signup_requests.map((request) => (
                   <div className="table-row admin" key={request.id}>
                     <span>{request.name}</span>
                     <span>{request.username}</span>
@@ -2339,6 +2347,38 @@ function App() {
                 ))
               )}
             </div>
+
+            <details className="panel-details">
+              <summary>Processed requests ({handled_signup_requests.length})</summary>
+              <div className="table">
+                <div className="table-row table-head admin">
+                  <span>Name</span>
+                  <span>Username</span>
+                  <span>Email</span>
+                  <span>Status</span>
+                  <span>Role</span>
+                  <span>Action</span>
+                </div>
+                {handled_signup_requests.length === 0 ? (
+                  <div className="empty-state">No processed signup requests.</div>
+                ) : (
+                  handled_signup_requests.map((request) => (
+                    <div className="table-row admin" key={request.id}>
+                      <span>{request.name}</span>
+                      <span>{request.username}</span>
+                      <span>{request.email}</span>
+                      <span className={`pill ${request.status === "approved" ? "success" : "neutral"}`}>
+                        {request.status}
+                      </span>
+                      <span>{request.assigned_role || "-"}</span>
+                      <span className="muted">-</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </details>
+
+            <div className="section-divider" />
 
             <div className="panel-subheader">
               <h3>Create user</h3>
@@ -2435,6 +2475,8 @@ function App() {
                 Create user
               </button>
             </form>
+
+            <div className="section-divider" />
 
             <div className="panel-subheader">
               <h3>Manage users</h3>

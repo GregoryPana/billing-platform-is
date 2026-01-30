@@ -434,6 +434,34 @@
   height: 30px;
 }
 
+.section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 28px 0;
+}
+
+.panel-details {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.panel-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.panel-details .table {
+  margin-top: 12px;
+}
+
+.panel-details .muted {
+  color: var(--text-muted);
+}
+
 .table-row.runs .select-inline {
   justify-self: start;
 }

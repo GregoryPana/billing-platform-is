@@ -209,6 +209,7 @@ All endpoints are under `/api`.
     "body": {
       "username": "new_user",
       "name": "New User",
+      "email": "new_user@example.com",
       "timestamp": "2026-01-26T07:38:28.974Z",
       "admin_email": "admin@example.com"
     }
@@ -235,7 +236,7 @@ All endpoints are under `/api`.
 **Default users (seeded)**
 - billing_user / ChangeMe123!
 - finance_user / ChangeMe123!
-- admin / AdminChange123!
+- admin / AdminChange2026!
 - viewer / ChangeMe123!
 
 Change these passwords after first login.

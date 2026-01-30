@@ -77,6 +77,7 @@ def signup(payload: SignupRequestCreate, db: Session = Depends(get_db)):
             "body": {
                 "username": payload.username,
                 "name": payload.name,
+                "email": payload.email,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "admin_email": admin_email,
             }

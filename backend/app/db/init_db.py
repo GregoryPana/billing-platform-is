@@ -79,7 +79,7 @@ def _seed_default_users() -> None:
                 email="admin@example.com",
                 role="admin",
                 is_active=True,
-                password_hash=hash_password("AdminChange123!"),
+                password_hash=hash_password("AdminChange2026!"),
                 created_at=now,
                 updated_at=now,
             ),
