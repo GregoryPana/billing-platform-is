@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,10 @@ def create_notification(
 ):
     ensure_post_live_approved(db, payload.billing_cycle_id)
 
-    command_text = build_notification_command(payload.billing_cycle_id)
+    try:
+        command_text = build_notification_command(payload.billing_cycle_id, payload.notification_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid notification date") from exc
 
     notification = Notification(
         billing_cycle_id=payload.billing_cycle_id,

@@ -68,6 +68,44 @@ const format_cycle_datetime = (value) => {
   return { first: format(first), last: format(last), thirtieth: format(thirtieth) }
 }
 
+const format_input_date = (value = new Date()) => {
+  const yyyy = value.getFullYear()
+  const mm = String(value.getMonth() + 1).padStart(2, "0")
+  const dd = String(value.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const format_compact_date = (value) => {
+  if (!value) {
+    return ""
+  }
+  const [yyyy, mm, dd] = value.split("-")
+  return `${yyyy}${mm}${dd}`
+}
+
+const format_sql_date = (value) => {
+  if (!value) {
+    return ""
+  }
+  const [yyyy, mm, dd] = value.split("-").map(Number)
+  if (!yyyy || !mm || !dd) {
+    return ""
+  }
+  const date = new Date(yyyy, mm - 1, dd)
+  const mon = date.toLocaleString("en-US", { month: "short" }).toUpperCase()
+  return `${String(dd).padStart(2, "0")}-${mon}-${yyyy}`
+}
+
+const download_text_file = (filename, content) => {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 const format_cycle_status = (status) => {
   if (!status) {
     return "-"
@@ -196,7 +234,9 @@ function App() {
   const [recipient_error, set_recipient_error] = useState("")
   const [notification_form, set_notification_form] = useState({
     billing_cycle_id: "",
+    notification_date: format_input_date(),
   })
+  const [last_notification_command, set_last_notification_command] = useState(null)
   const [admin_user_form, set_admin_user_form] = useState({
     name: "",
     username: "",
@@ -221,6 +261,14 @@ function App() {
   const [run_status_overrides, set_run_status_overrides] = useState({})
   const [approval_notifications, set_approval_notifications] = useState([])
   const [last_generated_count, set_last_generated_count] = useState(null)
+  const notification_date_compact = useMemo(
+    () => format_compact_date(notification_form.notification_date),
+    [notification_form.notification_date]
+  )
+  const notification_date_sql = useMemo(
+    () => format_sql_date(notification_form.notification_date),
+    [notification_form.notification_date]
+  )
   const documentation_sets = useMemo(
     () => [
       {
@@ -842,8 +890,16 @@ function App() {
   const handle_notification_submit = async (event) => {
     event.preventDefault()
     try {
-      await api_fetch("/notifications/", { method: "POST", body: JSON.stringify(notification_form) })
-      set_notification_form({ billing_cycle_id: "" })
+      const response = await api_fetch("/notifications/", {
+        method: "POST",
+        body: JSON.stringify(notification_form),
+      })
+      set_notification_form({ billing_cycle_id: "", notification_date: format_input_date() })
+      set_last_notification_command({
+        message: response.message,
+        billing_cycle_id: response.billing_cycle_id,
+        notification_date: notification_form.notification_date,
+      })
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
@@ -2116,6 +2172,60 @@ function App() {
                 <p>Generate the backend command after post-live approval.</p>
               </div>
             </div>
+            <div className="notification-guide">
+              <div className="notification-block">
+                <h4>Email notifications</h4>
+                <p>
+                  Combine the email files for the selected date into one list, then copy the file into the
+                  Streamserve inbox. Streamserve picks it up and sends the emails automatically.
+                </p>
+                <p className="helper">Step 1: Merge the latest CSV files.</p>
+                <pre className="command-block mono">{`sort -u EMAIL_???_${notification_date_compact}*.csv > EMAIL_ALL_${notification_date_compact}.csv`}</pre>
+                <p className="helper">Step 2: Copy the merged file into the Streamserve inbox.</p>
+                <pre className="command-block mono">{`cp EMAIL_ALL_${notification_date_compact}.csv /cer_cerprod/streams/streamcsv/invoiceEmail/`}</pre>
+                <p className="helper">Step 3: Check how many emails succeeded or failed.</p>
+                <pre className="command-block mono">grep -c "Mail was successfully sent" all_email.log</pre>
+                <pre className="command-block mono">grep -c "Mail was not sent" all_email.log</pre>
+                <p className="helper">Step 4: Find rows with invalid email addresses.</p>
+                <pre className="command-block mono">{`cat Email_Final_${notification_date_compact}.csv | awk -F";" '$4 !~ "@" {print $0}' | wc -l`}</pre>
+              </div>
+              <div className="notification-block">
+                <h4>SMS notifications</h4>
+                <p>
+                  Create a clean SMS list for the selected date, split it into 500-line files, then run the SMS
+                  script. This keeps the process stable and easier to track.
+                </p>
+                <p className="helper">Check for duplicate SMS entries for the selected date.</p>
+                <pre className="command-block mono">{`select d.account_no,d.BILL_UID,count(*), max(doc_request_uid)
+from docum_request d, subscribers s
+where s.account_no=d.account_no
+and doc_media_cd='SMS'
+and doc_profile_id='BILL_READY_SMS'
+and doc_request_dt>='${notification_date_sql}'
+and sms_text is null
+and ERROR_DESCRIPTION is null
+and s.CREATION_SOURCE_CD!='BUS'
+group by d.account_no,d.BILL_UID
+having count(*) >1;`}</pre>
+                <p className="helper">Export the SMS list for the selected date.</p>
+                <pre className="command-block mono">{`select d.account_no||','||d.BILL_UID
+from docum_request d, subscribers s
+where s.account_no=d.account_no
+and doc_media_cd='SMS'
+and doc_profile_id='BILL_READY_SMS'
+and doc_request_dt>='${notification_date_sql}'
+and sms_text is null
+and ERROR_DESCRIPTION is null
+and s.CREATION_SOURCE_CD!='BUS';`}</pre>
+                <p className="helper">Split into 500-line chunks and rename to .csv.</p>
+                <pre className="command-block mono">{`split -l 500 SMS_ALL_${notification_date_compact}.txt SMS_ALL_${notification_date_compact}_`}</pre>
+                <pre className="command-block mono">{`for file_nm in \
+ls -1 SMS_ALL_${notification_date_compact}_??
+do
+mv $file_nm $file_nm.csv
+done`}</pre>
+              </div>
+            </div>
             <form className="form-grid" onSubmit={handle_notification_submit}>
               <label>
                 Billing cycle
@@ -2136,14 +2246,60 @@ function App() {
                   ))}
                 </select>
               </label>
+              <label>
+                Notification date
+                <input
+                  type="date"
+                  value={notification_form.notification_date}
+                  onChange={(event) =>
+                    set_notification_form((previous) => ({
+                      ...previous,
+                      notification_date: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
               <button
                 className="primary-button"
                 type="submit"
-                disabled={!notification_form.billing_cycle_id || notification_blocked}
+                disabled={
+                  !notification_form.billing_cycle_id ||
+                  !notification_form.notification_date ||
+                  notification_blocked
+                }
               >
                 Generate command
               </button>
             </form>
+            {last_notification_command ? (
+              <div className="notification-download">
+                <div>
+                  <p className="helper">Latest generated commands</p>
+                  <pre className="command-block mono">{last_notification_command.message}</pre>
+                </div>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    const cycle_label = format_cycle_label(last_notification_command.billing_cycle_id)
+                    const date_label = last_notification_command.notification_date
+                    const filename = `notifications_${cycle_label.replace(/\s+/g, "_")}_${date_label}.txt`
+                    const content = [
+                      "Billing Notifications Commands",
+                      "================================",
+                      `Billing cycle: ${cycle_label}`,
+                      `Notification date: ${date_label}`,
+                      "",
+                      last_notification_command.message,
+                    ].join("\n")
+                    download_text_file(filename, content)
+                  }}
+                >
+                  Download commands
+                </button>
+              </div>
+            ) : null}
             {notification_form.billing_cycle_id && notification_blocked ? (
               <div className="alert warning">
                 Post-live approval is required before generating the command.
@@ -2159,7 +2315,9 @@ function App() {
               {notifications.map((notification) => (
                 <div className="table-row" key={notification.id}>
                   <span>{format_cycle_label(notification.billing_cycle_id)}</span>
-                  <span className="mono">{notification.message}</span>
+                  <span>
+                    <pre className="command-block mono">{notification.message}</pre>
+                  </span>
                   <span className={`pill ${notification.status === "ready" ? "success" : "warning"}`}>
                     {notification.status}
                   </span>

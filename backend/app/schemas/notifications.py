@@ -6,6 +6,7 @@ from app.schemas.base import BaseSchema
 
 class NotificationRequest(BaseSchema):
     billing_cycle_id: str
+    notification_date: str
 
 
 class NotificationRead(BaseSchema):

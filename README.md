@@ -228,7 +228,7 @@ All endpoints are under `/api`.
 **Notifications**
 - `GET /notifications` → list notifications
 - `POST /notifications` → queue notification
-  - Body: `{ "billing_cycle_id": "uuid", "channel": "smtp|n8n", "recipient": "...", "subject": "...", "message": "..." }`
+  - Body: `{ "billing_cycle_id": "uuid", "notification_date": "YYYY-MM-DD" }`
   - Errors: 400 if post-live approval missing
 
 **Audit**
