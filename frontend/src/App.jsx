@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
-import billingProcessDoc from "../../billing_process.md?raw"
+import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
+import notificationsDoc from "../../docs/platform/Bill_Notifications_EMAIL_SMS.md?raw"
 import "./App.css"
 
 const nav_items = [
@@ -218,6 +219,14 @@ function App() {
   const [run_status_overrides, set_run_status_overrides] = useState({})
   const [approval_notifications, set_approval_notifications] = useState([])
   const [last_generated_count, set_last_generated_count] = useState(null)
+  const documentation_sets = useMemo(
+    () => [
+      { id: "billing-process", label: "Billing Process", content: billingProcessDoc },
+      { id: "billing-notifications", label: "Billing Notifications", content: notificationsDoc },
+    ],
+    []
+  )
+  const [active_documentation_id, set_active_documentation_id] = useState("billing-process")
 
   const status_cards = useMemo(() => {
     const pending_approvals = approvals.filter((item) => item.status === "pending").length
@@ -267,7 +276,17 @@ function App() {
         "documentation",
       ],
       finance: ["overview", "approvals"],
-      admin: ["overview", "cycles", "scripts", "runs", "approvals", "notifications", "audit", "admin"],
+      admin: [
+        "overview",
+        "cycles",
+        "scripts",
+        "runs",
+        "approvals",
+        "notifications",
+        "audit",
+        "documentation",
+        "admin",
+      ],
       viewer: ["overview", "runs", "approvals"],
     }
     const allowed = new Set(role_permissions[role] || [])
@@ -2267,12 +2286,25 @@ function App() {
           <section className="panel">
             <div className="panel-header">
               <div>
-                <h2>Billing Process Documentation</h2>
-                <p>Reference guide for billing operations.</p>
+                <h2>Documentation</h2>
+                <p>Select a guide to view in the workspace.</p>
               </div>
+              <select
+                className="select-inline"
+                value={active_documentation_id}
+                onChange={(event) => set_active_documentation_id(event.target.value)}
+              >
+                {documentation_sets.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="doc-content markdown">
-              <ReactMarkdown>{billingProcessDoc}</ReactMarkdown>
+              <ReactMarkdown>
+                {documentation_sets.find((doc) => doc.id === active_documentation_id)?.content || ""}
+              </ReactMarkdown>
             </div>
           </section>
         )}

@@ -173,9 +173,7 @@ Date format example:
 Test mode behaves like Production but does **not** write to super schema.
 Production can run only once per period.
 
-
 ---
-
 
 # 3. Backend Billing Process
 ## 3.1 Bill Generation
@@ -239,8 +237,3 @@ Exercise:
 - Assign accounts
 - Run billing and bill printing
 - Run test billing and generate PDFs
-
----
-
-
-

@@ -74,6 +74,8 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 │   │   ├── utils/             # Datetime utilities
 │   │   └── main.py            # FastAPI entrypoint
 │   └── requirements.txt
+├── docs/
+│   └── platform/              # In-app documentation
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx
@@ -90,6 +92,10 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - `frontend/src/main.jsx`
 - `frontend/src/App.jsx`
 
+**Documentation content**
+- `docs/platform/billing_process.md`
+- `docs/platform/Bill_Notifications_EMAIL_SMS.md`
+
 **Main flows**
 - Overview dashboard for billing activity and approvals
 - Runs tracking table filtered by cycle/environment/script type and approval queue
@@ -102,6 +108,7 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 
 **Environment variables**
 - `VITE_API_URL` (optional, defaults to `http://localhost:8000/api`)
+  - Production uses GitHub Actions secrets to generate `/opt/billing/frontend/.env.production`.
 
 ## 7. Backend
 **Entry points**
@@ -126,6 +133,7 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - `N8N_WEBHOOK_VERIFY` (set `false` only for self-signed certs in dev)
 - `JWT_SECRET`
 - `JWT_EXP_MINUTES`
+  - Production values are written from GitHub Actions secrets on each deploy.
 
 ## 8. API Reference
 All endpoints are under `/api`.

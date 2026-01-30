@@ -139,6 +139,21 @@ Example secrets:
 
 Avoid committing `.env` files. Use `.env.example` for documentation.
 
+### Billing Platform secrets (this repo)
+These names are used by `.github/workflows/ci.yml` and will overwrite `/opt/billing/backend/.env` on each deploy.
+
+Backend:
+- `BILLING_DATABASE_URL`
+- `BILLING_N8N_WEBHOOK_URL` (approval request from billing)
+- `BILLING_N8N_APPROVAL_WEBHOOK_URL` (finance approval decision)
+- `BILLING_N8N_SIGNUP_WEBHOOK_URL` (signup request notification)
+- `BILLING_N8N_WEBHOOK_VERIFY` (`true`/`false` for TLS verification)
+- `BILLING_JWT_SECRET`
+- `BILLING_JWT_EXP_MINUTES` (optional)
+
+Frontend:
+- `BILLING_API_URL` (e.g. `https://n8n-lan.cwsey.com/billing-api`)
+
 ## 7) Docker services (Postgres, etc.)
 
 ### A) Fresh Docker setup
