@@ -1,4 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+
+import requests
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -22,6 +25,7 @@ from app.services.auth_service import (
     verify_password,
 )
 from app.utils.datetime_utils import utc_plus_4_now
+from app.config import settings
 
 
 router = APIRouter()
@@ -50,6 +54,8 @@ def me(actor: CurrentActor = Depends(require_role({"admin", "billing", "finance"
 
 @router.post("/signup", response_model=SignupRequestRead)
 def signup(payload: SignupRequestCreate, db: Session = Depends(get_db)):
+    if not settings.n8n_signup_webhook_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signup webhook URL not configured")
     existing_user = db.scalar(select(User).where(or_(User.username == payload.username, User.email == payload.email)))
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
@@ -61,6 +67,33 @@ def signup(payload: SignupRequestCreate, db: Session = Depends(get_db)):
     )
     if existing_request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signup request already pending")
+
+    admin_email = db.scalar(select(User.email).where(User.role == "admin", User.is_active.is_(True)))
+    if not admin_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active admin email configured")
+
+    try:
+        webhook_payload = {
+            "body": {
+                "username": payload.username,
+                "name": payload.name,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "admin_email": admin_email,
+            }
+        }
+        webhook_response = requests.post(
+            settings.n8n_signup_webhook_url,
+            json=[webhook_payload],
+            timeout=10,
+            verify=settings.n8n_webhook_verify,
+        )
+        if not webhook_response.ok:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Signup webhook failed ({webhook_response.status_code})",
+            )
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Signup webhook unreachable") from exc
 
     request = SignupRequest(
         name=payload.name,

@@ -144,6 +144,7 @@ def create_or_update_approval(
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "cycle": _format_cycle_label(cycle),
                     "approval_request": requester_label,
+                    "decision": payload.status,
                     "comment": payload.comments or "",
                 }
             }
