@@ -623,6 +623,11 @@
   overflow: auto;
 }
 
+.pdf-export .doc-content {
+  max-height: none;
+  overflow: visible;
+}
+
 .doc-actions {
   display: flex;
   justify-content: flex-end;

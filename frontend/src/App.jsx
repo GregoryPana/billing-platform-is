@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
+import html2pdf from "html2pdf.js"
 
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
@@ -84,6 +85,7 @@ const download_text_file = (filename, content) => {
   anchor.click()
   URL.revokeObjectURL(url)
 }
+
 
 const format_cycle_status = (status) => {
   if (!status) {
@@ -206,6 +208,7 @@ function App() {
   })
   const default_message_ref = useRef("")
   const request_settings_loaded = useRef(false)
+  const user_guide_ref = useRef(null)
   const [request_settings_status, set_request_settings_status] = useState("")
   const [finance_recipient_input, set_finance_recipient_input] = useState("")
   const [finance_recipients, set_finance_recipients] = useState([])
@@ -873,6 +876,28 @@ function App() {
     }
   }
 
+  const handle_user_guide_pdf = async () => {
+    if (!user_guide_ref.current) {
+      return
+    }
+    const filename = `billing_user_guide_${format_input_date()}.pdf`
+    document.body.classList.add("pdf-export")
+    try {
+      await html2pdf()
+        .set({
+          margin: [10, 10, 12, 10],
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(user_guide_ref.current)
+        .save()
+    } finally {
+      document.body.classList.remove("pdf-export")
+    }
+  }
+
   const handle_run_status_change = async (script_id, status) => {
     set_run_status_overrides((previous) => ({
       ...previous,
@@ -1361,8 +1386,11 @@ function App() {
                 <h2>User Guide</h2>
                 <p>Step-by-step instructions for billing and finance roles.</p>
               </div>
+              <button className="secondary-button" type="button" onClick={handle_user_guide_pdf}>
+                Download PDF
+              </button>
             </div>
-            <div className="doc-content markdown">
+            <div className="doc-content markdown" ref={user_guide_ref}>
               <ReactMarkdown>{billingUserGuideDoc}</ReactMarkdown>
             </div>
           </section>
