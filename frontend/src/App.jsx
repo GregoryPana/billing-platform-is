@@ -291,6 +291,7 @@ function App() {
   const visible_nav_items = useMemo(() => {
     const role_permissions = {
       billing: [
+        "user-guide",
         "overview",
         "cycles",
         "scripts",
@@ -300,8 +301,9 @@ function App() {
         "notifications",
         "documentation",
       ],
-      finance: ["overview", "approvals"],
+      finance: ["user-guide", "overview", "approvals"],
       admin: [
+        "user-guide",
         "overview",
         "cycles",
         "scripts",
@@ -312,7 +314,7 @@ function App() {
         "documentation",
         "admin",
       ],
-      viewer: ["overview", "runs", "approvals"],
+      viewer: ["user-guide", "overview", "runs", "approvals"],
     }
     const allowed = new Set(role_permissions[role] || [])
     return nav_items.filter((item) => allowed.has(item.id))

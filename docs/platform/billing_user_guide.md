@@ -100,6 +100,8 @@ P1='M1A' P2='T' P3='2026_02_01 00:00:00' ... /cer_cerprod/exe/pspbil0101b.sh
 ### Step 3: Track test runs (Billing user)
 **Where:** `Runs Tracking`
 
+![Step 3: Track Runs](/billing/user-guide/runs-tracking.png)
+
 What to do:
 - For each generated script, update the status to match what happened:
   - **Pending** if it has not started.
