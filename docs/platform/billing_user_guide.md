@@ -50,6 +50,8 @@ This guide explains the full billing process from start to finish. It is written
 ### Step 1: Create a billing cycle (Billing user)
 **Where:** `Billing Cycles`
 
+![Step 1: Create a billing cycle](./images/billing-cycle.png)
+
 What to do:
 - Choose the **Usage month** and **Billing month**.
 - Add notes if needed (for example: “February billing for January usage”).
@@ -70,6 +72,10 @@ Notes: January usage billed in February
 
 ### Step 2: Generate test scripts (Billing user)
 **Where:** `Script Generation`
+
+![Step 2.1: Select Billing Cycle and Script Type](./images/script-gen.png)
+
+![Step 2.2: Set Parameters](./images/script-gen-params.png)
 
 What to do:
 - Select the cycle you just created.
