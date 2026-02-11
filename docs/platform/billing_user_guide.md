@@ -50,7 +50,9 @@ This guide explains the full billing process from start to finish. It is written
 ### Step 1: Create a billing cycle (Billing user)
 **Where:** `Billing Cycles`
 
+
 ![Step 1: Create a billing cycle](/billing/user-guide/billing-cycle.png)
+
 
 What to do:
 - Choose the **Usage month** and **Billing month**.
@@ -73,9 +75,13 @@ Notes: January usage billed in February
 ### Step 2: Generate test scripts (Billing user)
 **Where:** `Script Generation`
 
+
 ![Step 2.1: Select Billing Cycle and Script Type](/billing/user-guide/script-gen.png)
 
+
 ![Step 2.2: Set Parameters](/billing/user-guide/script-gen-params.png)
+
+
 
 What to do:
 - Select the cycle you just created.
@@ -100,7 +106,9 @@ P1='M1A' P2='T' P3='2026_02_01 00:00:00' ... /cer_cerprod/exe/pspbil0101b.sh
 ### Step 3: Track test runs (Billing user)
 **Where:** `Runs Tracking`
 
+
 ![Step 3: Track Runs](/billing/user-guide/runs-tracking.png)
+
 
 What to do:
 - For each generated script, update the status to match what happened:
@@ -116,6 +124,10 @@ What should happen next:
 
 ### Step 4: Request approval to move to live (Billing user)
 **Where:** `Approvals`
+
+
+![Step 4: Request Approval to Move to Live](/billing/user-guide/approvals.png)
+
 
 What to do:
 - Choose the billing cycle.
