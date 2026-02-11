@@ -3,10 +3,12 @@ import ReactMarkdown from "react-markdown"
 
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
+import billingUserGuideDoc from "../../docs/platform/billing_user_guide.md?raw"
 import billingProcessPdf from "../../docs/platform/Billing Process.pdf"
 import "./App.css"
 
 const nav_items = [
+  { id: "user-guide", label: "User Guide" },
   { id: "overview", label: "Overview" },
   { id: "cycles", label: "Billing Cycles" },
   { id: "scripts", label: "Script Generation" },
@@ -149,7 +151,7 @@ function App() {
   const [auth_mode, set_auth_mode] = useState("login")
   const [current_user, set_current_user] = useState(null)
   const [signup_status, set_signup_status] = useState("")
-  const [active_view, set_active_view] = useState("overview")
+  const [active_view, set_active_view] = useState("user-guide")
   const [role, set_role] = useState("viewer")
   const [cycles, set_cycles] = useState([])
   const [scripts, set_scripts] = useState([])
@@ -494,7 +496,7 @@ function App() {
   useEffect(() => {
     const allowed_ids = new Set(visible_nav_items.map((item) => item.id))
     if (!allowed_ids.has(active_view)) {
-      set_active_view("overview")
+      set_active_view("user-guide")
     }
   }, [active_view, visible_nav_items])
 
@@ -1349,6 +1351,20 @@ function App() {
             ))}
           </div>
         ) : null}
+
+        {active_view === "user-guide" && (
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>User Guide</h2>
+                <p>Step-by-step instructions for billing and finance roles.</p>
+              </div>
+            </div>
+            <div className="doc-content markdown">
+              <ReactMarkdown>{billingUserGuideDoc}</ReactMarkdown>
+            </div>
+          </section>
+        )}
 
         {active_view === "overview" && (
           <>
