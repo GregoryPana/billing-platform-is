@@ -721,6 +721,18 @@
   line-height: 1.6;
 }
 
+.doc-content .markdown img {
+  max-width: 100%;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
+  display: block;
+  margin: 12px auto 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
 .table-row.table-head {
   background: transparent;
   border: none;
