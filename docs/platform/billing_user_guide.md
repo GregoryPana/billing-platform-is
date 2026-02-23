@@ -152,7 +152,8 @@ What should happen next:
 ### Step 5: Finance reviews “Move to live” (Finance user)
 
 **Where:** `Approvals`
-
+![Step 5.1: Review Cycle](/billing/user-guide/review-cycle.png)
+![Step 5.2: Approving the Cycle](/billing/user-guide/finance-approvals.png)
 What to do:
 
 - Review the request details and any notes.
@@ -169,7 +170,8 @@ What should happen next:
 ### Step 6: Generate live scripts (Billing user)
 
 **Where:** `Script Generation`
-
+![Step 6.1: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
+![Step 6.2: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
 What to do:
 
 - Select the same billing cycle.
