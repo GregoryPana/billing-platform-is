@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.db.base import Base
@@ -15,6 +16,9 @@ class User(Base):
     username = Column(String(100), unique=True, nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     role = Column(String(50), nullable=False)
+    entra_oid = Column(String(64), nullable=True)
+    entra_tenant_id = Column(String(64), nullable=True)
+    entra_roles = Column(JSONB, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     password_hash = Column(String(255), nullable=False, default="")
     created_at = Column(DateTime(timezone=True), default=utc_plus_4_now, nullable=False)

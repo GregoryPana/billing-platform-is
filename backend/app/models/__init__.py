@@ -7,6 +7,7 @@ from app.models.notification import Notification
 from app.models.script_definition import ScriptDefinition
 from app.models.script_run import ScriptRun
 from app.models.signup_request import SignupRequest
+from app.models.session import UserSession
 from app.models.user import User
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "ScriptDefinition",
     "ScriptRun",
     "User",
+    "UserSession",
 ]

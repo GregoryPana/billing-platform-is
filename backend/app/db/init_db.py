@@ -6,6 +6,7 @@ from app import models
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.services.auth_service import hash_password
+from app.config import settings
 from app.utils.datetime_utils import utc_plus_4_now
 
 
@@ -32,6 +33,18 @@ def _apply_schema_updates() -> None:
                 text("UPDATE users SET name = username WHERE name IS NULL OR name = ''")
             )
 
+    if "entra_oid" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS entra_oid VARCHAR(64)"))
+
+    if "entra_tenant_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS entra_tenant_id VARCHAR(64)"))
+
+    if "entra_roles" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS entra_roles JSONB"))
+
     signup_columns = {column["name"] for column in inspector.get_columns("signup_requests")}
     if "name" not in signup_columns:
         with engine.begin() as connection:
@@ -42,6 +55,8 @@ def _apply_schema_updates() -> None:
 
 
 def _seed_default_users() -> None:
+    if settings.environment != "local":
+        return
     db = SessionLocal()
     try:
         existing = db.scalar(select(models.User).limit(1))
