@@ -1,5 +1,3 @@
-![Step 1: Create a billing cycle](/billing/user-guide/image.png)
-
 # Billing Platform User Guide (Billing + Finance)
 
 This guide explains the full billing process from start to finish. It is written for non-technical users and shows exactly who does what, when handoffs happen, and what should be done after each step.
