@@ -16,15 +16,6 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_exp_minutes: int = 480
-    cors_allowed_origins: list[str] = ["http://localhost:5173"]
-    frontend_url: str = "http://localhost:5173"
-    session_cookie_name: str = "billing_session"
-    session_secret: str = "change-me-session-secret"
-    session_exp_minutes: int = 60
-    entra_client_id: str = ""
-    entra_client_secret: str = ""
-    entra_redirect_uri: str = ""
-    entra_authority: str = "https://login.microsoftonline.com/common"
 
 
 settings = Settings()

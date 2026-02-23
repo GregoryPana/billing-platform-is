@@ -128,16 +128,11 @@ React frontend calls the FastAPI backend, which persists data in Postgres. The b
 - `TIMEZONE_OFFSET_HOURS`
 - `N8N_WEBHOOK_URL`
 - `N8N_APPROVAL_WEBHOOK_URL`
+- `N8N_SIGNUP_WEBHOOK_URL`
+- `N8N_SIGNUP_APPROVE_WEBHOOK_URL`
 - `N8N_WEBHOOK_VERIFY` (set `false` only for self-signed certs in dev)
-- `SESSION_COOKIE_NAME`
-- `SESSION_SECRET`
-- `SESSION_EXP_MINUTES`
-- `FRONTEND_URL`
-- `CORS_ALLOWED_ORIGINS`
-- `ENTRA_CLIENT_ID`
-- `ENTRA_CLIENT_SECRET`
-- `ENTRA_REDIRECT_URI`
-- `ENTRA_AUTHORITY`
+- `JWT_SECRET`
+- `JWT_EXP_MINUTES`
   - Production values are written from GitHub Actions secrets on each deploy.
 
 ## 8. API Reference
@@ -259,16 +254,21 @@ All endpoints are under `/api`.
 - `GET /users` → list users (admin only)
 
 **Authentication**
-- Microsoft Entra login via `/auth/entra/login` and `/auth/entra/callback`.
-- Server-side session cookie is issued after Entra validation.
-- User roles come from the Entra `roles` claim.
-- `POST /auth/logout` → clear session cookie
-- `GET /auth/me` → current user profile
+- JWT bearer token from `/auth/login`
+- Signup requests require `name`, `username`, `email`, and `password`.
+
+**Default users (seeded)**
+- billing_user / ChangeMe123!
+- finance_user / ChangeMe123!
+- admin / AdminChange2026!
+- viewer / ChangeMe123!
+
+Change these passwords after first login.
 
 ## 9. Data Model
 Tables (draft):
 - `users` (includes required `name`)
-- `user_sessions`
+- `signup_requests`
 - `approval_request_settings`
 - `billing_cycles`
 - `script_definitions`
@@ -377,7 +377,7 @@ GitHub Actions workflow: `.github/workflows/ci.yml`
 Not applicable. No monitoring or health dashboards are wired up yet.
 
 ## 15. Common Errors and Fixes
-- **Unauthorized**: Sign in with Entra and ensure the session cookie is set.
+- **Unauthorized**: Login to get a bearer token and include `Authorization: Bearer <token>`.
 - **Live action blocked**: Finance test approval must be recorded first.
 - **Notification blocked**: Post-live approval must be recorded first.
 - **Passlib bcrypt error on startup**: Ensure `bcrypt<4.1` is installed (required by `passlib`).
@@ -394,7 +394,7 @@ Not applicable. No monitoring or health dashboards are wired up yet.
 - **Post-Live Approval**: Finance approval required before notifications.
 
 ## 18. Known Gaps
-- Authentication uses Entra roles with server-side sessions.
+- Authentication is header-based placeholder only.
 - Bulk run updates are not implemented.
 - Notification delivery uses SMTP or n8n based on configuration, but retries and async processing are not implemented.
 - Tests and CI/CD are not set up.

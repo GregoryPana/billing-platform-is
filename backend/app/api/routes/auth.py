@@ -1,227 +1,47 @@
+from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime, timezone
-import secrets
 
-import jwt
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.responses import RedirectResponse
-from jwt import PyJWKClient
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.db.session import get_db
-from app.models.session import UserSession
+from app.models.signup_request import SignupRequest
 from app.models.user import User
-from app.schemas.auth import UserAuthRead
+from app.schemas.auth import (
+    LoginRequest,
+    SignupApproval,
+    SignupRequestCreate,
+    SignupRequestRead,
+    TokenResponse,
+    UserAuthRead,
+)
+from app.schemas.users import UserRead
 from app.services.auth_service import (
     CurrentActor,
-    build_session_cookie,
-    create_session,
+    create_access_token,
+    hash_password,
     require_role,
-    verify_session_cookie,
+    verify_password,
 )
-from app.services.auth_service import hash_password
 from app.utils.datetime_utils import utc_plus_4_now
+from app.config import settings
 
 
 router = APIRouter()
 
 
-ROLE_PRIORITY = ["admin", "billing", "finance", "viewer"]
-ROLE_MAPPING = {
-    "Admin": "admin",
-    "Billing": "billing",
-    "Finance": "finance",
-    "Viewer": "viewer",
-}
-
-
-def _authorize_url(state: str) -> str:
-    params = {
-        "client_id": settings.entra_client_id,
-        "response_type": "code",
-        "redirect_uri": settings.entra_redirect_uri,
-        "response_mode": "query",
-        "scope": "openid profile email",
-        "state": state,
-    }
-    query = "&".join(f"{key}={requests.utils.quote(value)}" for key, value in params.items())
-    return f"{settings.entra_authority}/oauth2/v2.0/authorize?{query}"
-
-
-def _token_endpoint() -> str:
-    return f"{settings.entra_authority}/oauth2/v2.0/token"
-
-
-def _decode_entra_token(token: str) -> dict:
-    unverified = jwt.decode(token, options={"verify_signature": False})
-    tenant_id = unverified.get("tid")
-    if not tenant_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing tenant")
-    jwks_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
-    jwk_client = PyJWKClient(jwks_url)
-    signing_key = jwk_client.get_signing_key_from_jwt(token)
-    issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
-    return jwt.decode(
-        token,
-        signing_key.key,
-        algorithms=["RS256"],
-        audience=settings.entra_client_id,
-        issuer=issuer,
+@router.post("/login", response_model=TokenResponse)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(
+        select(User).where(or_(User.username == payload.username_or_email, User.email == payload.username_or_email))
     )
-
-
-def _resolve_role(roles: list[str]) -> str:
-    normalized = [ROLE_MAPPING.get(role, role).lower() for role in roles]
-    for role in ROLE_PRIORITY:
-        if role in normalized:
-            return role
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No valid role assigned")
-
-
-@router.get("/entra/login")
-def entra_login(response: Response):
-    if not settings.entra_client_id or not settings.entra_redirect_uri:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Entra settings not configured")
-    state = secrets.token_urlsafe(24)
-    response = RedirectResponse(url=_authorize_url(state))
-    response.set_cookie(
-        "entra_state",
-        state,
-        httponly=True,
-        secure=settings.environment != "local",
-        samesite="lax",
-        max_age=600,
-        path="/",
-    )
-    return response
-
-
-@router.get("/entra/callback")
-def entra_callback(
-    request: Request,
-    response: Response,
-    code: str | None = None,
-    state: str | None = None,
-    db: Session = Depends(get_db),
-):
-    if not code or not state:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing auth code")
-    expected_state = request.cookies.get("entra_state")
-    if not expected_state or expected_state != state:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid state")
-
-    token_response = requests.post(
-        _token_endpoint(),
-        data={
-            "client_id": settings.entra_client_id,
-            "client_secret": settings.entra_client_secret,
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": settings.entra_redirect_uri,
-            "scope": "openid profile email",
-        },
-        timeout=10,
-    )
-    if not token_response.ok:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Entra token exchange failed")
-
-    token_payload = token_response.json()
-    id_token = token_payload.get("id_token")
-    access_token = token_payload.get("access_token")
-    if not id_token and not access_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
-
-    decoded = _decode_entra_token(id_token or access_token)
-    roles = decoded.get("roles") or []
-    if not roles and id_token and access_token:
-        decoded = _decode_entra_token(access_token)
-        roles = decoded.get("roles") or []
-    if not roles:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No roles assigned")
-
-    effective_role = _resolve_role(roles)
-    entra_oid = decoded.get("oid")
-    tenant_id = decoded.get("tid")
-    name = decoded.get("name") or ""
-    email = decoded.get("preferred_username") or decoded.get("email") or ""
-    if not entra_oid or not tenant_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing user identity")
-
-    user = db.scalar(select(User).where(User.entra_oid == entra_oid, User.entra_tenant_id == tenant_id))
-    if not user and email:
-        user = db.scalar(select(User).where(User.email == email))
-
-    username = email or entra_oid
-    if not user:
-        existing_username = db.scalar(select(User).where(User.username == username))
-        if existing_username:
-            username = f"{username}_{entra_oid[:6]}"
-        user = User(
-            name=name or username,
-            username=username,
-            email=email or f"{entra_oid}@entra.local",
-            role=effective_role,
-            entra_oid=entra_oid,
-            entra_tenant_id=tenant_id,
-            entra_roles=roles,
-            is_active=True,
-            password_hash=hash_password(secrets.token_urlsafe(20)),
-            created_at=utc_plus_4_now(),
-            updated_at=utc_plus_4_now(),
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    else:
-        user.name = name or user.name
-        if email:
-            user.email = email
-        user.role = effective_role
-        user.entra_oid = entra_oid
-        user.entra_tenant_id = tenant_id
-        user.entra_roles = roles
-        user.updated_at = utc_plus_4_now()
-        db.commit()
-
-    session = create_session(
-        db,
-        user,
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
-    )
-    session_cookie = build_session_cookie(str(session.id))
-    redirect = RedirectResponse(url=settings.frontend_url)
-    redirect.set_cookie(
-        settings.session_cookie_name,
-        session_cookie,
-        httponly=True,
-        secure=settings.environment != "local",
-        samesite="lax",
-        max_age=settings.session_exp_minutes * 60,
-        path="/",
-    )
-    redirect.delete_cookie("entra_state")
-    return redirect
-
-
-@router.post("/logout")
-def logout(request: Request, db: Session = Depends(get_db)):
-    session_cookie = request.cookies.get(settings.session_cookie_name)
-    response = Response(status_code=status.HTTP_204_NO_CONTENT)
-    if not session_cookie:
-        return response
-    session_id = verify_session_cookie(session_cookie)
-    if not session_id:
-        response.delete_cookie(settings.session_cookie_name)
-        return response
-    session = db.get(UserSession, session_id)
-    if session:
-        db.delete(session)
-        db.commit()
-    response.delete_cookie(settings.session_cookie_name)
-    return response
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive")
+    token = create_access_token(user)
+    return TokenResponse(access_token=token, user=UserAuthRead.model_validate(user))
 
 
 @router.get("/me", response_model=UserAuthRead)
@@ -230,3 +50,155 @@ def me(actor: CurrentActor = Depends(require_role({"admin", "billing", "finance"
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return UserAuthRead.model_validate(user)
+
+
+@router.post("/signup", response_model=SignupRequestRead)
+def signup(payload: SignupRequestCreate, db: Session = Depends(get_db)):
+    if not settings.n8n_signup_webhook_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signup webhook URL not configured")
+    existing_user = db.scalar(select(User).where(or_(User.username == payload.username, User.email == payload.email)))
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+    existing_request = db.scalar(
+        select(SignupRequest).where(
+            or_(SignupRequest.username == payload.username, SignupRequest.email == payload.email),
+            SignupRequest.status == "pending",
+        )
+    )
+    if existing_request:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signup request already pending")
+
+    admin_email = db.scalar(select(User.email).where(User.role == "admin", User.is_active.is_(True)))
+    if not admin_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active admin email configured")
+
+    try:
+        webhook_payload = {
+            "body": {
+                "username": payload.username,
+                "name": payload.name,
+                "email": payload.email,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "admin_email": admin_email,
+            }
+        }
+        webhook_response = requests.post(
+            settings.n8n_signup_webhook_url,
+            json=[webhook_payload],
+            timeout=10,
+            verify=settings.n8n_webhook_verify,
+        )
+        if not webhook_response.ok:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Signup webhook failed ({webhook_response.status_code})",
+            )
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Signup webhook unreachable") from exc
+
+    request = SignupRequest(
+        name=payload.name,
+        username=payload.username,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        status="pending",
+        created_at=utc_plus_4_now(),
+    )
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    return SignupRequestRead.model_validate(request)
+
+
+@router.get("/requests", response_model=list[SignupRequestRead])
+def list_signup_requests(
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin"})),
+):
+    return list(db.scalars(select(SignupRequest).order_by(SignupRequest.created_at.desc())))
+
+
+@router.post("/requests/{request_id}/approve", response_model=UserRead)
+def approve_signup_request(
+    request_id: str,
+    payload: SignupApproval,
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin"})),
+):
+    if payload.role not in {"billing", "finance", "admin", "viewer"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+    request = db.get(SignupRequest, request_id)
+    if not request or request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Signup request not found")
+
+    existing_user = db.scalar(
+        select(User).where(or_(User.username == request.username, User.email == request.email))
+    )
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+
+    user = User(
+        name=request.name,
+        username=request.username,
+        email=request.email,
+        role=payload.role,
+        is_active=True,
+        password_hash=request.password_hash,
+        created_at=utc_plus_4_now(),
+        updated_at=utc_plus_4_now(),
+    )
+    request.status = "approved"
+    request.assigned_role = payload.role
+    request.reviewed_by = actor.id
+    request.reviewed_at = utc_plus_4_now()
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    if settings.n8n_signup_approve_webhook_url:
+        try:
+            admin_user = db.get(User, actor.id)
+            timestamp = datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M")
+            webhook_payload = {
+                "body": {
+                    "timestamp": timestamp,
+                    "admin_name": admin_user.name if admin_user else "",
+                    "admin_email": admin_user.email if admin_user else "",
+                    "requested_user_name": request.name,
+                    "requested_user_username": request.username,
+                    "requested_user_email": request.email,
+                }
+            }
+            webhook_response = requests.post(
+                settings.n8n_signup_approve_webhook_url,
+                json=[webhook_payload],
+                timeout=10,
+                verify=settings.n8n_webhook_verify,
+            )
+            if not webhook_response.ok:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Signup approval webhook failed ({webhook_response.status_code})",
+                )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Signup approval webhook unreachable",
+            ) from exc
+    return UserRead.model_validate(user)
+
+
+@router.post("/requests/{request_id}/reject", response_model=SignupRequestRead)
+def reject_signup_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    actor: CurrentActor = Depends(require_role({"admin"})),
+):
+    request = db.get(SignupRequest, request_id)
+    if not request or request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Signup request not found")
+    request.status = "rejected"
+    request.reviewed_by = actor.id
+    request.reviewed_at = utc_plus_4_now()
+    db.commit()
+    db.refresh(request)
+    return SignupRequestRead.model_validate(request)
