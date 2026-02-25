@@ -153,6 +153,7 @@ What should happen next:
 
 **Where:** `Approvals`
 ![Step 5.1: Review Cycle](/billing/user-guide/review-cycle.png)
+
 ![Step 5.2: Approving the Cycle](/billing/user-guide/finance-approvals.png)
 What to do:
 
@@ -170,8 +171,8 @@ What should happen next:
 ### Step 6: Generate live scripts (Billing user)
 
 **Where:** `Script Generation`
-![Step 6.1: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
-![Step 6.2: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
+![Step 6: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
+
 What to do:
 
 - Select the same billing cycle.
@@ -188,7 +189,7 @@ What should happen next:
 ### Step 7: Request approval that live is complete (Billing user)
 
 **Where:** `Approvals`
-
+![Step 7: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
 What to do:
 
 - Select stage **Live complete**.
@@ -204,6 +205,7 @@ What should happen next:
 ### Step 8: Finance reviews “Live complete” (Finance user)
 
 **Where:** `Approvals`
+![Step 8: Stage Change and Request Approval](/billing/user-guide/finance-approvals-live.png)
 
 What to do:
 
@@ -220,6 +222,7 @@ What should happen next:
 
 **Where:** `Notifications`
 
+![Step 9: Stage Change and Request Approval](/billing/user-guide/notifications.png)
 What to do:
 
 - Select the billing cycle.
