@@ -1355,9 +1355,6 @@ function App() {
         <header className="topbar">
           <div>
             <p className="topbar-title">Billing Operations</p>
-            <p className="topbar-subtitle">
-              Connected to <span className="mono">{api_base_url}</span>
-            </p>
           </div>
           <div className="topbar-actions">
             <button className="secondary-button" type="button" onClick={reload_all}>
