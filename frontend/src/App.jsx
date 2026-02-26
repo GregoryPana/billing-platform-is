@@ -5,6 +5,7 @@ import html2pdf from "html2pdf.js"
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
 import billingUserGuideDoc from "../../docs/platform/billing_user_guide.md?raw"
+import financeUserGuideDoc from "../../docs/platform/finance_user_guide.md?raw"
 import billingProcessPdf from "../../docs/platform/Billing Process.pdf"
 import "./App.css"
 
@@ -1384,14 +1385,14 @@ function App() {
             <div className="panel-header">
               <div>
                 <h2>User Guide</h2>
-                <p>Step-by-step instructions for billing and finance roles.</p>
+                <p>Step-by-step instructions for your role.</p>
               </div>
               <button className="secondary-button" type="button" onClick={handle_user_guide_pdf}>
                 Download PDF
               </button>
             </div>
             <div className="doc-content markdown" ref={user_guide_ref}>
-              <ReactMarkdown>{billingUserGuideDoc}</ReactMarkdown>
+              <ReactMarkdown>{role === "finance" ? financeUserGuideDoc : billingUserGuideDoc}</ReactMarkdown>
             </div>
           </section>
         )}
