@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import html2pdf from "html2pdf.js"
+import {
+  BookOpen, LayoutDashboard, RefreshCcw, FileCode2, Play,
+  CheckCircle2, Settings, Bell, ClipboardList, FileText, ShieldCheck
+} from "lucide-react"
 
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
@@ -10,17 +14,17 @@ import billingProcessPdf from "../../docs/platform/Billing Process.pdf"
 import "./App.css"
 
 const nav_items = [
-  { id: "user-guide", label: "User Guide" },
-  { id: "overview", label: "Overview" },
-  { id: "cycles", label: "Billing Cycles" },
-  { id: "scripts", label: "Script Generation" },
-  { id: "runs", label: "Runs Tracking" },
-  { id: "approvals", label: "Approvals" },
-  { id: "request-settings", label: "Request Settings" },
-  { id: "notifications", label: "Notifications" },
-  { id: "audit", label: "Audit Log" },
-  { id: "documentation", label: "View Documentation" },
-  { id: "admin", label: "Admin" },
+  { id: "user-guide", label: "User Guide", icon: BookOpen },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "cycles", label: "Billing Cycles", icon: RefreshCcw },
+  { id: "scripts", label: "Script Generation", icon: FileCode2 },
+  { id: "runs", label: "Runs Tracking", icon: Play },
+  { id: "approvals", label: "Approvals", icon: CheckCircle2 },
+  { id: "request-settings", label: "Request Settings", icon: Settings },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "audit", label: "Audit Log", icon: ClipboardList },
+  { id: "documentation", label: "View Documentation", icon: FileText },
+  { id: "admin", label: "Admin", icon: ShieldCheck },
 ]
 
 const cycle_types = [
@@ -1316,23 +1320,23 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">BL</div>
-          <div>
-            <p className="brand-title">Billing Platform</p>
-            <p className="brand-subtitle">Automation Hub</p>
-          </div>
+          <p className="brand-title">Billing Platform</p>
         </div>
         <nav className="nav">
-          {visible_nav_items.map((item) => (
-            <button
-              className={`nav-item ${active_view === item.id ? "active" : ""}`}
-              key={item.id}
-              type="button"
-              onClick={() => set_active_view(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {visible_nav_items.map((item) => {
+            const IconComponent = item.icon
+            return (
+              <button
+                className={`nav-item ${active_view === item.id ? "active" : ""}`}
+                key={item.id}
+                type="button"
+                onClick={() => set_active_view(item.id)}
+              >
+                {IconComponent && <IconComponent size={18} />}
+                {item.label}
+              </button>
+            )
+          })}
         </nav>
         <div className="sidebar-footer">
           <div>
@@ -1410,6 +1414,70 @@ function App() {
                 </div>
               ))}
             </section>
+
+            {(() => {
+              const latest_cycle = cycles.length > 0 ? cycles[0] : null
+              if (!latest_cycle) return null
+              const cycle_id = String(latest_cycle.id)
+              const cycle_label = `${format_month_label(latest_cycle.usage_month)} - ${format_month_label(latest_cycle.billing_month)}`
+              const cycle_scripts = scripts.filter(s => String(s.billing_cycle_id) === cycle_id)
+              const test_prep = cycle_scripts.some(s => s.environment === "test" && s.script_type === "preparation")
+              const test_print = cycle_scripts.some(s => s.environment === "test" && s.script_type === "printing")
+              const live_prep = cycle_scripts.some(s => s.environment === "live" && s.script_type === "preparation")
+              const live_print = cycle_scripts.some(s => s.environment === "live" && s.script_type === "printing")
+              const cycle_runs = runs.filter(r => {
+                const script = scripts_by_id.get(String(r.script_definition_id))
+                return script && String(script.billing_cycle_id) === cycle_id
+              })
+              const test_runs_done = cycle_runs.some(r => {
+                const s = scripts_by_id.get(String(r.script_definition_id))
+                return s?.environment === "test" && r.status === "executed"
+              })
+              const live_runs_done = cycle_runs.some(r => {
+                const s = scripts_by_id.get(String(r.script_definition_id))
+                return s?.environment === "live" && r.status === "executed"
+              })
+              const cycle_approvals = approvals.filter(a => String(a.billing_cycle_id) === cycle_id)
+              const test_approved = cycle_approvals.some(a => a.stage === "test" && a.status === "approved")
+              const test_rejected = cycle_approvals.some(a => a.stage === "test" && a.status === "rejected")
+              const live_approved = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "approved")
+              const live_rejected = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "rejected")
+              const is_closed = latest_cycle.status === "closed"
+              const steps = [
+                { label: "Cycle Created", done: true },
+                { label: "Test Scripts", done: test_prep || test_print },
+                { label: "Test Runs", done: test_runs_done },
+                { label: "Finance Approval (Test)", done: test_approved, rejected: test_rejected },
+                { label: "Live Scripts", done: live_prep || live_print },
+                { label: "Live Runs", done: live_runs_done },
+                { label: "Finance Approval (Live)", done: live_approved, rejected: live_rejected },
+                { label: "Closed", done: is_closed },
+              ]
+              const completed_count = steps.filter(s => s.done).length
+              const progress_pct = Math.round((completed_count / steps.length) * 100)
+              return (
+                <section className="panel" style={{ marginBottom: 20 }}>
+                  <div className="panel-header">
+                    <div>
+                      <h2>Cycle Progress — {cycle_label}</h2>
+                      <p>{progress_pct}% complete · {completed_count} of {steps.length} steps</p>
+                    </div>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div className="progress-bar-fill" style={{ width: `${progress_pct}%` }} />
+                  </div>
+                  <div className="progress-steps">
+                    {steps.map((step, i) => (
+                      <div key={i} className={`progress-step ${step.done ? "done" : ""} ${step.rejected ? "rejected" : ""}`}>
+                        <div className="step-dot" />
+                        <span className="step-label">{step.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )
+            })()}
+
 
             <section className="content-grid">
               {role !== "finance" && (
@@ -2359,7 +2427,7 @@ function App() {
           </section>
         )}
 
-        {active_view === "request-settings" && role === "billing" && (
+        {active_view === "request-settings" && role !== "finance" && (
           <section className="panel">
             <div className="panel-header">
               <div>
