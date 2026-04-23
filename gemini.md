@@ -1,8 +1,8 @@
 # Project Map: Billing Platform (React + FastAPI)
 
 ## Status
-- Phase: Blueprint
-- Current step: Backend and frontend scaffolding completed with README draft
+- Phase: UI Modernization
+- Current step: Branding standardized and progression tracking integrated
 
 ## Project Summary
 - Goal: Updated version of the telco billing automation system with React frontend, FastAPI backend, and local Postgres
@@ -158,4 +158,9 @@
 ```
 
 ## Context Handoff
-- Added GitHub Actions CI/CD workflow with deployment metadata artifact; updated README CI/CD section.
+- Modernized UI with Lucide icons and premium dark/light mode aesthetics.
+- Standardized branding to "Billing Platform" across topbar and page title.
+- Implemented a reusable Cycle Progress Tracker on Overview and Runs Tracking pages.
+- Updated Script Generation to always show all parameters (P1-P8) in a read-only state when using default values.
+- Updated Finance User Guide with progression tracking instructions.
+- All changes merged to main and pushed to production.
