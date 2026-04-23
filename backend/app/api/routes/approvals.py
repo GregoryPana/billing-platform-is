@@ -241,7 +241,11 @@ def request_approval(
         approval_label = (
             "Request to Send Billing Notifications" if payload.stage == "post_live" else "Request to Move to Live Billing"
         )
-        recipients = settings_record.finance_recipients or []
+        recipients = payload.recipients if payload.recipients else (settings_record.finance_recipients or [])
+        base_message = payload.comments or settings_record.default_message or ""
+        app_link = payload.app_link if payload.app_link else ""
+        final_message = f"{base_message}\n\nApproval Link: {app_link}".strip() if app_link else base_message
+
         webhook_payload = {
             "body": {
                 "recipients": recipients,
@@ -250,7 +254,8 @@ def request_approval(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "cycle": _format_cycle_label(cycle),
                 "approval_request": approval_label,
-                "message": payload.comments or settings_record.default_message or "",
+                "message": final_message,
+                "approval_link": app_link,
             }
         }
         webhook_response = requests.post(

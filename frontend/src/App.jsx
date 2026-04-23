@@ -60,14 +60,14 @@ const format_cycle_datetime = (value) => {
   }
   const first = new Date(year, month - 1, 1)
   const last = new Date(year, month, 0)
-  const thirtieth = new Date(year, month - 1, Math.min(30, last.getDate()))
+  const firstOfNextMonth = new Date(year, month, 1)
   const format = (date) => {
     const yyyy = date.getFullYear()
     const mm = String(date.getMonth() + 1).padStart(2, "0")
     const dd = String(date.getDate()).padStart(2, "0")
     return `${yyyy}_${mm}_${dd} 00:00:00`
   }
-  return { first: format(first), last: format(last), thirtieth: format(thirtieth) }
+  return { first: format(first), last: format(last), firstOfNextMonth: format(firstOfNextMonth) }
 }
 
 const format_input_date = (value = new Date()) => {
@@ -125,7 +125,7 @@ const build_default_parameters = (script_type, environment, cycle_month) => {
   return {
     p1: "{cycle}",
     p2: environment === "test" ? "T" : "N",
-    p3: bounds?.thirtieth || "YYYY_MM_DD 00:00:00",
+    p3: bounds?.firstOfNextMonth || "YYYY_MM_DD 00:00:00",
     p4: "28",
     p5: "2",
     p6: "",
@@ -165,6 +165,7 @@ function App() {
   const [users, set_users] = useState([])
   const [signup_requests, set_signup_requests] = useState([])
   const [error_message, set_error_message] = useState("")
+  const [expanded_approval_id, set_expanded_approval_id] = useState(null)
 
   const [cycle_form, set_cycle_form] = useState({
     usage_month: "",
@@ -723,7 +724,11 @@ function App() {
         return
       }
       set_recipient_error("")
-      await api_fetch("/approvals/request", { method: "POST", body: JSON.stringify(approval_request_form) })
+      await api_fetch("/approvals/request", { method: "POST", body: JSON.stringify({
+        ...approval_request_form,
+        recipients: selected_finance_recipients,
+        app_link: window.location.href
+      }) })
       set_approval_request_form({
         billing_cycle_id: "",
         stage: "test",
@@ -2119,21 +2124,33 @@ function App() {
                     approvals
                       .filter((approval) => approval.status !== "pending")
                       .map((approval) => (
-                        <div className="table-row" key={approval.id}>
-                          <span>{format_cycle_label(approval.billing_cycle_id)}</span>
-                          <span>{format_stage_label(approval.stage)}</span>
-                          <span
-                            className={`pill ${
-                              approval.status === "approved"
-                                ? "success"
-                                : approval.status === "rejected"
-                                ? "warning"
-                                : "neutral"
-                            }`}
+                        <div key={approval.id} style={{ display: "flex", flexDirection: "column" }}>
+                          <div 
+                            className="table-row" 
+                            style={{ cursor: "pointer" }}
+                            onClick={() => set_expanded_approval_id(expanded_approval_id === approval.id ? null : approval.id)}
                           >
-                            {approval.status}
-                          </span>
-                          <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                            <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                            <span>{format_stage_label(approval.stage)}</span>
+                            <span
+                              className={`pill ${
+                                approval.status === "approved"
+                                  ? "success"
+                                  : approval.status === "rejected"
+                                  ? "warning"
+                                  : "neutral"
+                              }`}
+                            >
+                              {approval.status}
+                            </span>
+                            <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                          </div>
+                          {expanded_approval_id === approval.id && (
+                            <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                              <strong>Details & Comments:</strong>
+                              <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                            </div>
+                          )}
                         </div>
                       ))
                   )}
@@ -2149,21 +2166,33 @@ function App() {
                   <span>Updated</span>
                 </div>
                 {approvals.map((approval) => (
-                  <div className="table-row" key={approval.id}>
-                    <span>{format_cycle_label(approval.billing_cycle_id)}</span>
-                    <span>{format_stage_label(approval.stage)}</span>
-                    <span
-                      className={`pill ${
-                        approval.status === "approved"
-                          ? "success"
-                          : approval.status === "rejected"
-                          ? "warning"
-                          : "neutral"
-                      }`}
+                  <div key={approval.id} style={{ display: "flex", flexDirection: "column" }}>
+                    <div 
+                      className="table-row" 
+                      style={{ cursor: "pointer" }}
+                      onClick={() => set_expanded_approval_id(expanded_approval_id === approval.id ? null : approval.id)}
                     >
-                      {approval.status}
-                    </span>
-                    <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                      <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                      <span>{format_stage_label(approval.stage)}</span>
+                      <span
+                        className={`pill ${
+                          approval.status === "approved"
+                            ? "success"
+                            : approval.status === "rejected"
+                            ? "warning"
+                            : "neutral"
+                        }`}
+                      >
+                        {approval.status}
+                      </span>
+                      <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                    </div>
+                    {expanded_approval_id === approval.id && (
+                      <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                        <strong>Details & Comments:</strong>
+                        <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2411,16 +2440,28 @@ function App() {
                 <span>Action</span>
                 <span>Entity</span>
                 <span>Actor</span>
+                <span>Result</span>
                 <span>Timestamp</span>
               </div>
-              {audit_logs.map((entry) => (
+              {audit_logs.map((entry) => {
+                let result = "-"
+                if (entry.metadata) {
+                  try {
+                    const meta = typeof entry.metadata === 'string' ? JSON.parse(entry.metadata) : entry.metadata
+                    result = meta.status || meta.decision || "-"
+                  } catch (e) {}
+                }
+                return (
                 <div className="table-row" key={entry.id}>
                   <span>{entry.action}</span>
                   <span>{entry.entity_type}</span>
                   <span>{entry.actor_type}</span>
+                  <span className={result !== "-" ? `pill ${result === "approved" || result === "success" || result === "executed" ? "success" : result === "rejected" || result === "failed" ? "warning" : "neutral"}` : ""}>
+                    {result}
+                  </span>
                   <span>{new Date(entry.created_at).toLocaleString()}</span>
                 </div>
-              ))}
+              )})}
             </div>
           </section>
         )}
