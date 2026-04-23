@@ -1,3 +1,16 @@
+:root {
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --sidebar-bg: #f8fafc;
+  --font-main: 'Manrope', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: var(--font-main);
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 260px 1fr;
@@ -9,7 +22,6 @@
   display: grid;
   place-items: center;
   padding: 40px 20px;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
 }
 
 .login-card {
@@ -160,8 +172,13 @@
 
 .mono {
   font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
-  font-size: 12px;
+  font-size: 13px;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #475569;
 }
+
 
 .topbar-actions {
   display: flex;
@@ -257,11 +274,23 @@
 }
 
 .card-value {
-  margin: 8px 0 0;
-  font-size: 16px;
-  font-weight: 600;
+  margin: 12px 0 0;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
+
+.status-card {
+  animation: scaleIn 0.4s ease-out;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.1);
+}
+
 
 .content-grid {
   display: grid;
@@ -455,11 +484,13 @@
 
 .panel {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 20px;
   border: 1px solid var(--border);
-  padding: 18px;
+  padding: 28px;
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+  animation: slideInUp 0.5s ease-out;
 }
+
 
 .panel-header {
   display: flex;
@@ -910,3 +941,77 @@
   color: #94a3b8;
 }
 
+/* Toast System */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: grid;
+  gap: 12px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  background: #ffffff;
+  color: var(--text-primary);
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 280px;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.toast.success {
+  border-left: 4px solid #22c55e;
+}
+
+.toast.error {
+  border-left: 4px solid #ef4444;
+}
+
+.toast.info {
+  border-left: 4px solid #0ea5e9;
+}
+
+.toast.exiting {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+/* Loading States */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.secondary-button .spinner {
+  border-top-color: #0f766e;
+}
+
+.progress-step.done .step-dot {
+  animation: pulse-success 2s infinite;
+}
+
+
+ 
+ h 1 ,   h 2 ,   h 3 ,   h 4 ,   h 5 ,   h 6   {   l e t t e r - s p a c i n g :   - 0 . 0 2 e m ;   f o n t - w e i g h t :   7 0 0 ;   }  
+ b o d y   {   m a r g i n :   0 ;   b a c k g r o u n d :   r a d i a l - g r a d i e n t ( c i r c l e   a t   t o p   l e f t ,   # e e f 2 f f   0 % ,   # f 8 f a f c   4 0 % ,   # f 1 f 5 f 9   1 0 0 % ) ;   m i n - h e i g h t :   1 0 0 v h ;   }  
+ 

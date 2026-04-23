@@ -170,6 +170,8 @@ function App() {
   const [signup_requests, set_signup_requests] = useState([])
   const [error_message, set_error_message] = useState("")
   const [expanded_approval_id, set_expanded_approval_id] = useState(null)
+  const [toasts, set_toasts] = useState([])
+  const [processing, set_processing] = useState({})
 
   const [cycle_form, set_cycle_form] = useState({
     usage_month: "",
@@ -360,7 +362,18 @@ function App() {
     )
   }
 
-  const visible_nav_items = useMemo(() => {
+  const add_toast = useCallback((message, type = "info") => {
+    const id = Date.now()
+    set_toasts((previous) => [...previous, { id, message, type }])
+    setTimeout(() => {
+      set_toasts((previous) => previous.map(t => t.id === id ? { ...t, exiting: true } : t))
+      setTimeout(() => {
+        set_toasts((previous) => previous.filter((toast) => toast.id !== id))
+      }, 300)
+    }, 4000)
+  }, [])
+
+  useEffect(() => {
     const role_permissions = {
       billing: [
         "user-guide",
@@ -393,8 +406,9 @@ function App() {
     return nav_items.filter((item) => allowed.has(item.id))
   }, [role])
 
-  const reload_all = useCallback(async () => {
+  const reload_all = useCallback(async (silent = false) => {
     try {
+      if (!silent) set_processing(prev => ({ ...prev, reload: true }))
       set_error_message("")
       const [
         cycles_data,
@@ -432,8 +446,12 @@ function App() {
       }
     } catch (error) {
       set_error_message(error.message)
+      add_toast(error.message, "error")
+    } finally {
+      set_processing(prev => ({ ...prev, reload: false }))
     }
-  }, [role])
+  }, [role, add_toast])
+
 
   useEffect(() => {
     if (!is_authenticated || (role !== "billing" && role !== "admin")) {
@@ -521,10 +539,11 @@ function App() {
     if (!is_authenticated) {
       return
     }
-    reload_all()
-    const interval = setInterval(reload_all, 30000)
+    reload_all(true)
+    const interval = setInterval(() => reload_all(true), 30000)
     return () => clearInterval(interval)
   }, [is_authenticated, reload_all])
+
 
   useEffect(() => {
     const token = get_auth_token()
@@ -577,14 +596,20 @@ function App() {
 
   const handle_cycle_submit = async (event) => {
     event.preventDefault()
+    set_processing(prev => ({ ...prev, cycle: true }))
     try {
       await api_fetch("/cycles/", { method: "POST", body: JSON.stringify(cycle_form) })
       set_cycle_form({ usage_month: "", billing_month: "", notes: "" })
-      await reload_all()
+      add_toast("Billing cycle created successfully", "success")
+      await reload_all(true)
     } catch (error) {
       set_error_message(error.message)
+      add_toast(error.message, "error")
+    } finally {
+      set_processing(prev => ({ ...prev, cycle: false }))
     }
   }
+
 
   const handle_script_toggle = (value) => {
     set_script_form((previous) => {
@@ -605,6 +630,7 @@ function App() {
 
   const handle_script_submit = async (event) => {
     event.preventDefault()
+    set_processing(prev => ({ ...prev, script: true }))
     try {
       const overrides = use_default_params
         ? parameter_overrides.p6
@@ -624,12 +650,18 @@ function App() {
         method: "POST",
         body: JSON.stringify(payload),
       })
-      set_last_generated_count(Array.isArray(created) ? created.length : null)
-      await reload_all()
+      const count = Array.isArray(created) ? created.length : 0
+      add_toast(`Successfully generated ${count} scripts`, "success")
+      set_last_generated_count(count)
+      await reload_all(true)
     } catch (error) {
       set_error_message(error.message)
+      add_toast(error.message, "error")
+    } finally {
+      set_processing(prev => ({ ...prev, script: false }))
     }
   }
+
 
   const handle_export = async () => {
     if (!script_form.billing_cycle_id) {
@@ -745,16 +777,20 @@ function App() {
       set_signup_status("")
       set_is_authenticated(true)
       set_active_view("overview")
+      add_toast("Welcome back!", "success")
     } catch (error) {
       const message = error?.message || "Sign in failed"
       if (message.includes("Invalid credentials") || message.includes("invalid credentials")) {
         set_login_errors({ username: "", password: "Incorrect username/email or password." })
+        add_toast("Invalid credentials", "error")
         set_error_message("")
         return
       }
       set_error_message(message)
+      add_toast(message, "error")
     }
   }
+
 
   const handle_signup_submit = async (event) => {
     event.preventDefault()
@@ -998,11 +1034,14 @@ function App() {
           }),
         })
       }
-      await reload_all()
+      add_toast(`Run status updated to ${status}`, "success")
+      await reload_all(true)
     } catch (error) {
       set_error_message(error.message)
+      add_toast(error.message, "error")
     }
   }
+
 
   const overview_runs = useMemo(() => {
     const status_priority = { failed: 0, planned: 1, executed: 2 }
@@ -1347,9 +1386,10 @@ function App() {
                     required
                   />
                 </label>
-                <button className="primary-button" type="submit">
-                  Submit request
+                <button className="primary-button" type="submit" disabled={approval_request_pending}>
+                  {approval_request_pending ? <div className="spinner" /> : "Submit request"}
                 </button>
+
               </form>
             )}
             <div className="login-cta">
@@ -1426,14 +1466,31 @@ function App() {
             <p className="topbar-title">Billing Platform</p>
           </div>
           <div className="topbar-actions">
-            <button className="secondary-button" type="button" onClick={reload_all}>
-              Refresh
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => reload_all()}
+              disabled={processing.reload}
+            >
+              {processing.reload ? <div className="spinner" /> : "Refresh"}
             </button>
+
             <button className="primary-button" type="button" onClick={() => set_active_view("cycles")}>
               New cycle
             </button>
           </div>
         </header>
+
+        <div className="toast-container">
+          {toasts.map((toast) => (
+            <div key={toast.id} className={`toast ${toast.type} ${toast.exiting ? "exiting" : ""}`}>
+              {toast.type === "success" && <CheckCircle2 size={18} color="#22c55e" />}
+              {toast.type === "error" && <ShieldCheck size={18} color="#ef4444" />}
+              {toast.type === "info" && <Bell size={18} color="#0ea5e9" />}
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
 
         {error_message ? <div className="alert error">{error_message}</div> : null}
         {role === "billing" && approval_notifications.length > 0 ? (
@@ -1654,9 +1711,9 @@ function App() {
                   }
                 />
               </label>
-              <button className="primary-button" type="submit">
-                Create cycle
-              </button>
+                <button className="primary-button" type="submit" disabled={processing.cycle}>
+                  {processing.cycle ? <div className="spinner" /> : "Create cycle"}
+                </button>
             </form>
             <div className="table">
               <div className="table-row table-head">
@@ -1787,9 +1844,10 @@ function App() {
                 </div>
               </div>
               <div className="form-actions">
-                <button className="primary-button" type="submit" disabled={live_generation_blocked}>
-                  Generate scripts
+                <button className="primary-button" type="submit" disabled={live_generation_blocked || processing.script}>
+                  {processing.script ? <div className="spinner" /> : "Generate scripts"}
                 </button>
+
                 <button
                   className="secondary-button"
                   type="button"
