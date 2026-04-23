@@ -94,7 +94,7 @@ What should happen next:
 
 ## If you reject a request
 
-Please **add a clear comment** when rejecting. The billing team will now see your exact notes directly in their dashboard's "Comments" column.
+Please **add a clear comment** when rejecting. The billing team can now click directly on the rejected request in their Approvals table to expand the row and instantly reveal your exact notes.
 
 Add a short note like:
 
