@@ -2472,11 +2472,18 @@ function App() {
               </div>
               {audit_logs.map((entry) => {
                 let result = "-"
-                if (entry.metadata) {
+                const raw = entry.metadata_json || entry.metadata
+                if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
                   try {
-                    const meta = typeof entry.metadata === 'string' ? JSON.parse(entry.metadata) : entry.metadata
+                    const meta = typeof raw === 'string' ? JSON.parse(raw) : raw
                     result = meta.status || meta.decision || "-"
                   } catch (e) {}
+                }
+                if (result === "-") {
+                  const a = entry.action || ""
+                  if (a.startsWith("create_") || a.startsWith("generate_") || a.startsWith("export_")) result = "success"
+                  else if (a === "approval_requested") result = "pending"
+                  else if (a === "send_notification") result = "sent"
                 }
                 return (
                 <div className="table-row" key={entry.id}>
