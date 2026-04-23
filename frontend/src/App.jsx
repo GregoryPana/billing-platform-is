@@ -1157,11 +1157,7 @@ function App() {
       <div className="login-shell">
         <div className="login-card">
           <div className="brand">
-            <div className="brand-mark">BL</div>
-            <div>
-              <p className="brand-title">Billing Platform</p>
-              <p className="brand-subtitle">Automation Hub</p>
-            </div>
+            <p className="brand-title">Billing Platform</p>
           </div>
           <div className="login-body">
             <h2>{auth_mode === "login" ? "Sign in" : "Request access"}</h2>
