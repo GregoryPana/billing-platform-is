@@ -314,12 +314,13 @@ function App() {
         "scripts",
         "runs",
         "approvals",
+        "request-settings",
         "notifications",
         "audit",
         "documentation",
         "admin",
       ],
-      viewer: ["user-guide", "overview", "runs", "approvals"],
+      viewer: ["user-guide", "overview", "runs", "approvals", "request-settings", "documentation"],
     }
     const allowed = new Set(role_permissions[role] || [])
     return nav_items.filter((item) => allowed.has(item.id))
@@ -1491,30 +1492,43 @@ function App() {
                     <span>{role === "finance" ? "Action" : "Updated"}</span>
                   </div>
                   {(role === "finance" ? pending_approvals : approvals.slice(0, 6)).map((approval) => (
-                    <div className="table-row" key={approval.id}>
-                      <span>{format_cycle_label(approval.billing_cycle_id)}</span>
-                      <span>{format_stage_label(approval.stage)}</span>
-                      <span className={`pill ${approval.status === "pending" ? "warning" : "success"}`}>
-                        {approval.status}
-                      </span>
-                      {role === "finance" ? (
-                        <button
-                          className="secondary-button"
-                          type="button"
-                          onClick={() => {
-                            set_approval_form((previous) => ({
-                              ...previous,
-                              billing_cycle_id: String(approval.billing_cycle_id),
-                              stage: approval.stage,
-                              status: "approved",
-                            }))
-                            set_active_view("approvals")
-                          }}
-                        >
-                          Review
-                        </button>
-                      ) : (
-                        <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                    <div key={approval.id} style={{ display: "flex", flexDirection: "column" }}>
+                      <div 
+                        className="table-row" 
+                        style={{ cursor: "pointer" }}
+                        onClick={() => set_expanded_approval_id(expanded_approval_id === approval.id ? null : approval.id)}
+                      >
+                        <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                        <span>{format_stage_label(approval.stage)}</span>
+                        <span className={`pill ${approval.status === "pending" ? "warning" : approval.status === "rejected" ? "error" : "success"}`}>
+                          {approval.status}
+                        </span>
+                        {role === "finance" ? (
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              set_approval_form((previous) => ({
+                                ...previous,
+                                billing_cycle_id: String(approval.billing_cycle_id),
+                                stage: approval.stage,
+                                status: "approved",
+                              }))
+                              set_active_view("approvals")
+                            }}
+                          >
+                            Review
+                          </button>
+                        ) : (
+                          <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                        )}
+                      </div>
+                      {expanded_approval_id === approval.id && (
+                        <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                          <strong>Details & Comments:</strong>
+                          <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -2023,24 +2037,37 @@ function App() {
                     <div className="empty-state">No pending approvals.</div>
                   ) : (
                     pending_approvals.map((approval) => (
-                      <div className="table-row" key={approval.id}>
-                        <span>{format_cycle_label(approval.billing_cycle_id)}</span>
-                        <span>{format_stage_label(approval.stage)}</span>
-                        <span>{new Date(approval.updated_at).toLocaleString()}</span>
-                        <button
-                          className="secondary-button"
-                          type="button"
-                          onClick={() =>
-                            set_approval_form((previous) => ({
-                              ...previous,
-                              billing_cycle_id: String(approval.billing_cycle_id),
-                              stage: approval.stage,
-                              status: "approved",
-                            }))
-                          }
+                      <div key={approval.id} style={{ display: "flex", flexDirection: "column" }}>
+                        <div 
+                          className="table-row" 
+                          style={{ cursor: "pointer" }}
+                          onClick={() => set_expanded_approval_id(expanded_approval_id === approval.id ? null : approval.id)}
                         >
-                          Review
-                        </button>
+                          <span>{format_cycle_label(approval.billing_cycle_id)}</span>
+                          <span>{format_stage_label(approval.stage)}</span>
+                          <span>{new Date(approval.updated_at).toLocaleString()}</span>
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              set_approval_form((previous) => ({
+                                ...previous,
+                                billing_cycle_id: String(approval.billing_cycle_id),
+                                stage: approval.stage,
+                                status: "approved",
+                              }))
+                            }}
+                          >
+                            Review
+                          </button>
+                        </div>
+                        {expanded_approval_id === approval.id && (
+                          <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                            <strong>Details & Comments:</strong>
+                            <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

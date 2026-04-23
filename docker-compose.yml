@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: billing
       POSTGRES_DB: billing
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - billing_postgres_data:/var/lib/postgresql/data
 
