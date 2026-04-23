@@ -895,3 +895,18 @@
 .progress-step.done .step-label {
   color: var(--text-primary);
 }
+
+.tracker-panel {
+  border-left: 4px solid #0f766e;
+}
+
+.is-read-only {
+  pointer-events: none;
+}
+
+.is-read-only input {
+  background-color: #f8fafc;
+  border-style: dashed;
+  color: #94a3b8;
+}
+

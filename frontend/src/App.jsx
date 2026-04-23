@@ -284,9 +284,6 @@ function App() {
   }, [approvals, cycles, notifications])
 
   useEffect(() => {
-    if (use_default_params) {
-      return
-    }
     const cycle = cycles.find((item) => String(item.id) === script_form.billing_cycle_id)
     const cycle_month = cycle?.billing_month || cycle?.usage_month || ""
     const defaults = build_default_parameters(
@@ -294,8 +291,74 @@ function App() {
       script_form.environment,
       cycle_month
     )
-    set_parameter_overrides(defaults)
+    
+    if (use_default_params) {
+      set_parameter_overrides(defaults)
+    }
   }, [use_default_params, script_form.script_type, script_form.environment, cycles, script_form.billing_cycle_id])
+
+  const CycleProgressTracker = ({ cycle }) => {
+    if (!cycle) return null
+    const cycle_id = String(cycle.id)
+    const cycle_label = `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
+    const cycle_scripts = scripts.filter(s => String(s.billing_cycle_id) === cycle_id)
+    const test_prep = cycle_scripts.some(s => s.environment === "test" && s.script_type === "preparation")
+    const test_print = cycle_scripts.some(s => s.environment === "test" && s.script_type === "printing")
+    const live_prep = cycle_scripts.some(s => s.environment === "live" && s.script_type === "preparation")
+    const live_print = cycle_scripts.some(s => s.environment === "live" && s.script_type === "printing")
+    const cycle_runs = runs.filter(r => {
+      const script = scripts_by_id.get(String(r.script_definition_id))
+      return script && String(script.billing_cycle_id) === cycle_id
+    })
+    const test_runs_done = cycle_runs.some(r => {
+      const s = scripts_by_id.get(String(r.script_definition_id))
+      return s?.environment === "test" && r.status === "executed"
+    })
+    const live_runs_done = cycle_runs.some(r => {
+      const s = scripts_by_id.get(String(r.script_definition_id))
+      return s?.environment === "live" && r.status === "executed"
+    })
+    const cycle_approvals = approvals.filter(a => String(a.billing_cycle_id) === cycle_id)
+    const test_approved = cycle_approvals.some(a => a.stage === "test" && a.status === "approved")
+    const test_rejected = cycle_approvals.some(a => a.stage === "test" && a.status === "rejected")
+    const live_approved = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "approved")
+    const live_rejected = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "rejected")
+    const is_closed = cycle.status === "closed"
+    const steps = [
+      { label: "Cycle Created", done: true },
+      { label: "Test Scripts", done: test_prep || test_print },
+      { label: "Test Runs", done: test_runs_done },
+      { label: "Finance Approval (Test)", done: test_approved, rejected: test_rejected },
+      { label: "Live Scripts", done: live_prep || live_print },
+      { label: "Live Runs", done: live_runs_done },
+      { label: "Finance Approval (Live)", done: live_approved, rejected: live_rejected },
+      { label: "Closed", done: is_closed },
+    ]
+    const completed_count = steps.filter(s => s.done).length
+    const progress_pct = Math.round((completed_count / steps.length) * 100)
+
+    return (
+      <section className="panel tracker-panel" style={{ marginBottom: 24 }}>
+        <div className="panel-header">
+          <div>
+            <h2>Cycle Progress — {cycle_label}</h2>
+            <p>{progress_pct}% complete · {completed_count} of {steps.length} steps</p>
+          </div>
+        </div>
+        <div className="progress-bar-track">
+          <div className="progress-bar-fill" style={{ width: `${progress_pct}%` }} />
+        </div>
+        <div className="progress-steps">
+          {steps.map((step, i) => (
+            <div key={i} className={`progress-step ${step.done ? "done" : ""} ${step.rejected ? "rejected" : ""}`}>
+              <div className="step-dot" />
+              <span className="step-label">{step.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   const visible_nav_items = useMemo(() => {
     const role_permissions = {
@@ -1358,10 +1421,9 @@ function App() {
       </aside>
 
       <main className="main">
-        <div style={{ background: '#ef4444', color: '#fff', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>UI UPDATED - V2</div>
         <header className="topbar">
           <div>
-            <p className="topbar-title">Billing Operations</p>
+            <p className="topbar-title">Billing Platform</p>
           </div>
           <div className="topbar-actions">
             <button className="secondary-button" type="button" onClick={reload_all}>
@@ -1412,68 +1474,8 @@ function App() {
               ))}
             </section>
 
-            {(() => {
-              const latest_cycle = cycles.length > 0 ? cycles[0] : null
-              if (!latest_cycle) return null
-              const cycle_id = String(latest_cycle.id)
-              const cycle_label = `${format_month_label(latest_cycle.usage_month)} - ${format_month_label(latest_cycle.billing_month)}`
-              const cycle_scripts = scripts.filter(s => String(s.billing_cycle_id) === cycle_id)
-              const test_prep = cycle_scripts.some(s => s.environment === "test" && s.script_type === "preparation")
-              const test_print = cycle_scripts.some(s => s.environment === "test" && s.script_type === "printing")
-              const live_prep = cycle_scripts.some(s => s.environment === "live" && s.script_type === "preparation")
-              const live_print = cycle_scripts.some(s => s.environment === "live" && s.script_type === "printing")
-              const cycle_runs = runs.filter(r => {
-                const script = scripts_by_id.get(String(r.script_definition_id))
-                return script && String(script.billing_cycle_id) === cycle_id
-              })
-              const test_runs_done = cycle_runs.some(r => {
-                const s = scripts_by_id.get(String(r.script_definition_id))
-                return s?.environment === "test" && r.status === "executed"
-              })
-              const live_runs_done = cycle_runs.some(r => {
-                const s = scripts_by_id.get(String(r.script_definition_id))
-                return s?.environment === "live" && r.status === "executed"
-              })
-              const cycle_approvals = approvals.filter(a => String(a.billing_cycle_id) === cycle_id)
-              const test_approved = cycle_approvals.some(a => a.stage === "test" && a.status === "approved")
-              const test_rejected = cycle_approvals.some(a => a.stage === "test" && a.status === "rejected")
-              const live_approved = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "approved")
-              const live_rejected = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "rejected")
-              const is_closed = latest_cycle.status === "closed"
-              const steps = [
-                { label: "Cycle Created", done: true },
-                { label: "Test Scripts", done: test_prep || test_print },
-                { label: "Test Runs", done: test_runs_done },
-                { label: "Finance Approval (Test)", done: test_approved, rejected: test_rejected },
-                { label: "Live Scripts", done: live_prep || live_print },
-                { label: "Live Runs", done: live_runs_done },
-                { label: "Finance Approval (Live)", done: live_approved, rejected: live_rejected },
-                { label: "Closed", done: is_closed },
-              ]
-              const completed_count = steps.filter(s => s.done).length
-              const progress_pct = Math.round((completed_count / steps.length) * 100)
-              return (
-                <section className="panel" style={{ marginBottom: 20 }}>
-                  <div className="panel-header">
-                    <div>
-                      <h2>Cycle Progress — {cycle_label}</h2>
-                      <p>{progress_pct}% complete · {completed_count} of {steps.length} steps</p>
-                    </div>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div className="progress-bar-fill" style={{ width: `${progress_pct}%` }} />
-                  </div>
-                  <div className="progress-steps">
-                    {steps.map((step, i) => (
-                      <div key={i} className={`progress-step ${step.done ? "done" : ""} ${step.rejected ? "rejected" : ""}`}>
-                        <div className="step-dot" />
-                        <span className="step-label">{step.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )
-            })()}
+            <CycleProgressTracker cycle={cycles.length > 0 ? cycles[0] : null} />
+
 
 
             <section className="content-grid">
@@ -1744,42 +1746,26 @@ function App() {
                   <span>Use default parameters</span>
                 </div>
               </label>
-              {use_default_params && script_form.script_type === "printing" && (
-                <label>
-                  P6 Billing Run UID
-                  <input
-                    value={parameter_overrides.p6}
-                    onChange={(event) =>
-                      set_parameter_overrides((previous) => ({
-                        ...previous,
-                        p6: event.target.value,
-                      }))
-                    }
-                    placeholder="billing_run_uid"
-                    required
-                  />
-                </label>
-              )}
-              {!use_default_params && (
-                <div className="parameter-grid">
-                  {Object.keys(parameter_overrides).map((key) => (
-                    <label key={key}>
-                      {key.toUpperCase()}
-                      <input
-                        value={parameter_overrides[key]}
-                        onChange={(event) =>
-                          set_parameter_overrides((previous) => ({
-                            ...previous,
-                            [key]: event.target.value,
-                          }))
-                        }
-                        placeholder={key.toUpperCase()}
-                        required={script_form.script_type === "printing" && key === "p6"}
-                      />
-                    </label>
-                  ))}
-                </div>
-              )}
+              <div className="parameter-grid">
+                {Object.keys(parameter_overrides).map((key) => (
+                  <label key={key} className={use_default_params ? "is-read-only" : ""}>
+                    {key.toUpperCase()}
+                    <input
+                      value={parameter_overrides[key]}
+                      onChange={(event) =>
+                        !use_default_params && set_parameter_overrides((previous) => ({
+                          ...previous,
+                          [key]: event.target.value,
+                        }))
+                      }
+                      placeholder={key.toUpperCase()}
+                      readOnly={use_default_params}
+                      required={script_form.script_type === "printing" && key === "p6"}
+                    />
+                  </label>
+                ))}
+              </div>
+
               <div className="full">
                 <p className="helper">Cycle types</p>
                 <div className="select-all-row">
@@ -1872,11 +1858,12 @@ function App() {
                 <p>Track completion by cycle, environment, and script type.</p>
               </div>
             </div>
+
             <div className="form-grid">
               <label>
                 Billing cycle
                 <select value={run_cycle_id} onChange={(event) => set_run_cycle_id(event.target.value)}>
-                  <option value="">All cycles</option>
+                  <option value="">Select cycle...</option>
                   {run_cycle_options.map((cycle) => {
                     const pending = pending_approvals_by_cycle.get(String(cycle.id))
                     const stage_label = pending ? ` (${pending.stage})` : ""
@@ -1898,23 +1885,26 @@ function App() {
                   <option value="printing">Printing</option>
                 </select>
               </label>
+              <div className="tab-row">
+                <button
+                  className={`tab-button ${run_environment === "test" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => set_run_environment("test")}
+                >
+                  Test
+                </button>
+                <button
+                  className={`tab-button ${run_environment === "live" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => set_run_environment("live")}
+                >
+                  Live
+                </button>
+              </div>
             </div>
-            <div className="tab-row">
-              <button
-                className={`tab-button ${run_environment === "test" ? "active" : ""}`}
-                type="button"
-                onClick={() => set_run_environment("test")}
-              >
-                Test
-              </button>
-              <button
-                className={`tab-button ${run_environment === "live" ? "active" : ""}`}
-                type="button"
-                onClick={() => set_run_environment("live")}
-              >
-                Live
-              </button>
-            </div>
+
+            <CycleProgressTracker cycle={cycles.find(c => String(c.id) === run_cycle_id)} />
+
             {role !== "finance" && role !== "viewer" && run_cycle_id ? (
               <div className="run-approval-row">
                 <button

@@ -12,6 +12,22 @@ This guide focuses only on the finance steps in the billing process. It explains
 
 ---
 
+## Tracking Process with the Cycle Progress Tracker
+
+The **Cycle Progress Tracker** is visible on both the **Overview** and **Runs Tracking** pages. It provides a visual snapshot of where a billing cycle stands in its lifecycle:
+
+- **Cycle Created**: The initial setup.
+- **Test Scripts/Runs**: Billing team performing initial verification.
+- **Finance Approval (Test)**: Your first review point.
+- **Live Scripts/Runs**: The actual production billing execution.
+- **Finance Approval (Live)**: Your final sign-off.
+- **Closed**: The cycle is finalized.
+
+Use this tracker to quickly identify if a cycle is ready for your review or if it's still being prepared by the billing team.
+
+---
+
+
 ## When you get involved
 
 Finance actions happen at these points:

@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://localhost:8000/api"
+const DEFAULT_API_URL = "http://localhost:8001/api"
 
 export const api_base_url = import.meta.env.VITE_API_URL || DEFAULT_API_URL
 export const approval_webhook_url = import.meta.env.VITE_APPROVAL_WEBHOOK_URL || ""
