@@ -23,14 +23,13 @@ CYCLES = [
 
 def _default_preparation_params(environment: str, cycle: str) -> dict[str, str]:
     now = utc_plus_4_now()
-    if now.month == 12:
-        first_of_next_month = now.replace(year=now.year + 1, month=1, day=1)
-    else:
-        first_of_next_month = now.replace(month=now.month + 1, day=1)
+    last_day_value = calendar.monthrange(now.year, now.month)[1]
+    thirtieth_day = min(30, last_day_value)
+    thirtieth = now.replace(day=thirtieth_day)
     return {
         "p1": cycle,
         "p2": "T" if environment == "test" else "N",
-        "p3": first_of_next_month.strftime("%Y_%m_%d 00:00:00"),
+        "p3": thirtieth.strftime("%Y_%m_%d 00:00:00"),
         "p4": "28",
         "p5": "2",
         "p6": "",

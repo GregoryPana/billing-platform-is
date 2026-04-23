@@ -15,8 +15,6 @@ class ApprovalRequestCreate(BaseSchema):
     billing_cycle_id: str
     stage: str
     comments: str | None = None
-    recipients: list[str] | None = None
-    app_link: str | None = None
 
 
 class ApprovalRead(BaseSchema):

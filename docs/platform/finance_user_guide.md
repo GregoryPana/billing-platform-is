@@ -32,7 +32,7 @@ Finance actions happen at these points:
 
 What you do:
 
-- Click the direct link from your email notification to open the request for the billing cycle.
+- Open the request for the billing cycle.
 - Read the comments and verify test results are complete.
 - Click **Approve** or **Reject**.
 
@@ -64,7 +64,8 @@ What should happen next:
 
 **Where:** `Approvals`
 
-![Step 3: Stage Change and Request Approval](/billing/user-guide/finance-move-to-notifications.png)
+![Step 3: Stage Change and Request Approval](/billing/user-guide/finance-move-to-notifications
+.png)
 
 What you do:
 
@@ -94,12 +95,10 @@ What should happen next:
 
 ## If you reject a request
 
-Please **add a clear comment** when rejecting. The billing team will now see your exact notes directly in their dashboard's "Comments" column.
-
 Add a short note like:
 
 - “Test run missing for Cycle X”
 - “Live printing not confirmed”
 - “Please attach reconciliation details”
 
-Billing will review your feedback, fix the issues, and resubmit.
+Billing will fix and resubmit.

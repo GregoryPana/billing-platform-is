@@ -91,7 +91,7 @@ What to do:
 - Select the cycle you just created.
 - Set **Environment = Test**.
 - Choose **Script type**:
-  - **Preparation** for bill generation. *(Note: the `p3` parameter automatically defaults to the first day of the next month).*
+  - **Preparation** for bill generation.
   - **Printing** for bill printing.
 - Select the cycle types that apply to the run.
 - Click **Generate scripts**.
@@ -139,7 +139,6 @@ What to do:
 
 - Choose the billing cycle.
 - Select stage **Move to live**.
-- Check the relevant boxes to select which **Finance recipients** should receive the approval email notification (which contains a direct link to the request).
 - Add a short comment (for example: “Test run completed, no errors”).
 - Submit the request.
 
@@ -165,7 +164,7 @@ What to do:
 What should happen next:
 
 - If approved, billing can generate **live** scripts.
-- If rejected, billing corrects the issue and submits again. *(Tip: You can read exactly why Finance rejected the cycle by checking the "Comments" column in the Approvals table).*
+- If rejected, billing corrects the issue and submits again.
 
 ---
 
