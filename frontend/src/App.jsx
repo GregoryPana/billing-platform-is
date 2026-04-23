@@ -1358,6 +1358,7 @@ function App() {
       </aside>
 
       <main className="main">
+        <div style={{ background: '#ef4444', color: '#fff', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>UI UPDATED - V2</div>
         <header className="topbar">
           <div>
             <p className="topbar-title">Billing Operations</p>
