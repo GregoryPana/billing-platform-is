@@ -165,7 +165,7 @@ What to do:
 What should happen next:
 
 - If approved, billing can generate **live** scripts.
-- If rejected, billing corrects the issue and submits again. *(Tip: You can read exactly why Finance rejected the cycle by checking the "Comments" column in the Approvals table).*
+- If rejected, billing corrects the issue and submits again. *(Tip: You can read exactly why Finance rejected the cycle by simply clicking on the denied request in your Approvals table, which will expand to reveal their specific comments).*
 
 ---
 
@@ -254,6 +254,7 @@ SMS:   /cer_cerprod/Dominique/SMS_NOTIFICATION_FOR_REAL_BILL.sh
 What to do:
 
 - Review the audit log entries for the cycle.
+- Check the **Result** column to easily see if actions were `success`, `executed`, `approved`, or `failed` at a glance.
 - Confirm that approvals, script generation, and notification commands are all recorded.
 
 What should happen next:
