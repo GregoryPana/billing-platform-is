@@ -499,10 +499,11 @@ function App() {
         set_current_user(me)
         set_role(me.role)
         set_is_authenticated(true)
-      } catch (error) {
+      } catch {
         set_auth_token(null)
         set_is_authenticated(false)
       }
+
     }
     load_user()
   }, [])
@@ -2548,7 +2549,9 @@ function App() {
                   try {
                     const meta = typeof raw === 'string' ? JSON.parse(raw) : raw
                     result = meta.status || meta.decision || "-"
-                  } catch (e) {}
+                  } catch {
+                  }
+
                 }
                 if (result === "-") {
                   const a = entry.action || ""
@@ -3007,16 +3010,60 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals, scripts_by_id }
   const live_approved = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "approved")
   const live_rejected = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "rejected")
   const is_closed = cycle.status === "closed"
+  const test_prep_count = cycle_scripts.filter(s => s.environment === "test" && s.script_type === "preparation").length
+  const test_print_count = cycle_scripts.filter(s => s.environment === "test" && s.script_type === "printing").length
+  const live_prep_count = cycle_scripts.filter(s => s.environment === "live" && s.script_type === "preparation").length
+  const live_print_count = cycle_scripts.filter(s => s.environment === "live" && s.script_type === "printing").length
+
+  const test_scripts_total = cycle_scripts.filter(s => s.environment === "test").length
+  const test_runs_executed = cycle_runs.filter(r => {
+    const s = scripts_by_id.get(String(r.script_definition_id))
+    return s?.environment === "test" && r.status === "executed"
+  }).length
+
+  const live_scripts_total = cycle_scripts.filter(s => s.environment === "live").length
+  const live_runs_executed = cycle_runs.filter(r => {
+    const s = scripts_by_id.get(String(r.script_definition_id))
+    return s?.environment === "live" && r.status === "executed"
+  }).length
+
   const steps = [
-    { label: "Cycle Created", done: true },
-    { label: "Test Scripts", done: test_prep || test_print },
-    { label: "Test Runs", done: test_runs_done },
-    { label: "Finance Approval (Test)", done: test_approved, rejected: test_rejected },
-    { label: "Live Scripts", done: live_prep || live_print },
-    { label: "Live Runs", done: live_runs_done },
-    { label: "Finance Approval (Live)", done: live_approved, rejected: live_rejected },
-    { label: "Closed", done: is_closed },
+    { label: "Cycle Created", done: true, subtext: "Definition completed" },
+    { 
+      label: "Test Scripts", 
+      done: test_prep || test_print, 
+      subtext: test_scripts_total > 0 ? `${test_prep_count} prep, ${test_print_count} print` : "No scripts generated" 
+    },
+    { 
+      label: "Test Runs", 
+      done: test_runs_done && test_scripts_total > 0, 
+      subtext: `${test_runs_executed} of ${test_scripts_total} executed` 
+    },
+    { 
+      label: "Finance Approval (Test)", 
+      done: test_approved, 
+      rejected: test_rejected,
+      subtext: test_approved ? "Approved" : (test_rejected ? "Rejected" : "Pending request")
+    },
+    { 
+      label: "Live Scripts", 
+      done: live_prep || live_print, 
+      subtext: live_scripts_total > 0 ? `${live_prep_count} prep, ${live_print_count} print` : "Locked until test approved" 
+    },
+    { 
+      label: "Live Runs", 
+      done: live_runs_done && live_scripts_total > 0, 
+      subtext: `${live_runs_executed} of ${live_scripts_total} executed` 
+    },
+    { 
+      label: "Finance Approval (Live)", 
+      done: live_approved, 
+      rejected: live_rejected,
+      subtext: live_approved ? "Approved" : (live_rejected ? "Rejected" : "Pending request")
+    },
+    { label: "Closed", done: is_closed, subtext: is_closed ? "Monthly cycle finalized" : "Open" },
   ]
+
   const completed_count = steps.filter(s => s.done).length
   const progress_pct = Math.round((completed_count / steps.length) * 100)
 
@@ -3035,7 +3082,11 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals, scripts_by_id }
         {steps.map((step, i) => (
           <div key={i} className={`progress-step ${step.done ? "done" : ""} ${step.rejected ? "rejected" : ""}`}>
             <div className="step-dot" />
-            <span className="step-label">{step.label}</span>
+            <div className="step-info">
+              <span className="step-label">{step.label}</span>
+              {step.subtext && <span className="step-subtext">{step.subtext}</span>}
+            </div>
+
           </div>
         ))}
       </div>
