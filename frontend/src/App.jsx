@@ -8,7 +8,9 @@ import {
 
 
 import { api_base_url, api_fetch, get_auth_token, set_auth_token } from "./api"
+import { cn } from "./lib/utils"
 import billingProcessDoc from "../../docs/platform/billing_process.md?raw"
+
 import billingUserGuideDoc from "../../docs/platform/billing_user_guide.md?raw"
 import financeUserGuideDoc from "../../docs/platform/finance_user_guide.md?raw"
 import billingProcessPdf from "../../docs/platform/Billing Process.pdf"
@@ -305,63 +307,72 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
   const cycle_id = String(cycle.id)
   const cycle_label = `${format_month_label(cycle.usage_month)} - ${format_month_label(cycle.billing_month)}`
   const cycle_scripts = scripts.filter(s => String(s.billing_cycle_id) === cycle_id)
-  const test_prep = cycle_scripts.some(s => s.environment === "test" && s.script_type === "preparation")
-  const test_print = cycle_scripts.some(s => s.environment === "test" && s.script_type === "printing")
-  const live_prep = cycle_scripts.some(s => s.environment === "live" && s.script_type === "preparation")
-  const live_print = cycle_scripts.some(s => s.environment === "live" && s.script_type === "printing")
-  const cycle_runs = runs.filter(r => {
-    const script = scripts_by_id.get(String(r.script_definition_id))
-    return script && String(script.billing_cycle_id) === cycle_id
-  })
-  const test_runs_done = cycle_runs.some(r => {
+  
+  const has_script = (env, type) => cycle_scripts.some(s => s.environment === env && s.script_type === type)
+  const has_executed = (env) => runs.some(r => {
     const s = scripts_by_id.get(String(r.script_definition_id))
-    return s?.environment === "test" && r.status === "executed"
+    return s && String(s.billing_cycle_id) === cycle_id && s.environment === env && r.status === "executed"
   })
-  const live_runs_done = cycle_runs.some(r => {
-    const s = scripts_by_id.get(String(r.script_definition_id))
-    return s?.environment === "live" && r.status === "executed"
-  })
-  const cycle_approvals = approvals.filter(a => String(a.billing_cycle_id) === cycle_id)
-  const test_approved = cycle_approvals.some(a => a.stage === "test" && a.status === "approved")
-  const test_rejected = cycle_approvals.some(a => a.stage === "test" && a.status === "rejected")
-  const live_approved = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "approved")
-  const live_rejected = cycle_approvals.some(a => (a.stage === "live" || a.stage === "post_live") && a.status === "rejected")
-  const is_closed = cycle.status === "closed"
+  
+  const get_approval = (stage) => approvals.find(a => String(a.billing_cycle_id) === cycle_id && a.stage === stage)
+  
   const steps = [
-    { label: "Cycle Created", done: true },
-    { label: "Test Scripts", done: test_prep || test_print },
-    { label: "Test Runs", done: test_runs_done },
-    { label: "Finance Approval (Test)", done: test_approved, rejected: test_rejected },
-    { label: "Live Scripts", done: live_prep || live_print },
-    { label: "Live Runs", done: live_runs_done },
-    { label: "Finance Approval (Live)", done: live_approved, rejected: live_rejected },
-    { label: "Closed", done: is_closed },
+    { label: "Created", done: true },
+    { label: "Test Scripts", done: has_script("test", "preparation") || has_script("test", "printing") },
+    { label: "Test Runs", done: has_executed("test") },
+    { label: "Approval (T)", done: get_approval("test")?.status === "approved", rejected: get_approval("test")?.status === "rejected" },
+    { label: "Live Scripts", done: has_script("live", "preparation") || has_script("live", "printing") },
+    { label: "Live Runs", done: has_executed("live") },
+    { label: "Approval (L)", done: get_approval("live")?.status === "approved" || get_approval("post_live")?.status === "approved", rejected: get_approval("live")?.status === "rejected" },
+    { label: "Closed", done: cycle.status === "closed" },
   ]
-  const completed_count = steps.filter(s => s.done).length
-  const progress_pct = Math.round((completed_count / steps.length) * 100)
+
+  const progress = Math.round((steps.filter(s => s.done).length / steps.length) * 100)
 
   return (
-    <section className="panel tracker-panel" style={{ marginBottom: 24 }}>
-      <div className="panel-header">
-        <div>
-          <h2>Cycle Progress — {cycle_label}</h2>
-          <p>{progress_pct}% complete · {completed_count} of {steps.length} steps</p>
+    <div className="rounded-xl border bg-card text-card-foreground shadow-sm mb-10 overflow-hidden">
+      <div className="p-8 border-b bg-muted/20">
+        <div className="flex justify-between items-end mb-6">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight mb-1">{cycle_label}</h2>
+            <p className="text-sm text-muted-foreground">Workflow progression for local billing cycle</p>
+          </div>
+          <div className="text-right">
+            <span className="text-2xl font-black tabular-nums">{progress}%</span>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Completion</p>
+          </div>
+        </div>
+        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+          <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }} />
         </div>
       </div>
-      <div className="progress-bar-track">
-        <div className="progress-bar-fill" style={{ width: `${progress_pct}%` }} />
-      </div>
-      <div className="progress-steps">
+      
+      <div className="p-8 grid grid-cols-4 md:grid-cols-8 gap-4 relative">
+        <div className="absolute top-[3.25rem] left-[12%] right-[12%] h-[1px] bg-border z-0 hidden md:block" />
         {steps.map((step, i) => (
-          <div key={i} className={`progress-step ${step.done ? "done" : ""} ${step.rejected ? "rejected" : ""}`}>
-            <div className="step-dot" />
-            <span className="step-label">{step.label}</span>
+          <div key={i} className="flex flex-col items-center gap-3 relative z-10">
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
+              step.done ? "bg-primary border-primary text-primary-foreground" : 
+              step.rejected ? "bg-destructive/10 border-destructive text-destructive" :
+              "bg-background border-border text-muted-foreground"
+            )}>
+              {step.done ? <Play size={16} fill="currentColor" /> : 
+               step.rejected ? <Shield size={16} /> : 
+               <span className="text-xs font-bold">{i + 1}</span>}
+            </div>
+            <div className="text-center">
+              <p className={cn("text-[11px] font-bold uppercase tracking-tight", step.done ? "text-foreground" : "text-muted-foreground")}>
+                {step.label}
+              </p>
+            </div>
           </div>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
+
 
 
   const visible_nav_items = useMemo(() => {
@@ -1221,193 +1232,164 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
 
   if (!is_authenticated) {
     return (
-      <div className="login-shell">
-        <div className="login-card">
-          <div className="brand">
-            <p className="brand-title">Billing Platform</p>
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
+        <div className="w-full max-w-[440px] bg-card border rounded-2xl shadow-xl p-10 flex flex-col gap-8 animate-in fade-in zoom-in duration-300">
+          <div className="text-center">
+            <h1 className="text-3xl font-black tracking-tighter text-primary">Billing Platform</h1>
+            <p className="text-sm text-muted-foreground mt-2 font-medium tracking-tight">B2B Automations & Governance</p>
           </div>
-          <div className="login-body">
-            <h2>{auth_mode === "login" ? "Sign in" : "Request access"}</h2>
-            <p>
-              {auth_mode === "login"
-                ? "Use your billing platform credentials."
-                : "Submit your details for admin approval."}
+          
+          <div className="space-y-1 text-center">
+            <h2 className="text-xl font-bold tracking-tight">
+              {auth_mode === "login" ? "Sign in to account" : "Request access"}
+            </h2>
+            <p className="text-[13px] text-muted-foreground">
+              {auth_mode === "login" ? "Enter your core credentials to continue." : "Admin approval is required for all new accounts."}
             </p>
-            {error_message ? <div className="alert error">{error_message}</div> : null}
-            {signup_status ? <div className="alert info">{signup_status}</div> : null}
-            {auth_mode === "login" ? (
-              <form className="form-grid" onSubmit={handle_login_submit}>
-                <label>
-                  Username or email
-                  <input
-                    value={login_form.username_or_email}
-                    onChange={(event) =>
-                      set_login_form((previous) => ({
-                        ...previous,
-                        username_or_email: event.target.value,
-                      }))
-                    }
-                    onInput={() =>
-                      set_login_errors((previous) => ({
-                        ...previous,
-                        username: "",
-                      }))
-                    }
-                    placeholder="username or email"
-                    required
-                  />
-                  {login_errors.username ? (
-                    <span className="field-error">{login_errors.username}</span>
-                  ) : null}
-                </label>
-                <label>
-                  Password
-                  <input
-                    type={show_login_password ? "text" : "password"}
-                    value={login_form.password}
-                    onChange={(event) =>
-                      set_login_form((previous) => ({
-                        ...previous,
-                        password: event.target.value,
-                      }))
-                    }
-                    onInput={() =>
-                      set_login_errors((previous) => ({
-                        ...previous,
-                        password: "",
-                      }))
-                    }
-                    required
-                  />
-                  {login_errors.password ? (
-                    <span className="field-error">{login_errors.password}</span>
-                  ) : null}
-                  <label className="checkbox-inline">
-                    <input
-                      type="checkbox"
-                      checked={show_login_password}
-                      onChange={(event) => set_show_login_password(event.target.checked)}
-                    />
-                    <span>Show password</span>
-                  </label>
-                </label>
-                <button className="primary-button" type="submit">
-                  Sign in
-                </button>
-              </form>
-            ) : (
-              <form className="form-grid" onSubmit={handle_signup_submit}>
-                <label>
-                  Full name
-                  <input
-                    value={signup_form.name}
-                    onChange={(event) =>
-                      set_signup_form((previous) => ({
-                        ...previous,
-                        name: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </label>
-                <label>
-                  Username
-                  <input
-                    value={signup_form.username}
-                    onChange={(event) =>
-                      set_signup_form((previous) => ({
-                        ...previous,
-                        username: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </label>
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={signup_form.email}
-                    onChange={(event) =>
-                      set_signup_form((previous) => ({
-                        ...previous,
-                        email: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    value={signup_form.password}
-                    onChange={(event) =>
-                      set_signup_form((previous) => ({
-                        ...previous,
-                        password: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </label>
-                <button className="primary-button" type="submit">
-                  Submit request
-                </button>
-              </form>
-            )}
-            <div className="login-cta">
-              <button
-                className={auth_mode === "login" ? "primary-button cta-button" : "ghost-button"}
-                type="button"
-                onClick={() => {
-                  set_auth_mode(auth_mode === "login" ? "signup" : "login")
-                  set_error_message("")
-                  set_signup_status("")
-                  set_login_errors({ username: "", password: "" })
-                }}
-              >
-                {auth_mode === "login" ? "Request account access" : "Back to sign in"}
-              </button>
-              {auth_mode === "login" ? (
-                <span className="cta-note">Submit your details and admin will grant access.</span>
-              ) : null}
+          </div>
+
+          {error_message && (
+            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold">
+              {error_message}
             </div>
+          )}
+          {signup_status && (
+            <div className="p-3 rounded-md bg-green-50 border border-green-200 text-green-700 text-xs font-semibold">
+              {signup_status}
+            </div>
+          )}
+
+          <form className="grid gap-6" onSubmit={auth_mode === "login" ? handle_login_submit : handle_signup_submit}>
+            {auth_mode === "signup" && (
+              <div className="grid gap-4">
+                <div className="grid gap-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Full Name</label>
+                  <input
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="John Doe"
+                    value={signup_form.name}
+                    onChange={(e) => set_signup_form({ ...signup_form, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Username</label>
+                  <input
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="jdoe123"
+                    value={signup_form.username}
+                    onChange={(e) => set_signup_form({ ...signup_form, username: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="grid gap-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Email or User</label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                type="text"
+                placeholder="name@cwseychelles.com"
+                value={auth_mode === "login" ? login_form.username_or_email : signup_form.email}
+                onChange={(e) => auth_mode === "login" 
+                  ? set_login_form({ ...login_form, username_or_email: e.target.value })
+                  : set_signup_form({ ...signup_form, email: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Password</label>
+                {auth_mode === "login" && (
+                   <button 
+                    type="button"
+                    onClick={() => set_show_login_password(!show_login_password)}
+                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                  >
+                    {show_login_password ? "Hide" : "Show"}
+                  </button>
+                )}
+              </div>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                type={auth_mode === "login" && show_login_password ? "text" : "password"}
+                value={auth_mode === "login" ? login_form.password : signup_form.password}
+                onChange={(e) => auth_mode === "login"
+                  ? set_login_form({ ...login_form, password: e.target.value })
+                  : set_signup_form({ ...signup_form, password: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <button className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-primary-foreground font-bold rounded-md hover:opacity-90 transition-all shadow-lg active:scale-95" type="submit">
+              {auth_mode === "login" ? "Sign In" : "Submit Request"}
+            </button>
+          </form>
+
+          <div className="border-t pt-8 flex flex-col gap-4 text-center">
+            <button 
+              className="text-sm font-bold text-primary hover:underline transition-opacity hover:opacity-80"
+              onClick={() => {
+                set_auth_mode(auth_mode === "login" ? "signup" : "login")
+                set_error_message("")
+                set_signup_status("")
+              }}
+            >
+              {auth_mode === "login" ? "Request account access" : "Back to sign in"}
+            </button>
+            {auth_mode === "login" && (
+              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none pointer-events-none opacity-50">
+                Authorized personnel only
+              </span>
+            )}
           </div>
         </div>
       </div>
     )
+
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <p className="brand-title">Billing Platform</p>
+    <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/10">
+      <aside className="w-72 min-w-[18rem] bg-card border-r flex flex-col p-8 hidden md:flex h-screen sticky top-0">
+        <div className="px-2 mb-10">
+          <h1 className="text-2xl font-black tracking-tighter text-primary uppercase">Billing Dashboard</h1>
         </div>
-        <nav className="nav">
+        
+        <nav className="flex flex-col gap-1.5 flex-1">
           {visible_nav_items.map((item) => {
             const IconComponent = item.icon
+            const isActive = active_view === item.id
             return (
               <button
-                className={`nav-item ${active_view === item.id ? "active" : ""}`}
                 key={item.id}
+                className={cn(
+                  "flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-[13px] font-bold transition-all duration-200 group",
+                  isActive 
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
                 type="button"
                 onClick={() => set_active_view(item.id)}
               >
-                {IconComponent && <IconComponent size={18} />}
+                {IconComponent && <IconComponent size={18} className={cn("transition-transform group-hover:scale-110", isActive ? "opacity-100" : "opacity-70")} />}
                 {item.label}
               </button>
             )
           })}
         </nav>
-        <div className="sidebar-footer">
-          <div>
-            <p className="footer-label">Current role</p>
-            <p className="footer-value">{role}</p>
+
+        <div className="border-t pt-8 mt-auto flex flex-col gap-6">
+          <div className="px-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mb-1">Session Role</p>
+            <p className="text-sm font-bold truncate">{role}</p>
           </div>
           <button
-            className="ghost-button"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-[13px] font-bold text-destructive hover:bg-destructive/10 transition-colors w-full text-left"
             type="button"
             onClick={() => {
               set_auth_token(null)
@@ -1419,25 +1401,30 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
               set_error_message("")
             }}
           >
+            <Play className="rotate-180" size={16} />
             Sign out
           </button>
         </div>
       </aside>
 
-      <main className="main">
-        <header className="topbar">
+      <main className="flex-1 p-12 overflow-x-hidden">
+        <header className="flex justify-between items-center mb-10">
           <div>
-            <p className="topbar-title">Billing Platform</p>
+            <h1 className="text-3xl font-black tracking-tighter capitalize leading-none">
+              {nav_items.find(item => item.id === active_view)?.label || active_view}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2 font-medium">B2B Automated Billing Governance</p>
           </div>
-          <div className="topbar-actions">
-            <button className="secondary-button" type="button" onClick={reload_all}>
+          <div className="flex gap-3">
+            <button className="inline-flex items-center justify-center rounded-md text-sm font-bold h-10 px-6 border bg-background hover:bg-accent transition-colors" type="button" onClick={reload_all}>
               Refresh
             </button>
-            <button className="primary-button" type="button" onClick={() => set_active_view("cycles")}>
-              New cycle
+            <button className="inline-flex items-center justify-center rounded-md text-sm font-bold h-10 px-6 bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-md" type="button" onClick={() => set_active_view("cycles")}>
+              New Cycle
             </button>
           </div>
         </header>
+
 
         {error_message ? <div className="alert error">{error_message}</div> : null}
         {role === "billing" && approval_notifications.length > 0 ? (
@@ -1484,6 +1471,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
               runs={runs}
               approvals={approvals}
             />
+
 
 
 
