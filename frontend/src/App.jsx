@@ -313,7 +313,7 @@ function App() {
     }, 4000)
   }, [])
 
-  useEffect(() => {
+  const visible_nav_items = useMemo(() => {
     const role_permissions = {
       billing: [
         "user-guide",
@@ -345,6 +345,7 @@ function App() {
     const allowed = new Set(role_permissions[role] || [])
     return nav_items.filter((item) => allowed.has(item.id))
   }, [role])
+
 
   const reload_all = useCallback(async (silent = false) => {
     try {
@@ -439,9 +440,10 @@ function App() {
           }),
         })
         set_request_settings_status("Settings saved.")
-      } catch (error) {
+      } catch {
         set_request_settings_status("Failed to save settings.")
       }
+
     }, 600)
 
     return () => clearTimeout(timer)
@@ -473,7 +475,8 @@ function App() {
     if (approval_request_feedback) {
       set_approval_request_feedback("")
     }
-  }, [approval_request_form.billing_cycle_id, approval_request_form.stage])
+  }, [approval_request_form.billing_cycle_id, approval_request_form.stage, approval_request_feedback])
+
 
   useEffect(() => {
     if (!is_authenticated) {
