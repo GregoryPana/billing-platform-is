@@ -164,5 +164,6 @@
 - Updated Script Generation to always show all parameters (P1-P8) in a read-only state when using default values.
 - Integrated a premium Toast Notification System and interactive button loading states (spinners).
 - Added micro-feedback animations for status transitions and card hover effects.
+- Patched critical React crash (Blank Dashboard) by refactoring CycleProgressTracker to a standalone scope.
 - Updated Finance User Guide with progression tracking instructions.
 - All changes merged to main and pushed to production.
