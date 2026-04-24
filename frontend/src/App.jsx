@@ -1407,8 +1407,11 @@ function App() {
       <main className="main">
         <header className="topbar">
           <div>
-            <p className="topbar-title">Billing Platform</p>
+            <p className="topbar-title">
+              {nav_items.find(item => item.id === active_view)?.label || "Billing Platform"}
+            </p>
           </div>
+
           <div className="topbar-actions">
             <button
               className="secondary-button"
