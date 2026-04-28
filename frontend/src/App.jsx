@@ -386,57 +386,62 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
       </div>
       
       <div className="p-8 relative">
-        <div className="hidden md:block absolute left-12 right-12 top-[2.25rem] h-[2px] bg-blue-100" />
+        <div className="hidden md:block absolute left-10 right-10 top-[2.1rem] h-[3px] rounded-full bg-blue-100" />
         <div
           className={cn(
-            "hidden md:block absolute left-12 top-[2.25rem] h-[2px] transition-all duration-500",
+            "hidden md:block absolute left-10 top-[2.1rem] h-[3px] rounded-full transition-all duration-500",
             progress_bar_tone === "danger"
               ? "bg-red-500"
               : progress_bar_tone === "success"
               ? "bg-green-500"
               : "bg-yellow-500"
           )}
-          style={{ width: `calc((100% - 6rem) * ${connector_progress / 100})` }}
+          style={{ width: `calc((100% - 5rem) * ${connector_progress / 100})` }}
         />
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-4 relative">
-        {steps.map((step, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 relative z-10">
-            <div
-              className={cn(
-                "w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all duration-300 bg-white shadow-sm",
-                step.done
-                  ? "border-blue-600 text-blue-700"
-                  : step.rejected
-                  ? "border-red-500 text-red-600"
-                  : i === completed_steps
-                  ? "border-yellow-500 text-yellow-600 ring-4 ring-yellow-100"
-                  : "border-blue-200 text-slate-500"
-              )}
-            >
-              {step.done ? (
-                <CheckCircle size={16} />
-              ) : step.rejected ? (
-                <Shield size={16} />
-              ) : (
-                <span className="text-xs font-bold">{i + 1}</span>
-              )}
-            </div>
-            <div className="text-center min-h-[2.5rem] flex items-start">
-              <p
-                className={cn(
-                  "text-[11px] md:text-[12px] font-semibold tracking-tight leading-4",
-                  step.done
-                    ? "text-slate-900"
-                    : step.rejected
-                    ? "text-red-700"
-                    : "text-slate-700"
-                )}
-              >
-                {step.label}
-              </p>
-            </div>
-          </div>
-        ))}
+
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-4 md:gap-3 relative">
+          {steps.map((step, i) => {
+            const is_current = i === completed_steps && !step.done && !step.rejected
+            return (
+              <div key={i} className="flex flex-col items-center gap-2 relative z-10">
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 bg-white",
+                    step.rejected
+                      ? "border-red-500 text-red-600"
+                      : step.done
+                      ? "border-green-500 text-green-600"
+                      : is_current
+                      ? "border-yellow-500 text-yellow-600 ring-4 ring-yellow-100"
+                      : "border-blue-200 text-slate-500"
+                  )}
+                >
+                  {step.rejected ? (
+                    <Shield size={14} />
+                  ) : step.done ? (
+                    <CheckCircle size={14} />
+                  ) : (
+                    <span className="text-[11px] font-bold">{i + 1}</span>
+                  )}
+                </div>
+
+                <p
+                  className={cn(
+                    "text-[10px] md:text-[11px] font-semibold leading-4 text-center max-w-[92px]",
+                    step.rejected
+                      ? "text-red-700"
+                      : step.done
+                      ? "text-slate-900"
+                      : is_current
+                      ? "text-yellow-700"
+                      : "text-slate-600"
+                  )}
+                >
+                  {step.label}
+                </p>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
