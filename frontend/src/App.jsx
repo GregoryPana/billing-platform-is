@@ -253,6 +253,7 @@ function App() {
   const [run_status_overrides, set_run_status_overrides] = useState({})
   const [approval_notifications, set_approval_notifications] = useState([])
   const [last_generated_count, set_last_generated_count] = useState(null)
+  const [toast, set_toast] = useState(null)
   const documentation_sets = useMemo(
     () => [
       {
@@ -265,6 +266,18 @@ function App() {
     []
   )
   const [active_documentation_id, set_active_documentation_id] = useState("billing-process")
+
+  useEffect(() => {
+    if (!toast) {
+      return undefined
+    }
+    const timer = setTimeout(() => set_toast(null), 2800)
+    return () => clearTimeout(timer)
+  }, [toast])
+
+  const show_toast = (message, tone = "info") => {
+    set_toast({ id: Date.now(), message, tone })
+  }
 
   const status_cards = useMemo(() => {
     const pending_approvals = approvals.filter((item) => item.status === "pending").length
@@ -710,9 +723,11 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
         body: JSON.stringify(payload),
       })
       set_last_generated_count(Array.isArray(created) ? created.length : null)
+      show_toast("Scripts generated successfully.", "success")
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
+      show_toast(error.message || "Failed to generate scripts.", "error")
     }
   }
 
@@ -888,9 +903,11 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
         comments: request_settings.default_message || "",
       })
       set_approval_request_feedback("Approval request sent to finance and recorded in the system.")
+      show_toast("Approval request sent to selected recipients.", "success")
       await reload_all()
     } catch (error) {
       set_error_message(error.message)
+      show_toast(error.message || "Failed to send approval request.", "error")
     } finally {
       set_approval_request_pending(false)
     }
@@ -1003,6 +1020,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
       previous.includes(normalized) ? previous : [...previous, normalized]
     )
     set_finance_recipient_input("")
+    show_toast("Finance recipient added.", "success")
   }
 
   const toggle_finance_recipient = (email) => {
@@ -1014,6 +1032,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
   const remove_finance_recipient = (email) => {
     set_finance_recipients((previous) => previous.filter((item) => item !== email))
     set_selected_finance_recipients((previous) => previous.filter((item) => item !== email))
+    show_toast("Finance recipient removed.", "info")
   }
 
   const handle_notification_submit = async (event) => {
@@ -1497,6 +1516,13 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
 
 
         {error_message ? <div className="alert error">{error_message}</div> : null}
+        {toast ? (
+          <div className="toast-stack" key={toast.id}>
+            <div className={`toast-item ${toast.tone}`}>
+              {toast.message}
+            </div>
+          </div>
+        ) : null}
         {role === "billing" && approval_notifications.length > 0 ? (
           <div className="alert info">
             {approval_notifications.map((approval) => (
@@ -1662,7 +1688,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                       {expanded_approval_id === approval.id && (
                         <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
                           <strong>Details & Comments:</strong>
-                          <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                          <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
                         </div>
                       )}
                     </div>
@@ -2109,7 +2135,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                             checked={selected_finance_recipients.includes(email)}
                             onChange={() => toggle_finance_recipient(email)}
                           />
-                          <span>{email}</span>
+                          <a href={`mailto:${email}`} onClick={(event) => event.stopPropagation()}>{email}</a>
                         </label>
                       ))}
                     </div>
@@ -2188,7 +2214,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                         {expanded_approval_id === approval.id && (
                           <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
                             <strong>Details & Comments:</strong>
-                            <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                            <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
                           </div>
                         )}
                       </div>
@@ -2298,7 +2324,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                           {expanded_approval_id === approval.id && (
                             <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
                               <strong>Details & Comments:</strong>
-                              <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                              <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
                             </div>
                           )}
                         </div>
@@ -2340,7 +2366,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                     {expanded_approval_id === approval.id && (
                       <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
                         <strong>Details & Comments:</strong>
-                        <p style={{ marginTop: "8px", color: "var(--text)" }}>{approval.comments || "No comments provided."}</p>
+                        <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
                       </div>
                     )}
                   </div>
@@ -2520,7 +2546,7 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                           checked={selected_finance_recipients.includes(email)}
                           onChange={() => toggle_finance_recipient(email)}
                         />
-                        <span>{email}</span>
+                        <a href={`mailto:${email}`} onClick={(event) => event.stopPropagation()}>{email}</a>
                         <button
                           className="text-button"
                           type="button"
