@@ -386,15 +386,15 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
       </div>
       
       <div className="p-8 relative">
-        <div className="hidden md:block absolute left-10 right-10 top-[1.55rem] h-[2px] bg-blue-200" />
+        <div className="hidden md:block absolute left-10 right-10 top-[1.55rem] h-[6px] rounded-full bg-gradient-to-r from-blue-100 via-indigo-100 to-cyan-100" />
         <div
           className={cn(
-            "hidden md:block absolute left-10 top-[1.55rem] h-[2px] transition-all duration-700",
+            "hidden md:block absolute left-10 top-[1.55rem] h-[6px] rounded-full transition-all duration-700 shadow-[0_0_18px_rgba(59,130,246,0.35)]",
             progress_bar_tone === "danger"
-              ? "bg-gradient-to-r from-red-500 to-red-600"
+              ? "bg-gradient-to-r from-rose-500 via-red-500 to-orange-500"
               : progress_bar_tone === "success"
-              ? "bg-gradient-to-r from-green-500 to-green-600"
-              : "bg-gradient-to-r from-yellow-400 to-amber-500"
+              ? "bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500"
+              : "bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500"
           )}
           style={{ width: `calc((100% - 5rem) * ${connector_progress / 100})` }}
         />
@@ -407,14 +407,14 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
               <div key={i} className="relative z-10 flex flex-col items-center gap-4">
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center border-2 text-sm font-bold transition-all duration-300",
+                    "w-12 h-12 rounded-full flex items-center justify-center border-2 text-sm font-bold transition-all duration-300 shadow-md",
                     step.rejected
-                      ? "bg-red-50 border-red-500 text-red-700"
+                      ? "bg-gradient-to-br from-rose-50 to-red-100 border-red-500 text-red-700"
                       : step.done
-                      ? "bg-blue-600 border-blue-600 text-white shadow-[0_8px_18px_rgba(37,99,235,0.35)]"
+                      ? "bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500 border-blue-500 text-white shadow-[0_10px_20px_rgba(59,130,246,0.45)]"
                       : is_current
-                      ? "bg-yellow-50 border-yellow-500 text-yellow-700"
-                      : "bg-blue-50 border-blue-200 text-slate-600"
+                      ? "bg-gradient-to-br from-yellow-50 to-amber-100 border-amber-500 text-amber-700 ring-4 ring-amber-100"
+                      : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 text-slate-600"
                   )}
                 >
                   {step.rejected ? <Shield size={15} /> : step.done ? <Play size={14} fill="currentColor" /> : <span>{i + 1}</span>}
@@ -426,9 +426,9 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                     step.rejected
                       ? "text-red-700"
                       : step.done
-                      ? "text-slate-900"
+                      ? "text-blue-900"
                       : is_current
-                      ? "text-yellow-700"
+                      ? "text-amber-700"
                       : "text-slate-700"
                   )}
                 >
