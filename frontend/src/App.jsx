@@ -386,53 +386,84 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
       </div>
       
       <div className="p-8 relative">
-        <div className="hidden md:block absolute left-10 right-10 top-[1.6rem] h-[2px] bg-blue-100" />
+        <div className="hidden md:block absolute left-10 right-10 top-6 h-[6px] rounded-full bg-blue-100/80" />
         <div
           className={cn(
-            "hidden md:block absolute left-10 top-[1.6rem] h-[2px] transition-all duration-500",
+            "hidden md:block absolute left-10 top-6 h-[6px] rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(59,130,246,0.4)]",
             progress_bar_tone === "danger"
-              ? "bg-red-500"
+              ? "bg-gradient-to-r from-red-500 to-rose-500"
               : progress_bar_tone === "success"
-              ? "bg-green-500"
-              : "bg-yellow-500"
+              ? "bg-gradient-to-r from-green-500 to-emerald-500"
+              : "bg-gradient-to-r from-amber-400 to-yellow-500"
           )}
           style={{ width: `calc((100% - 5rem) * ${connector_progress / 100})` }}
         />
 
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-3 md:gap-2 relative">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 relative">
           {steps.map((step, i) => {
             const is_current = i === completed_steps && !step.done && !step.rejected
-            return (
-              <div key={i} className="flex flex-col items-center gap-3 relative z-10">
-                <div
-                  className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center border transition-all duration-300 text-sm font-semibold",
-                    step.rejected
-                      ? "bg-red-50 border-red-500 text-red-600"
-                      : step.done
-                      ? "bg-blue-600 border-blue-600 text-white"
-                      : is_current
-                      ? "bg-yellow-50 border-yellow-500 text-yellow-700"
-                      : "bg-white border-blue-200 text-slate-600"
-                  )}
-                >
-                  {step.rejected ? <Shield size={16} /> : step.done ? <Play size={14} fill="currentColor" /> : i + 1}
-                </div>
+            const status_label = step.rejected ? "Rejected" : step.done ? "Completed" : is_current ? "Current" : "Pending"
 
-                <p
-                  className={cn(
-                    "text-[11px] md:text-[12px] font-semibold leading-4 text-center uppercase tracking-tight max-w-[96px]",
-                    step.rejected
-                      ? "text-red-700"
-                      : step.done
-                      ? "text-slate-900"
-                      : is_current
-                      ? "text-yellow-700"
-                      : "text-slate-600"
-                  )}
-                >
-                  {step.label}
-                </p>
+            return (
+              <div key={i} className="relative z-10">
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center border text-sm font-bold shadow-sm transition-all duration-300",
+                      step.rejected
+                        ? "bg-red-50 border-red-400 text-red-700"
+                        : step.done
+                        ? "bg-blue-600 border-blue-600 text-white shadow-[0_8px_18px_rgba(37,99,235,0.35)]"
+                        : is_current
+                        ? "bg-amber-50 border-amber-400 text-amber-700 shadow-[0_8px_18px_rgba(245,158,11,0.2)]"
+                        : "bg-white border-blue-200 text-slate-500"
+                    )}
+                  >
+                    {step.rejected ? <Shield size={15} /> : step.done ? <CheckCircle size={15} /> : <span>{i + 1}</span>}
+                  </div>
+
+                  <div
+                    className={cn(
+                      "w-full rounded-xl border px-2.5 py-2 text-center min-h-[72px]",
+                      step.rejected
+                        ? "bg-red-50 border-red-200"
+                        : step.done
+                        ? "bg-blue-50 border-blue-200"
+                        : is_current
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-white border-blue-100"
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "text-[11px] font-bold uppercase tracking-tight leading-4",
+                        step.rejected
+                          ? "text-red-700"
+                          : step.done
+                          ? "text-blue-900"
+                          : is_current
+                          ? "text-amber-800"
+                          : "text-slate-700"
+                      )}
+                    >
+                      {step.label}
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-1 text-[10px] font-semibold",
+                        step.rejected
+                          ? "text-red-600"
+                          : step.done
+                          ? "text-blue-700"
+                          : is_current
+                          ? "text-amber-700"
+                          : "text-slate-500"
+                      )}
+                    >
+                      {status_label}
+                    </p>
+                  </div>
+                </div>
               </div>
             )
           })}
