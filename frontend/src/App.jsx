@@ -386,10 +386,10 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
       </div>
       
       <div className="p-8 relative">
-        <div className="hidden md:block absolute left-10 right-10 top-[2.1rem] h-[3px] rounded-full bg-blue-100" />
+        <div className="hidden md:block absolute left-10 right-10 top-[1.6rem] h-[2px] bg-blue-100" />
         <div
           className={cn(
-            "hidden md:block absolute left-10 top-[2.1rem] h-[3px] rounded-full transition-all duration-500",
+            "hidden md:block absolute left-10 top-[1.6rem] h-[2px] transition-all duration-500",
             progress_bar_tone === "danger"
               ? "bg-red-500"
               : progress_bar_tone === "success"
@@ -399,35 +399,29 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
           style={{ width: `calc((100% - 5rem) * ${connector_progress / 100})` }}
         />
 
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-4 md:gap-3 relative">
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-3 md:gap-2 relative">
           {steps.map((step, i) => {
             const is_current = i === completed_steps && !step.done && !step.rejected
             return (
-              <div key={i} className="flex flex-col items-center gap-2 relative z-10">
+              <div key={i} className="flex flex-col items-center gap-3 relative z-10">
                 <div
                   className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 bg-white",
+                    "w-12 h-12 rounded-full flex items-center justify-center border transition-all duration-300 text-sm font-semibold",
                     step.rejected
-                      ? "border-red-500 text-red-600"
+                      ? "bg-red-50 border-red-500 text-red-600"
                       : step.done
-                      ? "border-green-500 text-green-600"
+                      ? "bg-blue-600 border-blue-600 text-white"
                       : is_current
-                      ? "border-yellow-500 text-yellow-600 ring-4 ring-yellow-100"
-                      : "border-blue-200 text-slate-500"
+                      ? "bg-yellow-50 border-yellow-500 text-yellow-700"
+                      : "bg-white border-blue-200 text-slate-600"
                   )}
                 >
-                  {step.rejected ? (
-                    <Shield size={14} />
-                  ) : step.done ? (
-                    <CheckCircle size={14} />
-                  ) : (
-                    <span className="text-[11px] font-bold">{i + 1}</span>
-                  )}
+                  {step.rejected ? <Shield size={16} /> : step.done ? <Play size={14} fill="currentColor" /> : i + 1}
                 </div>
 
                 <p
                   className={cn(
-                    "text-[10px] md:text-[11px] font-semibold leading-4 text-center max-w-[92px]",
+                    "text-[11px] md:text-[12px] font-semibold leading-4 text-center uppercase tracking-tight max-w-[96px]",
                     step.rejected
                       ? "text-red-700"
                       : step.done
