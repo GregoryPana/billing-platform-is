@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 210 100% 99%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 95% 93%;
+    --secondary-foreground: 224 76% 28%;
+    --muted: 214 95% 96%;
+    --muted-foreground: 215 25% 27%;
+    --accent: 213 94% 93%;
+    --accent-foreground: 224 76% 28%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --border: 214 70% 88%;
+    --input: 214 70% 88%;
+    --ring: 221 83% 53%;
     --radius: 0.5rem;
   }
 }
@@ -38,24 +38,24 @@
 }
 
 /* Base custom classes to bridge the transition */
-.app-shell { @apply flex min-h-screen bg-background; }
+.app-shell { @apply flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100; }
 .sidebar { @apply w-64 min-w-[16rem] bg-card border-r border-border flex flex-col p-6 gap-8; }
 .main { @apply flex-1 p-10 overflow-y-auto; }
 
 .panel { @apply p-6 rounded-lg border border-border bg-card shadow-sm mb-8; }
 .panel-header { @apply mb-6; }
-.panel-header h2 { @apply text-lg font-semibold tracking-tight; }
-.panel-header p { @apply text-sm text-muted-foreground mt-1; }
+.panel-header h2 { @apply text-lg font-bold tracking-tight text-blue-900; }
+.panel-header p { @apply text-sm text-slate-800 mt-1; }
 
 .status-card { @apply p-6 rounded-lg border border-border bg-card transition-all hover:translate-y-[-2px] hover:shadow-md; }
-.card-label { @apply text-sm font-medium text-muted-foreground uppercase tracking-widest; }
-.card-value { @apply text-2xl font-bold mt-2; }
+.card-label { @apply text-sm font-semibold text-blue-700 uppercase tracking-widest; }
+.card-value { @apply text-2xl font-bold mt-2 text-slate-950; }
 
 .table-row { @apply grid grid-cols-[1.5fr_1fr_1fr_1fr] items-center py-4 border-b border-border text-sm; }
-.table-head { @apply text-muted-foreground font-medium text-[0.75rem] border-b border-border pb-3; }
+.table-head { @apply text-slate-700 font-semibold text-[0.75rem] border-b border-border pb-3; }
 
-.nav-item { @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground; }
-.nav-item.active { @apply bg-accent text-accent-foreground font-semibold; }
+.nav-item { @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-800 transition-colors hover:bg-accent hover:text-accent-foreground; }
+.nav-item.active { @apply bg-blue-100 text-blue-800 font-semibold border border-blue-200; }
 
 .primary-button { @apply inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 bg-primary text-primary-foreground hover:opacity-90 transition-all; }
 .secondary-button { @apply inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all; }

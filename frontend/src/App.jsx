@@ -328,9 +328,21 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
   ]
 
   const progress = Math.round((steps.filter(s => s.done).length / steps.length) * 100)
+  const has_rejection = steps.some((step) => step.rejected)
+  const is_complete = progress === 100
+  const progress_bar_tone = has_rejection ? "danger" : is_complete ? "success" : "warning"
 
   return (
-    <div className="rounded-xl border bg-card text-card-foreground shadow-sm mb-10 overflow-hidden">
+    <div
+      className={cn(
+        "rounded-xl border bg-card text-card-foreground shadow-sm mb-10 overflow-hidden border-l-4",
+        progress_bar_tone === "danger"
+          ? "border-l-red-500"
+          : progress_bar_tone === "success"
+          ? "border-l-green-500"
+          : "border-l-yellow-500"
+      )}
+    >
       <div className="p-8 border-b bg-muted/20">
         <div className="flex justify-between items-end mb-6">
           <div>
@@ -338,12 +350,33 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
             <p className="text-sm text-muted-foreground">Workflow progression for local billing cycle</p>
           </div>
           <div className="text-right">
-            <span className="text-2xl font-black tabular-nums">{progress}%</span>
+            <span
+              className={cn(
+                "text-2xl font-black tabular-nums",
+                progress_bar_tone === "danger"
+                  ? "text-red-600"
+                  : progress_bar_tone === "success"
+                  ? "text-green-600"
+                  : "text-yellow-600"
+              )}
+            >
+              {progress}%
+            </span>
             <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Completion</p>
           </div>
         </div>
         <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }} />
+          <div
+            className={cn(
+              "h-full transition-all duration-500 ease-in-out bg-gradient-to-r",
+              progress_bar_tone === "danger"
+                ? "from-red-500 to-red-600"
+                : progress_bar_tone === "success"
+                ? "from-green-500 to-green-600"
+                : "from-yellow-400 to-amber-500"
+            )}
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </div>
       
