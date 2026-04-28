@@ -2702,7 +2702,6 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
               <div className="table-row table-head">
                 <span>Action</span>
                 <span>Entity</span>
-                <span>Actor</span>
                 <span>Result</span>
                 <span>Timestamp</span>
               </div>
@@ -2712,17 +2711,10 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                 audit_logs.map((entry) => {
                   const metadata = safe_parse_metadata(entry.metadata_json || entry.metadata)
                   const result = format_audit_result(entry, metadata)
-                  const target_id = metadata.entity_id || metadata.target_id || entry.entity_id || entry.record_id || "-"
-                  const details = metadata.message || metadata.note || metadata.reason || metadata.error || "-"
-                  const actor_name = metadata.actor_name || entry.actor_name || metadata.username || "-"
-                  const non_trivial_metadata = Object.entries(metadata).filter(([, value]) => value !== null && value !== "").filter(([key]) => !["status", "decision"].includes(String(key)))
                   return (
                     <div className="table-row" key={entry.id}>
-                      <span className="stacked-cell audit-action">
-                        <span>{format_audit_action_label(entry.action, entry.actor_type)}</span>
-                      </span>
+                      <span className="audit-action">{format_audit_action_label(entry.action, entry.actor_type)}</span>
                       <span>{entry.entity_type || metadata.entity_type || "-"}</span>
-                      <span>{actor_name}</span>
                       <span className={result !== "-" ? `pill ${result === "approved" || result === "success" || result === "executed" ? "success" : result === "rejected" || result === "failed" ? "warning" : "neutral"}` : ""}>
                         {result}
                       </span>
