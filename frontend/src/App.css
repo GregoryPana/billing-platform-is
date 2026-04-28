@@ -280,6 +280,30 @@
   color: #64748b;
 }
 
+.audit-details {
+  margin-top: 6px;
+}
+
+.audit-details summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.audit-json {
+  margin: 6px 0 0;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #0f172a;
+}
+
 .form-actions {
   grid-column: 1 / -1;
   display: flex;

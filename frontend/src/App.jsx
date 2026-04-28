@@ -184,6 +184,15 @@ const format_audit_result = (entry, metadata) => {
   return "-"
 }
 
+const format_audit_action_label = (action) => {
+  if (!action) {
+    return "-"
+  }
+  return String(action)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 function App() {
   const [is_authenticated, set_is_authenticated] = useState(false)
   const [login_form, set_login_form] = useState({
@@ -2678,15 +2687,41 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                 const result = format_audit_result(entry, metadata)
                 const target_id = metadata.entity_id || metadata.target_id || entry.entity_id || entry.record_id || "-"
                 const details = metadata.message || metadata.note || metadata.reason || metadata.error || "-"
+                const ip_address = metadata.ip_address || metadata.ip || entry.ip_address || "-"
+                const request_id = metadata.request_id || metadata.trace_id || metadata.correlation_id || "-"
+                const actor_name = metadata.actor_name || entry.actor_name || metadata.username || "-"
+                const metadata_entries = Object.entries(metadata).filter(([, value]) => value !== null && value !== "")
                 return (
                 <div className="table-row" key={entry.id}>
-                  <span className="stacked-cell"><span>{entry.action || "-"}</span><span className="mono muted">id: {target_id}</span></span>
-                  <span>{entry.entity_type || metadata.entity_type || "-"}</span>
-                  <span className="stacked-cell"><span>{entry.actor_type || "-"}</span><span className="mono muted">{entry.actor_id || metadata.actor_id || "-"}</span></span>
+                  <span className="stacked-cell">
+                    <span>{format_audit_action_label(entry.action)}</span>
+                    <span className="mono muted">key: {entry.action || "-"}</span>
+                    <span className="mono muted">target: {target_id}</span>
+                  </span>
+                  <span className="stacked-cell">
+                    <span>{entry.entity_type || metadata.entity_type || "-"}</span>
+                    <span className="mono muted">id: {target_id}</span>
+                  </span>
+                  <span className="stacked-cell">
+                    <span>{entry.actor_type || "-"}</span>
+                    <span className="mono muted">actor: {actor_name}</span>
+                    <span className="mono muted">id: {entry.actor_id || metadata.actor_id || "-"}</span>
+                  </span>
                   <span className={result !== "-" ? `pill ${result === "approved" || result === "success" || result === "executed" ? "success" : result === "rejected" || result === "failed" ? "warning" : "neutral"}` : ""}>
                     {result}
                   </span>
-                  <span className="stacked-cell"><span>{entry.created_at ? new Date(entry.created_at).toLocaleString() : "-"}</span><span className="mono muted">{details}</span></span>
+                  <span className="stacked-cell">
+                    <span>{entry.created_at ? new Date(entry.created_at).toLocaleString() : "-"}</span>
+                    <span className="mono muted">detail: {details}</span>
+                    <span className="mono muted">ip: {ip_address}</span>
+                    <span className="mono muted">request: {request_id}</span>
+                    {metadata_entries.length > 0 ? (
+                      <details className="audit-details">
+                        <summary>View metadata ({metadata_entries.length})</summary>
+                        <pre className="mono audit-json">{JSON.stringify(metadata, null, 2)}</pre>
+                      </details>
+                    ) : null}
+                  </span>
                 </div>
               )})}
             </div>
