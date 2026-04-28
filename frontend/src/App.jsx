@@ -1997,7 +1997,12 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
               </div>
             </div>
 
-            <CycleProgressTracker cycle={cycles.find(c => String(c.id) === run_cycle_id)} />
+            <CycleProgressTracker
+              cycle={cycles.find((c) => String(c.id) === run_cycle_id)}
+              scripts={scripts}
+              runs={runs}
+              approvals={approvals}
+            />
 
             {role !== "finance" && role !== "viewer" && run_cycle_id ? (
               <div className="run-approval-row">
