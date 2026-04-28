@@ -86,15 +86,15 @@
 }
 
 .form-grid select,
-.form-grid input,
+.form-grid input:not([type="checkbox"]),
 .form-grid textarea {
   width: 100%;
-  min-height: 42px;
+  min-height: 38px;
   border: 1px solid #bfdbfe;
   border-radius: 10px;
   background: #fff;
   color: #0f172a;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-size: 14px;
 }
 
@@ -110,6 +110,14 @@
   font-weight: 600;
 }
 
+.toggle-row input[type="checkbox"],
+.checkbox-pill input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+}
+
 .parameter-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(120px, 1fr));
@@ -121,7 +129,7 @@
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid #dbeafe;
   border-radius: 10px;
-  padding: 10px;
+  padding: 8px;
 }
 
 .helper {
@@ -149,7 +157,8 @@
   border: 1px solid #bfdbfe;
   border-radius: 10px;
   background: #f8fbff;
-  min-height: 42px;
+  min-height: 34px;
+  padding: 6px 8px;
   font-weight: 600;
   color: #1e3a8a;
 }
@@ -164,7 +173,7 @@
 .form-actions .primary-button,
 .form-actions .secondary-button,
 .select-all-row .secondary-button {
-  min-height: 44px;
+  min-height: 40px;
   min-width: 170px;
 }
 
