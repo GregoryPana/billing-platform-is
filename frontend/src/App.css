@@ -54,6 +54,102 @@
 .table-row { @apply grid grid-cols-[1.5fr_1fr_1fr_1fr] items-center py-4 border-b border-border text-sm; }
 .table-head { @apply text-slate-700 font-semibold text-[0.75rem] border-b border-border pb-3; }
 
+.table-row.runs {
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  column-gap: 12px;
+  align-items: center;
+}
+
+.table-row.runs:hover {
+  background: #f8fbff;
+}
+
+.select-inline {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.select-inline:hover {
+  border-color: #60a5fa;
+}
+
+.select-inline:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+}
+
+.status-select.planned {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.status-select.executed {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #86efac;
+}
+
+.status-select.failed {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.run-approval-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.run-approval-note {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fbff;
+  border: 1px solid #dbeafe;
+}
+
+.tab-row {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+}
+
+.tab-button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #1e3a8a;
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
 .nav-item { @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-800 transition-colors hover:bg-accent hover:text-accent-foreground; }
 .nav-item.active { @apply bg-blue-100 text-blue-800 font-semibold border border-blue-200; }
 
