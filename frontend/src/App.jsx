@@ -2101,9 +2101,9 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                   {finance_recipients.length === 0 ? (
                     <div className="empty-state">Add finance recipients in Request Settings.</div>
                   ) : (
-                    <div className="checkbox-grid">
+                    <div className="checkbox-grid recipients-grid">
                       {finance_recipients.map((email) => (
-                        <label key={email} className="checkbox-pill">
+                        <label key={email} className="checkbox-pill recipient-pill">
                           <input
                             type="checkbox"
                             checked={selected_finance_recipients.includes(email)}
@@ -2512,9 +2512,9 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                 {finance_recipients.length === 0 ? (
                   <div className="empty-state">Add at least one finance email.</div>
                 ) : (
-                  <div className="checkbox-grid">
+                  <div className="checkbox-grid recipients-grid">
                     {finance_recipients.map((email) => (
-                      <label key={email} className="checkbox-pill">
+                      <label key={email} className="checkbox-pill recipient-pill">
                         <input
                           type="checkbox"
                           checked={selected_finance_recipients.includes(email)}
