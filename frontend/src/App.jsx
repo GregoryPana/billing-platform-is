@@ -142,6 +142,48 @@ const build_default_parameters = (script_type, environment, cycle_month) => {
   }
 }
 
+const safe_parse_metadata = (value) => {
+  if (!value) {
+    return {}
+  }
+  if (typeof value === "object") {
+    return value
+  }
+  if (typeof value !== "string") {
+    return {}
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === "object" ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const format_audit_result = (entry, metadata) => {
+  const explicit = metadata.status || metadata.decision || entry.status
+  if (explicit) {
+    return String(explicit)
+  }
+  const action = String(entry.action || "")
+  if (action.startsWith("create_") || action.startsWith("generate_") || action.startsWith("export_")) {
+    return "success"
+  }
+  if (action.includes("reject")) {
+    return "rejected"
+  }
+  if (action.includes("approve")) {
+    return "approved"
+  }
+  if (action === "approval_requested") {
+    return "pending"
+  }
+  if (action === "send_notification") {
+    return "sent"
+  }
+  return "-"
+}
+
 function App() {
   const [is_authenticated, set_is_authenticated] = useState(false)
   const [login_form, set_login_form] = useState({
@@ -314,7 +356,7 @@ function App() {
     }
   }, [use_default_params, script_form.script_type, script_form.environment, cycles, script_form.billing_cycle_id])
 
-const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
+const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }) => {
   if (!cycle) return null
   const scripts_by_id = new Map(scripts.map(s => [String(s.id), s]))
   const cycle_id = String(cycle.id)
@@ -1926,7 +1968,14 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                     <div className="table-row" key={script.id}>
                       <div className="stacked-cell">
                         <span>{cycle_label}</span>
-                        <span className="mono">{script.command_text}</span>
+                        <div className="command-shell">
+                          <div className="command-meta">
+                            <span className="pill neutral">{script.environment}</span>
+                            <span className="pill neutral">{script.script_type}</span>
+                            <span className="pill neutral">{script.log_type}</span>
+                          </div>
+                          <pre className="command-output mono">{script.command_text}</pre>
+                        </div>
                       </div>
                       <span>{script.environment}</span>
                       <span>{script.log_type}</span>
@@ -2625,29 +2674,19 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
                 <span>Timestamp</span>
               </div>
               {audit_logs.map((entry) => {
-                let result = "-"
-                const raw = entry.metadata_json || entry.metadata
-                if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
-                  try {
-                    const meta = typeof raw === 'string' ? JSON.parse(raw) : raw
-                    result = meta.status || meta.decision || "-"
-                  } catch (e) {}
-                }
-                if (result === "-") {
-                  const a = entry.action || ""
-                  if (a.startsWith("create_") || a.startsWith("generate_") || a.startsWith("export_")) result = "success"
-                  else if (a === "approval_requested") result = "pending"
-                  else if (a === "send_notification") result = "sent"
-                }
+                const metadata = safe_parse_metadata(entry.metadata_json || entry.metadata)
+                const result = format_audit_result(entry, metadata)
+                const target_id = metadata.entity_id || metadata.target_id || entry.entity_id || entry.record_id || "-"
+                const details = metadata.message || metadata.note || metadata.reason || metadata.error || "-"
                 return (
                 <div className="table-row" key={entry.id}>
-                  <span>{entry.action}</span>
-                  <span>{entry.entity_type}</span>
-                  <span>{entry.actor_type}</span>
+                  <span className="stacked-cell"><span>{entry.action || "-"}</span><span className="mono muted">id: {target_id}</span></span>
+                  <span>{entry.entity_type || metadata.entity_type || "-"}</span>
+                  <span className="stacked-cell"><span>{entry.actor_type || "-"}</span><span className="mono muted">{entry.actor_id || metadata.actor_id || "-"}</span></span>
                   <span className={result !== "-" ? `pill ${result === "approved" || result === "success" || result === "executed" ? "success" : result === "rejected" || result === "failed" ? "warning" : "neutral"}` : ""}>
                     {result}
                   </span>
-                  <span>{new Date(entry.created_at).toLocaleString()}</span>
+                  <span className="stacked-cell"><span>{entry.created_at ? new Date(entry.created_at).toLocaleString() : "-"}</span><span className="mono muted">{details}</span></span>
                 </div>
               )})}
             </div>
