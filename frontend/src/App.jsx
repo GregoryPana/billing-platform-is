@@ -328,6 +328,11 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
   ]
 
   const progress = Math.round((steps.filter(s => s.done).length / steps.length) * 100)
+  const completed_steps = steps.filter((step) => step.done).length
+  const connector_progress = Math.max(
+    0,
+    Math.min(100, ((completed_steps - 1) / (steps.length - 1)) * 100)
+  )
   const has_rejection = steps.some((step) => step.rejected)
   const is_complete = progress === 100
   const progress_bar_tone = has_rejection ? "danger" : is_complete ? "success" : "warning"
@@ -380,27 +385,59 @@ const CycleProgressTracker = ({ cycle, scripts, runs, approvals }) => {
         </div>
       </div>
       
-      <div className="p-8 grid grid-cols-4 md:grid-cols-8 gap-4 relative">
-        <div className="absolute top-[3.25rem] left-[12%] right-[12%] h-[1px] bg-border z-0 hidden md:block" />
+      <div className="p-8 relative">
+        <div className="hidden md:block absolute left-12 right-12 top-[2.25rem] h-[2px] bg-blue-100" />
+        <div
+          className={cn(
+            "hidden md:block absolute left-12 top-[2.25rem] h-[2px] transition-all duration-500",
+            progress_bar_tone === "danger"
+              ? "bg-red-500"
+              : progress_bar_tone === "success"
+              ? "bg-green-500"
+              : "bg-yellow-500"
+          )}
+          style={{ width: `calc((100% - 6rem) * ${connector_progress / 100})` }}
+        />
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-4 relative">
         {steps.map((step, i) => (
-          <div key={i} className="flex flex-col items-center gap-3 relative z-10">
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
-              step.done ? "bg-primary border-primary text-primary-foreground" : 
-              step.rejected ? "bg-destructive/10 border-destructive text-destructive" :
-              "bg-background border-border text-muted-foreground"
-            )}>
-              {step.done ? <Play size={16} fill="currentColor" /> : 
-               step.rejected ? <Shield size={16} /> : 
-               <span className="text-xs font-bold">{i + 1}</span>}
+          <div key={i} className="flex flex-col items-center gap-2 relative z-10">
+            <div
+              className={cn(
+                "w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all duration-300 bg-white shadow-sm",
+                step.done
+                  ? "border-blue-600 text-blue-700"
+                  : step.rejected
+                  ? "border-red-500 text-red-600"
+                  : i === completed_steps
+                  ? "border-yellow-500 text-yellow-600 ring-4 ring-yellow-100"
+                  : "border-blue-200 text-slate-500"
+              )}
+            >
+              {step.done ? (
+                <CheckCircle size={16} />
+              ) : step.rejected ? (
+                <Shield size={16} />
+              ) : (
+                <span className="text-xs font-bold">{i + 1}</span>
+              )}
             </div>
-            <div className="text-center">
-              <p className={cn("text-[11px] font-bold uppercase tracking-tight", step.done ? "text-foreground" : "text-muted-foreground")}>
+            <div className="text-center min-h-[2.5rem] flex items-start">
+              <p
+                className={cn(
+                  "text-[11px] md:text-[12px] font-semibold tracking-tight leading-4",
+                  step.done
+                    ? "text-slate-900"
+                    : step.rejected
+                    ? "text-red-700"
+                    : "text-slate-700"
+                )}
+              >
                 {step.label}
               </p>
             </div>
           </div>
         ))}
+        </div>
       </div>
     </div>
   )
