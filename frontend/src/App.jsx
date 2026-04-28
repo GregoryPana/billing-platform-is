@@ -2691,6 +2691,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                 const request_id = metadata.request_id || metadata.trace_id || metadata.correlation_id || "-"
                 const actor_name = metadata.actor_name || entry.actor_name || metadata.username || "-"
                 const metadata_entries = Object.entries(metadata).filter(([, value]) => value !== null && value !== "")
+                const non_trivial_metadata = metadata_entries.filter(([key]) => !["status", "decision"].includes(String(key)))
                 return (
                 <div className="table-row" key={entry.id}>
                   <span className="stacked-cell">
@@ -2715,9 +2716,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                     <span className="mono muted">detail: {details}</span>
                     <span className="mono muted">ip: {ip_address}</span>
                     <span className="mono muted">request: {request_id}</span>
-                    {metadata_entries.length > 0 ? (
+                    {non_trivial_metadata.length > 0 ? (
                       <details className="audit-details">
-                        <summary>View metadata ({metadata_entries.length})</summary>
+                        <summary>View metadata ({non_trivial_metadata.length})</summary>
                         <pre className="mono audit-json">{JSON.stringify(metadata, null, 2)}</pre>
                       </details>
                     ) : null}
