@@ -2,16 +2,12 @@
 
 This guide explains the full billing process from start to finish. It shows exactly who does what, when handoffs happen, and what should be done after each step.
 
-
-
 ## Who This Guide Is For 👥
 
 - **Billing users** 💼: Run billing, generate scripts and notifications, and track progress.
 - **Finance users** 📊: Review and approve key steps before billing can move forward.
 - **View-only users** 👁️: Can read progress but cannot change anything.
 - **Admins** 🔧: Manage user access.
-
-
 
 ## Roles and Responsibilities 👔
 
@@ -32,8 +28,6 @@ This guide explains the full billing process from start to finish. It shows exac
   - **Move to notifications** 📧 (after live runs finish)
 - Provides comments if something needs to be corrected.
 
-
-
 ## End-to-End Flow 🔄
 
 1. Billing creates the billing cycle 📝
@@ -46,13 +40,11 @@ This guide explains the full billing process from start to finish. It shows exac
 8. Billing generates notification commands (email + SMS) 📧
 9. Billing confirms completion and reviews the audit log 📋
 
-
-
 ## Step 1: Create a Billing Cycle 📝
 
 **Where:** Go to 💳 **Billing Cycles** in the sidebar.
 
-![Step 1: Create a billing cycle](/billing/user-guide/billing-cycle.png)
+![Step 1: Create a billing cycle](/billing/user-guide/billing-cycles.png)
 
 **What to do:**
 
@@ -65,21 +57,11 @@ This guide explains the full billing process from start to finish. It shows exac
 - You will see the new cycle in the list.
 - The cycle status shows in the overview cards.
 
-
-
-
-
-
-
-
-
 ## Step 2: Generate Test Scripts 🧪
 
 **Where:** Go to 📜 **Script Generation** in the sidebar.
 
-![Step 2.1: Select Billing Cycle and Script Type](/billing/user-guide/script-gen.png)
-
-![Step 2.2: Set Parameters](/billing/user-guide/script-gen-params.png)
+![Step 2: Select Billing Cycle, Set Parameters and Script Type](/billing/user-guide/script-generation.png)
 
 **What to do:**
 
@@ -95,14 +77,6 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - The generated commands appear in the table.
 - Copy the commands and run them in the backend environment.
-
-
-
-
-
-
-
-
 
 ## Step 3: Track Test Runs 📊
 
@@ -122,14 +96,6 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - When all required test scripts are marked Executed, you are ready to request finance approval.
 
-
-
-
-
-
-
-
-
 ## Step 4: Request Approval to Move to Live 🚦
 
 **Where:** Go to ✅ **Approvals** in the sidebar.
@@ -148,14 +114,6 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Finance receives the request and reviews it.
 - You must wait until finance approves before generating live scripts.
-
-
-
-
-
-
-
-
 
 ## Step 5: Finance Reviews Move to Live ✔️
 
@@ -180,8 +138,20 @@ This guide explains the full billing process from start to finish. It shows exac
 
 
 
+## Configure Request Settings (Optional) ⚙️
 
+**Where:** Go to ⚙️ **Request Settings** in the sidebar.
 
+**What to do:**
+
+- The Request Settings page lets you configure who receives approval request emails.
+- Add finance email addresses in the Finance recipients section.
+- Enter an email address and click Add.
+- Use the checkboxes to select which recipients should receive each request.
+
+**What should happen next:**
+
+- When you submit future approval requests, the selected finance users will receive email notifications automatically.
 
 
 ## Step 6: Generate Live Scripts ⚡
@@ -201,14 +171,6 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Track progress in Runs Tracking until all live steps are marked Executed.
 
-
-
-
-
-
-
-
-
 ## Step 7: Request Approval for Notifications 📧
 
 **Where:** Go to ✅ **Approvals**.
@@ -226,14 +188,6 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Finance reviews and approves before moving to notifications.
 
-
-
-
-
-
-
-
-
 ## Step 8: Finance Reviews Move to Notifications ✔️
 
 **Where:** Go to ✅ **Approvals** (Finance user only).
@@ -248,14 +202,6 @@ This guide explains the full billing process from start to finish. It shows exac
 **What should happen next:**
 
 - If approved, billing can move to notifications.
-
-
-
-
-
-
-
-
 
 ## Step 9: Generate Notification Commands 📧
 
@@ -276,14 +222,6 @@ This guide explains the full billing process from start to finish. It shows exac
 - Execute them in the backend.
 - Track completion and resolve any errors.
 
-
-
-
-
-
-
-
-
 ## Step 10: Confirm Completion and Review Audit Log 📋
 
 **Where:** Go to 📝 **Audit Log** in the sidebar.
@@ -299,31 +237,6 @@ This guide explains the full billing process from start to finish. It shows exac
 - The billing run is complete for this cycle.
 - If any step is missing, return to that step and finish it.
 
-
-
-
-
-
-
-
-
-## Step 11: Configure Request Settings (Optional) ⚙️
-
-**Where:** Go to ⚙️ **Request Settings** in the sidebar.
-
-**What to do:**
-
-- The Request Settings page lets you configure who receives approval request emails.
-- Add finance email addresses in the Finance recipients section.
-- Enter an email address and click Add.
-- Use the checkboxes to select which recipients should receive each request.
-
-**What should happen next:**
-
-- When you submit future approval requests, the selected finance users will receive email notifications automatically.
-
-
-
 ## Common Questions ❓
 
 ### What if I do not see a command?
@@ -338,8 +251,6 @@ This guide explains the full billing process from start to finish. It shows exac
 ### Do I run the scripts inside the app?
 
 - No. The app generates commands. They must be executed in the backend environment.
-
-
 
 ## Summary Checklist ✅
 
