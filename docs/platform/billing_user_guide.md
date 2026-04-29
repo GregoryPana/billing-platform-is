@@ -263,6 +263,26 @@ What should happen next:
 
 ---
 
+### Step 11: Configure Request Settings (Billing user)
+
+**Where:** Go to **Request Settings** in the sidebar.
+
+![Step 11: Request Settings](/billing/user-guide/request-settings.png)
+
+What to do:
+
+- The **Request Settings** page lets you configure who receives approval request emails.
+- Add finance email addresses in the **Finance recipients** section.
+- These recipients will receive email notifications when you submit approval requests.
+- Enter an email address and click **Add**.
+- Use the checkboxes to select which recipients should receive each request.
+
+What should happen next:
+
+- When you submit future approval requests, the selected finance users will receive email notifications automatically.
+
+---
+
 ## Common questions (non-technical)
 
 ### “What if I do not see a command?”
