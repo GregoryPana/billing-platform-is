@@ -1,21 +1,21 @@
-# Billing Platform User Guide
+# Billing Platform User Guide 📘
 
 This guide explains the full billing process from start to finish. It shows exactly who does what, when handoffs happen, and what should be done after each step.
 
 ---
 
-## Who This Guide Is For
+## Who This Guide Is For 👥
 
-- **Billing users**: Run billing, generate scripts and notifications, and track progress.
-- **Finance users**: Review and approve key steps before billing can move forward.
-- **View-only users**: Can read progress but cannot change anything.
-- **Admins**: Manage user access.
+- **Billing users** 💼: Run billing, generate scripts and notifications, and track progress.
+- **Finance users** 📊: Review and approve key steps before billing can move forward.
+- **View-only users** 👁️: Can read progress but cannot change anything.
+- **Admins** 🔧: Manage user access.
 
 ---
 
-## Roles and Responsibilities
+## Roles and Responsibilities 👔
 
-### Billing User
+### Billing User 💰
 
 - Creates the billing cycle for the month.
 - Generates the required scripts for test and live runs.
@@ -24,33 +24,33 @@ This guide explains the full billing process from start to finish. It shows exac
 - Requests approvals from finance at the correct points.
 - Generates notification commands after approvals are granted.
 
-### Finance User
+### Finance User 📋
 
 - Reviews requests from billing.
 - Approves or rejects:
-  - **Move to live** (after test runs are done)
-  - **Move to notifications** (after live runs finish)
+  - **Move to live** ✅ (after test runs are done)
+  - **Move to notifications** 📧 (after live runs finish)
 - Provides comments if something needs to be corrected.
 
 ---
 
-## End-to-End Flow
+## End-to-End Flow 🔄
 
-1. Billing creates the billing cycle.
-2. Billing generates test scripts and runs them.
-3. Billing tracks results and requests finance approval to move to live.
-4. Finance approves (or rejects with comments).
-5. Billing generates live scripts and runs them.
-6. Billing requests finance approval that live is complete.
-7. Finance approves.
-8. Billing generates notification commands (email + SMS) and runs them.
-9. Billing confirms completion and reviews the audit log.
+1. Billing creates the billing cycle 📝
+2. Billing generates test scripts and runs them 🧪
+3. Billing tracks results and requests finance approval to move to live 🚦
+4. Finance approves (or rejects with comments) ✔️
+5. Billing generates live scripts and runs them ⚡
+6. Billing requests finance approval that live is complete 🔚
+7. Finance approves ✔️
+8. Billing generates notification commands (email + SMS) 📧
+9. Billing confirms completion and reviews the audit log 📋
 
 ---
 
-## Step 1: Create a Billing Cycle
+## Step 1: Create a Billing Cycle 📝
 
-**Where:** Go to Billing Cycles in the sidebar.
+**Where:** Go to 💳 **Billing Cycles** in the sidebar.
 
 ![Step 1: Create a billing cycle](/billing/user-guide/billing-cycle.png)
 
@@ -67,9 +67,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 2: Generate Test Scripts
+## Step 2: Generate Test Scripts 🧪
 
-**Where:** Go to Script Generation in the sidebar.
+**Where:** Go to 📜 **Script Generation** in the sidebar.
 
 ![Step 2.1: Select Billing Cycle and Script Type](/billing/user-guide/script-gen.png)
 
@@ -92,9 +92,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 3: Track Test Runs
+## Step 3: Track Test Runs 📊
 
-**Where:** Go to Runs Tracking in the sidebar.
+**Where:** Go to ▶️ **Runs Tracking** in the sidebar.
 
 ![Step 3: Track Runs](/billing/user-guide/runs-tracking.png)
 
@@ -102,9 +102,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Select the billing cycle.
 - For each generated script, update the status:
-  - **Planned** if it has not started
-  - **Executed** once it has run
-  - **Failed** if errors occurred
+  - **Planned** ⏳ if it has not started
+  - **Executed** ✅ once it has run
+  - **Failed** ❌ if errors occurred
 
 **What should happen next:**
 
@@ -112,9 +112,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 4: Request Approval to Move to Live
+## Step 4: Request Approval to Move to Live 🚦
 
-**Where:** Go to Approvals in the sidebar.
+**Where:** Go to ✅ **Approvals** in the sidebar.
 
 ![Step 4: Request Approval to Move to Live](/billing/user-guide/approvals.png)
 
@@ -133,9 +133,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 5: Finance Reviews Move to Live
+## Step 5: Finance Reviews Move to Live ✔️
 
-**Where:** Go to Approvals (Finance user only)
+**Where:** Go to ✅ **Approvals** (Finance user only)
 
 ![Step 5.1: Review Cycle](/billing/user-guide/review-cycle.png)
 
@@ -154,9 +154,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 6: Generate Live Scripts
+## Step 6: Generate Live Scripts ⚡
 
-**Where:** Go to Script Generation.
+**Where:** Go to 📜 **Script Generation**.
 
 ![Step 6: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
 
@@ -173,9 +173,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 7: Request Approval for Notifications
+## Step 7: Request Approval for Notifications 📧
 
-**Where:** Go to Approvals.
+**Where:** Go to ✅ **Approvals**.
 
 ![Step 7: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
 
@@ -192,9 +192,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 8: Finance Reviews Move to Notifications
+## Step 8: Finance Reviews Move to Notifications ✔️
 
-**Where:** Go to Approvals (Finance user only).
+**Where:** Go to ✅ **Approvals** (Finance user only).
 
 ![Step 8: Stage Change and Request Approval](/billing/user-guide/finance-approvals-live.png)
 
@@ -209,9 +209,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 9: Generate Notification Commands
+## Step 9: Generate Notification Commands 📧
 
-**Where:** Go to Notifications in the sidebar.
+**Where:** Go to 🔔 **Notifications** in the sidebar.
 
 ![Step 9: Generate Notifications](/billing/user-guide/notifications.png)
 
@@ -230,9 +230,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 10: Confirm Completion and Review Audit Log
+## Step 10: Confirm Completion and Review Audit Log 📋
 
-**Where:** Go to Audit Log in the sidebar.
+**Where:** Go to 📝 **Audit Log** in the sidebar.
 
 **What to do:**
 
@@ -247,9 +247,9 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Step 11: Configure Request Settings (Optional)
+## Step 11: Configure Request Settings (Optional) ⚙️
 
-**Where:** Go to Request Settings in the sidebar.
+**Where:** Go to ⚙️ **Request Settings** in the sidebar.
 
 **What to do:**
 
@@ -264,7 +264,7 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Common Questions
+## Common Questions ❓
 
 ### What if I do not see a command?
 
@@ -281,21 +281,21 @@ This guide explains the full billing process from start to finish. It shows exac
 
 ---
 
-## Summary Checklist
+## Summary Checklist ✅
 
-### Billing User
+### Billing User 💰
 
-- Create cycle
-- Generate and run test scripts
-- Track test results
-- Request Move to live approval
-- Generate and run live scripts
-- Request Move to notifications approval
-- Generate notification commands
-- Run notifications and confirm completion
-- Review audit log
+- [ ] Create cycle 📝
+- [ ] Generate and run test scripts 🧪
+- [ ] Track test results 📊
+- [ ] Request Move to live approval 🚦
+- [ ] Generate and run live scripts ⚡
+- [ ] Request Move to notifications approval 📧
+- [ ] Generate notification commands 📧
+- [ ] Run notifications and confirm completion 🔔
+- [ ] Review audit log 📋
 
-### Finance User
+### Finance User 📋
 
-- Review and approve Move to live
-- Review and approve Move to notifications
+- [ ] Review and approve Move to live ✔️
+- [ ] Review and approve Move to notifications ✔️
