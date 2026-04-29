@@ -65,6 +65,8 @@ This guide explains the full billing process from start to finish. It shows exac
 - You will see the new cycle in the list.
 - The cycle status shows in the overview cards.
 
+
+
 ---
 
 ## Step 2: Generate Test Scripts 🧪
@@ -90,7 +92,9 @@ This guide explains the full billing process from start to finish. It shows exac
 - The generated commands appear in the table.
 - Copy the commands and run them in the backend environment.
 
+
 ---
+
 
 ## Step 3: Track Test Runs 📊
 
@@ -109,6 +113,8 @@ This guide explains the full billing process from start to finish. It shows exac
 **What should happen next:**
 
 - When all required test scripts are marked Executed, you are ready to request finance approval.
+
+
 
 ---
 
@@ -131,6 +137,8 @@ This guide explains the full billing process from start to finish. It shows exac
 - Finance receives the request and reviews it.
 - You must wait until finance approves before generating live scripts.
 
+
+
 ---
 
 ## Step 5: Finance Reviews Move to Live ✔️
@@ -152,6 +160,8 @@ This guide explains the full billing process from start to finish. It shows exac
 - If approved, billing can generate live scripts.
 - If rejected, billing corrects the issue and submits again.
 
+
+
 ---
 
 ## Step 6: Generate Live Scripts ⚡
@@ -171,6 +181,8 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Track progress in Runs Tracking until all live steps are marked Executed.
 
+
+
 ---
 
 ## Step 7: Request Approval for Notifications 📧
@@ -189,6 +201,8 @@ This guide explains the full billing process from start to finish. It shows exac
 **What should happen next:**
 
 - Finance reviews and approves before moving to notifications.
+
+
 
 ---
 
@@ -228,6 +242,8 @@ This guide explains the full billing process from start to finish. It shows exac
 - Execute them in the backend.
 - Track completion and resolve any errors.
 
+
+
 ---
 
 ## Step 10: Confirm Completion and Review Audit Log 📋
@@ -244,6 +260,8 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - The billing run is complete for this cycle.
 - If any step is missing, return to that step and finish it.
+
+
 
 ---
 
