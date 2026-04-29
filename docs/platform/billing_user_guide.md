@@ -29,7 +29,7 @@ This guide explains the full billing process from start to finish. It is written
 - Reviews requests from billing.
 - Approves or rejects:
   - **Move to live** (after test runs are done).
-  - **Live complete** (after live runs finish).
+  - **Move to notifications** (after live runs finish). → **Move to notifications** (after live runs finish).
   - **Move to notifications** (after post-live checks are done).
 - Provides comments if something needs to be corrected.
 
@@ -192,7 +192,7 @@ What should happen next:
 ![Step 7: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
 What to do:
 
-- Select stage **Live complete**.
+- Select stage **Move to notifications**.
 - Add a short comment (for example: “Live run completed, printing complete”).
 - Submit the request.
 
@@ -202,7 +202,7 @@ What should happen next:
 
 ---
 
-### Step 8: Finance reviews “Live complete” (Finance user)
+### Step 8: Finance reviews “Move to notifications” (Finance user)
 
 **Where:** `Approvals`
 ![Step 8: Stage Change and Request Approval](/billing/user-guide/finance-approvals-live.png)
@@ -287,7 +287,7 @@ What should happen next:
 - Track test results
 - Request “Move to live” approval
 - Generate and run live scripts
-- Request “Live complete” approval
+- Request “Move to notifications” approval
 - Generate notification commands
 - Run notifications and confirm completion
 - Review audit log
@@ -295,5 +295,5 @@ What should happen next:
 ## Summary checklist (finance user)
 
 - Review and approve “Move to live”
-- Review and approve “Live complete”
+- Review and approve “Move to notifications”
 - Review and approve “Move to notifications” if required by policy
