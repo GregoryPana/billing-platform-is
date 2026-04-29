@@ -118,14 +118,13 @@ P1='M1A' P2='T' P3='2026_02_01 00:00:00' ... /cer_cerprod/exe/pspbil0101b.sh
 What to do:
 
 - For each generated script, update the status to match what happened:
-  - **Pending** if it has not started.
-  - **Running** if it is in progress.
-  - **Success** once finished without issues.
+  - **Planned** if it has not started.
+  - **Executed** once it has run.
   - **Failed** if errors occurred.
 
 What should happen next:
 
-- When all required test scripts are marked **Success**, you are ready to request finance approval.
+- When all required test scripts are marked **Executed**, you are ready to request finance approval.
 
 ---
 
