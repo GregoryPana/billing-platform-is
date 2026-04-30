@@ -436,3 +436,144 @@
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
 }
+
+/* Markdown / User Guide Styling */
+.doc-content.markdown {
+  line-height: 1.8;
+}
+
+.doc-content.markdown h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #1e293b;
+}
+
+.doc-content.markdown hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 2rem 0;
+}
+
+.doc-content.markdown h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.doc-content.markdown h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #475569;
+}
+
+.doc-content.markdown p {
+  margin-bottom: 1rem;
+  color: #334155;
+}
+
+.doc-content.markdown ul,
+.doc-content.markdown ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.doc-content.markdown li {
+  margin-bottom: 0.5rem;
+  color: #334155;
+}
+
+.doc-content.markdown li::marker {
+  color: #3b82f6;
+}
+
+.doc-content.markdown strong {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.doc-content.markdown em {
+  font-style: italic;
+  color: #64748b;
+}
+
+.doc-content.markdown code {
+  background: #f1f5f9;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+.doc-content.markdown pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.doc-content.markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.doc-content.markdown blockquote {
+  border-left: 4px solid #3b82f6;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.doc-content.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.doc-content.markdown th,
+.doc-content.markdown td {
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.doc-content.markdown th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
+}
+
+.doc-content.markdown tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.doc-content.markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.doc-content.markdown a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.doc-content.markdown a:hover {
+  color: #1d4ed8;
+}
