@@ -154,6 +154,8 @@ This guide explains the full billing process from start to finish. It shows exac
 
 **Where:** Go to ⚙️ **Request Settings** in the sidebar.
 
+![Step 6: Switch to Live and Printing](/billing/user-guide/request-settings.png)
+
 **What to do:**
 
 - The Request Settings page lets you configure who receives approval request emails.
