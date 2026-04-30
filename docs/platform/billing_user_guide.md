@@ -150,11 +150,7 @@ This guide explains the full billing process from start to finish. It shows exac
 - If approved, billing can generate live scripts.
 - If rejected, billing corrects the issue and submits again.
 
-
-
-
-
-## Configure Request Settings (Optional) ⚙️
+## Step 6: Configure Request Settings (Optional) ⚙️
 
 **Where:** Go to ⚙️ **Request Settings** in the sidebar.
 
@@ -169,12 +165,11 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - When you submit future approval requests, the selected finance users will receive email notifications automatically.
 
-
-## Step 7: Generate Live Scripts ⚡
+## Step 8: Generate Live Scripts ⚡
 
 **Where:** Go to 📜 **Script Generation**.
 
-![Step 7: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
+![Step 8: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
 
 **What to do:**
 
@@ -187,11 +182,11 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Track progress in Runs Tracking until all live steps are marked Executed.
 
-## Step 8: Request Approval for Notifications 📧
+## Step 9: Request Approval for Notifications 📧
 
 **Where:** Go to ✅ **Approvals**.
 
-![Step 8: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
+![Step 9: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
 
 **What to do:**
 
@@ -204,11 +199,11 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Finance reviews and approves before moving to notifications.
 
-## Step 9: Finance Reviews Move to Notifications ✔️
+## Step 10: Finance Reviews Move to Notifications ✔️
 
 **Where:** Go to ✅ **Approvals** (Finance user only).
 
-![Step 8: Stage Change and Request Approval](/billing/user-guide/finance-approvals-live.png)
+![Step 10: Finance Reviews Move to Notifications](/billing/user-guide/finance-approvals-live.png)
 
 **What to do:**
 
@@ -267,22 +262,3 @@ This guide explains the full billing process from start to finish. It shows exac
 ### Do I run the scripts inside the app?
 
 - No. The app generates commands. They must be executed in the backend environment.
-
-## Summary Checklist ✅
-
-### Billing User 💰
-
-- [ ] Create cycle 📝
-- [ ] Generate and run test scripts 🧪
-- [ ] Track test results 📊
-- [ ] Request Move to live approval 🚦
-- [ ] Generate and run live scripts ⚡
-- [ ] Request Move to notifications approval 📧
-- [ ] Generate notification commands 📧
-- [ ] Run notifications and confirm completion 🔔
-- [ ] Review audit log 📋
-
-### Finance User 📋
-
-- [ ] Review and approve Move to live ✔️
-- [ ] Review and approve Move to notifications ✔️
