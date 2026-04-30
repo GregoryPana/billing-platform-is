@@ -165,11 +165,11 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - When you submit future approval requests, the selected finance users will receive email notifications automatically.
 
-## Step 8: Generate Live Scripts ⚡
+## Step 7: Generate Live Scripts ⚡
 
 **Where:** Go to 📜 **Script Generation**.
 
-![Step 8: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
+![Step 7: Switch to Live and Printing](/billing/user-guide/move-to-live.png)
 
 **What to do:**
 
@@ -182,11 +182,11 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Track progress in Runs Tracking until all live steps are marked Executed.
 
-## Step 9: Request Approval for Notifications 📧
+## Step 8: Request Approval for Notifications 📧
 
 **Where:** Go to ✅ **Approvals**.
 
-![Step 9: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
+![Step 8: Stage Change and Request Approval](/billing/user-guide/approvals-live.png)
 
 **What to do:**
 
@@ -199,11 +199,11 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - Finance reviews and approves before moving to notifications.
 
-## Step 10: Finance Reviews Move to Notifications ✔️
+## Step 10: Generate Notification Commands 📧
 
 **Where:** Go to ✅ **Approvals** (Finance user only).
 
-![Step 10: Finance Reviews Move to Notifications](/billing/user-guide/finance-approvals-live.png)
+![Step 9: Finance Reviews Move to Notifications](/billing/user-guide/finance-approvals-live.png)
 
 **What to do:**
 
@@ -214,7 +214,7 @@ This guide explains the full billing process from start to finish. It shows exac
 
 - If approved, billing can move to notifications.
 
-## Step 10: Generate Notification Commands 📧
+## Step 11: Generate Notification Commands 📧
 
 **Where:** Go to 🔔 **Notifications** in the sidebar.
 
