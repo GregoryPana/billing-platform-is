@@ -224,10 +224,6 @@ function App() {
     password: "",
   })
   const [show_login_password, set_show_login_password] = useState(false)
-  const [login_errors, set_login_errors] = useState({
-    username: "",
-    password: "",
-  })
   const [signup_form, set_signup_form] = useState({
     name: "",
     username: "",
@@ -428,7 +424,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card text-card-foreground shadow-sm mb-10 overflow-hidden border-l-4",
+        "mb-8 overflow-hidden rounded-md border bg-card text-card-foreground border-l-4",
         progress_bar_tone === "danger"
           ? "border-l-red-500"
           : progress_bar_tone === "success"
@@ -436,16 +432,16 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
           : "border-l-yellow-500"
       )}
     >
-      <div className="p-8 border-b bg-muted/20">
-        <div className="flex justify-between items-end mb-6">
+      <div className="border-b bg-muted/30 px-6 py-5">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold tracking-tight mb-1">{cycle_label}</h2>
+            <h2 className="mb-1 text-xl font-semibold tracking-tight">{cycle_label}</h2>
             <p className="text-sm text-muted-foreground">Workflow progression for local billing cycle</p>
           </div>
           <div className="text-right">
             <span
               className={cn(
-                "text-2xl font-black tabular-nums",
+                "text-2xl font-semibold tabular-nums",
                 progress_bar_tone === "danger"
                   ? "text-red-600"
                   : progress_bar_tone === "success"
@@ -455,34 +451,34 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
             >
               {progress}%
             </span>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Completion</p>
+            <p className="text-xs text-muted-foreground">Complete</p>
           </div>
         </div>
-        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+        <div className="h-2 w-full overflow-hidden rounded-sm bg-secondary">
           <div
             className={cn(
-              "h-full transition-all duration-500 ease-in-out bg-gradient-to-r",
+              "h-full transition-all duration-300 ease-in-out",
               progress_bar_tone === "danger"
-                ? "from-red-500 to-red-600"
+                ? "bg-red-500"
                 : progress_bar_tone === "success"
-                ? "from-green-500 to-green-600"
-                : "from-yellow-400 to-amber-500"
+                ? "bg-green-600"
+                : "bg-amber-500"
             )}
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
       
-      <div className="p-8 relative">
-        <div className="hidden md:block absolute left-10 right-10 top-[1.55rem] h-[6px] rounded-full bg-gradient-to-r from-blue-100 via-indigo-100 to-cyan-100" />
+      <div className="relative px-6 py-5">
+        <div className="absolute left-8 right-8 top-[2.2rem] hidden h-px bg-border md:block" />
         <div
           className={cn(
-            "hidden md:block absolute left-10 top-[1.55rem] h-[6px] rounded-full transition-all duration-700 shadow-[0_0_18px_rgba(59,130,246,0.35)]",
+            "absolute left-8 top-[2.2rem] hidden h-px transition-all duration-300 md:block",
             progress_bar_tone === "danger"
-              ? "bg-gradient-to-r from-rose-500 via-red-500 to-orange-500"
+              ? "bg-red-500"
               : progress_bar_tone === "success"
-              ? "bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500"
-              : "bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500"
+              ? "bg-green-600"
+              : "bg-amber-500"
           )}
           style={{ width: `calc((100% - 5rem) * ${connector_progress / 100})` }}
         />
@@ -495,14 +491,14 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
               <div key={i} className="relative z-10 flex flex-col items-center gap-4">
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center border-2 text-sm font-bold transition-all duration-300 shadow-md",
+                    "flex h-10 w-10 items-center justify-center rounded-md border text-sm font-semibold transition-colors duration-200 bg-card",
                     step.rejected
-                      ? "bg-gradient-to-br from-rose-50 to-red-100 border-red-500 text-red-700"
+                      ? "border-red-300 text-red-700"
                       : step.done
-                      ? "bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500 border-blue-500 text-white shadow-[0_10px_20px_rgba(59,130,246,0.45)]"
+                      ? "border-primary bg-primary text-primary-foreground"
                       : is_current
-                      ? "bg-gradient-to-br from-yellow-50 to-amber-100 border-amber-500 text-amber-700 ring-4 ring-amber-100"
-                      : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 text-slate-600"
+                      ? "border-amber-400 text-amber-700"
+                      : "border-border text-muted-foreground"
                   )}
                 >
                   {step.rejected ? <Shield size={15} /> : step.done ? <Play size={14} fill="currentColor" /> : <span>{i + 1}</span>}
@@ -510,14 +506,14 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
 
                 <p
                   className={cn(
-                    "text-[11px] md:text-[12px] font-bold uppercase tracking-tight text-center leading-4 max-w-[96px]",
+                    "max-w-[96px] text-center text-[11px] font-medium leading-4 md:text-[12px]",
                     step.rejected
                       ? "text-red-700"
                       : step.done
-                      ? "text-blue-900"
+                      ? "text-foreground"
                       : is_current
                       ? "text-amber-700"
-                      : "text-slate-700"
+                      : "text-muted-foreground"
                   )}
                 >
                   {step.label}
@@ -654,7 +650,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
           }),
         })
         set_request_settings_status("Settings saved.")
-      } catch (error) {
+      } catch {
         set_request_settings_status("Failed to save settings.")
       }
     }, 600)
@@ -688,7 +684,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
     if (approval_request_feedback) {
       set_approval_request_feedback("")
     }
-  }, [approval_request_form.billing_cycle_id, approval_request_form.stage])
+  }, [approval_request_feedback, approval_request_form.billing_cycle_id, approval_request_form.stage])
 
   useEffect(() => {
     if (!is_authenticated) {
@@ -710,7 +706,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
         set_current_user(me)
         set_role(me.role)
         set_is_authenticated(true)
-      } catch (error) {
+      } catch {
         set_auth_token(null)
         set_is_authenticated(false)
       }
@@ -900,13 +896,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
     event.preventDefault()
     try {
       set_error_message("")
-      set_login_errors({ username: "", password: "" })
       const login_identifier = login_form.username_or_email.trim()
       if (login_identifier.includes("@") && !is_valid_email(login_identifier)) {
-        set_login_errors({
-          username: "Enter a valid email address or use your username instead.",
-          password: "",
-        })
+        set_error_message("Enter a valid email address or use your username instead.")
         return
       }
       const response = await api_fetch(
@@ -923,8 +915,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
     } catch (error) {
       const message = error?.message || "Sign in failed"
       if (message.includes("Invalid credentials") || message.includes("invalid credentials")) {
-        set_login_errors({ username: "", password: "Incorrect username/email or password." })
-        set_error_message("")
+        set_error_message("Incorrect username/email or password.")
         return
       }
       set_error_message(message)
@@ -1396,15 +1387,15 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
 
   if (!is_authenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
-        <div className="w-full max-w-[440px] bg-card border rounded-2xl shadow-xl p-10 flex flex-col gap-8 animate-in fade-in zoom-in duration-300">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="flex w-full max-w-[440px] flex-col gap-8 rounded-md border bg-card p-8">
           <div className="text-center">
-            <h1 className="text-3xl font-black tracking-tighter text-primary">Billing Platform</h1>
-            <p className="text-sm text-muted-foreground mt-2 font-medium tracking-tight">B2B Automations & Governance</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Billing Platform</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Automated billing operations and approvals</p>
           </div>
           
           <div className="space-y-1 text-center">
-            <h2 className="text-xl font-bold tracking-tight">
+            <h2 className="text-xl font-semibold tracking-tight">
               {auth_mode === "login" ? "Sign in to account" : "Request access"}
             </h2>
             <p className="text-[13px] text-muted-foreground">
@@ -1427,7 +1418,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
             {auth_mode === "signup" && (
               <div className="grid gap-4">
                 <div className="grid gap-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Full Name</label>
+                  <label className="text-sm font-medium text-foreground">Full name</label>
                   <input
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     placeholder="John Doe"
@@ -1437,7 +1428,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Username</label>
+                  <label className="text-sm font-medium text-foreground">Username</label>
                   <input
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     placeholder="jdoe123"
@@ -1450,7 +1441,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
             )}
             
             <div className="grid gap-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Email or User</label>
+              <label className="text-sm font-medium text-foreground">Email or username</label>
               <input
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 type="text"
@@ -1466,12 +1457,12 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
 
             <div className="grid gap-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Password</label>
+                <label className="text-sm font-medium text-foreground">Password</label>
                 {auth_mode === "login" && (
                    <button 
                     type="button"
                     onClick={() => set_show_login_password(!show_login_password)}
-                    className="text-[10px] font-bold text-primary hover:underline uppercase"
+                    className="text-xs font-medium text-foreground hover:underline"
                   >
                     {show_login_password ? "Hide" : "Show"}
                   </button>
@@ -1489,7 +1480,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
               />
             </div>
 
-            <button className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-primary-foreground font-bold rounded-md hover:opacity-90 transition-all shadow-lg active:scale-95" type="submit">
+            <button className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:opacity-95" type="submit">
               {auth_mode === "login" ? "Sign In" : "Submit Request"}
             </button>
           </form>
@@ -1506,7 +1497,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
               {auth_mode === "login" ? "Request account access" : "Back to sign in"}
             </button>
             {auth_mode === "login" && (
-              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none pointer-events-none opacity-50">
+              <span className="pointer-events-none text-xs text-muted-foreground opacity-70">
                 Authorized personnel only
               </span>
             )}
@@ -1519,9 +1510,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
 
   return (
     <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/10">
-      <aside className="w-72 min-w-[18rem] bg-card border-r flex flex-col p-8 hidden md:flex h-screen sticky top-0">
-        <div className="px-2 mb-10">
-          <h1 className="text-2xl font-black tracking-tighter text-primary uppercase">Billing Dashboard</h1>
+      <aside className="hidden h-screen w-64 min-w-[16rem] flex-col border-r bg-card p-6 md:flex">
+        <div className="mb-8 px-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Billing Platform</h1>
         </div>
         
         <nav className="flex flex-col gap-1.5 flex-1">
@@ -1532,15 +1523,15 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
               <button
                 key={item.id}
                 className={cn(
-                  "flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-[13px] font-bold transition-all duration-200 group",
+                  "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md border border-transparent transition-colors",
                   isActive 
-                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
+                    ? "border-border bg-secondary text-foreground" 
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
                 type="button"
                 onClick={() => set_active_view(item.id)}
               >
-                {IconComponent && <IconComponent size={18} className={cn("transition-transform group-hover:scale-110", isActive ? "opacity-100" : "opacity-70")} />}
+                {IconComponent && <IconComponent size={18} className={isActive ? "opacity-100" : "opacity-70"} />}
                 {item.label}
               </button>
             )
@@ -1549,11 +1540,11 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
 
         <div className="border-t pt-8 mt-auto flex flex-col gap-6">
           <div className="px-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mb-1">Session Role</p>
-            <p className="text-sm font-bold truncate">{role}</p>
+            <p className="mb-1 text-xs text-muted-foreground">Session role</p>
+            <p className="truncate text-sm font-medium">{role}</p>
           </div>
           <button
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-[13px] font-bold text-destructive hover:bg-destructive/10 transition-colors w-full text-left"
+            className="flex w-full items-center gap-3 rounded-md px-4 py-2 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
             type="button"
             onClick={() => {
               set_auth_token(null)
@@ -1571,19 +1562,54 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
         </div>
       </aside>
 
-      <main className="flex-1 p-12 overflow-x-hidden">
-        <header className="flex justify-between items-center mb-10">
+      <main className="flex-1 overflow-x-hidden px-4 py-6 md:px-8 md:py-8">
+        <div className="mb-6 rounded-md border bg-card p-4 md:hidden">
+          <div className="mb-3">
+            <p className="text-sm font-medium text-foreground">Navigation</p>
+            <p className="text-xs text-muted-foreground">Switch sections on smaller screens.</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={active_view}
+              onChange={(event) => set_active_view(event.target.value)}
+            >
+              {visible_nav_items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+              type="button"
+              onClick={() => {
+                set_auth_token(null)
+                set_is_authenticated(false)
+                set_current_user(null)
+                set_role("viewer")
+                set_login_form({ username_or_email: "", password: "" })
+                set_signup_status("")
+                set_error_message("")
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+
+        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter capitalize leading-none">
+            <h1 className="text-3xl font-semibold tracking-tight capitalize leading-none">
               {nav_items.find(item => item.id === active_view)?.label || active_view}
             </h1>
-            <p className="text-sm text-muted-foreground mt-2 font-medium">B2B Automated Billing Governance</p>
+            <p className="mt-2 text-sm text-muted-foreground">Automated billing operations and approvals</p>
           </div>
-          <div className="flex gap-3">
-            <button className="inline-flex items-center justify-center rounded-md text-sm font-bold h-10 px-6 border bg-background hover:bg-accent transition-colors" type="button" onClick={reload_all}>
+          <div className="flex flex-wrap gap-3">
+            <button className="inline-flex h-10 items-center justify-center rounded-md border bg-background px-5 text-sm font-medium transition-colors hover:bg-accent" type="button" onClick={reload_all}>
               Refresh
             </button>
-            <button className="inline-flex items-center justify-center rounded-md text-sm font-bold h-10 px-6 bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-md" type="button" onClick={() => set_active_view("cycles")}>
+            <button className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:opacity-95" type="button" onClick={() => set_active_view("cycles")}>
               New Cycle
             </button>
           </div>
@@ -1736,7 +1762,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                       >
                         <span>{format_cycle_label(approval.billing_cycle_id)}</span>
                         <span>{format_stage_label(approval.stage)}</span>
-                        <span className={`pill ${approval.status === "pending" ? "warning" : approval.status === "rejected" ? "error" : "success"}`}>
+                        <span className={`pill ${approval.status === "pending" ? "warning" : approval.status === "rejected" ? "danger" : "success"}`}>
                           {approval.status}
                         </span>
                         {role === "finance" ? (
@@ -1761,9 +1787,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                         )}
                       </div>
                       {expanded_approval_id === approval.id && (
-                        <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                        <div className="detail-card">
                           <strong>Details & Comments:</strong>
-                          <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
+                          <p>{approval.comments || "No comments provided."}</p>
                         </div>
                       )}
                     </div>
@@ -2299,9 +2325,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                           </button>
                         </div>
                         {expanded_approval_id === approval.id && (
-                          <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                          <div className="detail-card">
                             <strong>Details & Comments:</strong>
-                            <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
+                            <p>{approval.comments || "No comments provided."}</p>
                           </div>
                         )}
                       </div>
@@ -2409,9 +2435,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                             <span>{new Date(approval.updated_at).toLocaleString()}</span>
                           </div>
                           {expanded_approval_id === approval.id && (
-                            <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                            <div className="detail-card">
                               <strong>Details & Comments:</strong>
-                              <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
+                              <p>{approval.comments || "No comments provided."}</p>
                             </div>
                           )}
                         </div>
@@ -2451,9 +2477,9 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
                       <span>{new Date(approval.updated_at).toLocaleString()}</span>
                     </div>
                     {expanded_approval_id === approval.id && (
-                      <div style={{ margin: "0 16px 16px 16px", padding: "16px", backgroundColor: "rgba(0, 0, 0, 0.02)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                      <div className="detail-card">
                         <strong>Details & Comments:</strong>
-                        <p style={{ marginTop: "8px", color: "var(--text-primary)" }}>{approval.comments || "No comments provided."}</p>
+                        <p>{approval.comments || "No comments provided."}</p>
                       </div>
                     )}
                   </div>
