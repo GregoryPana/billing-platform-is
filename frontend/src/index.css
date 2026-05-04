@@ -4,16 +4,16 @@
   font-family: "Manrope", "IBM Plex Sans", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #332d28;
-  background-color: #f8f5f0;
+  color: #1e293b;
+  background-color: #f7faff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --text-primary: #332d28;
-  --text-muted: #645a52;
-  --border: #d8ccc0;
-  --sidebar-bg: #f4efe8;
+  --text-primary: #1e293b;
+  --text-muted: #475569;
+  --border: #d7e3f4;
+  --sidebar-bg: #f4f8fd;
 }
 
 * {
@@ -24,7 +24,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f8f5f0;
+  background: #f7faff;
 }
 
 #root {

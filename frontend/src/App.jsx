@@ -1510,7 +1510,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
 
   return (
     <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/10">
-      <aside className="hidden h-screen w-64 min-w-[16rem] flex-col border-r bg-card p-6 md:flex">
+      <aside className="hidden h-screen w-64 min-w-[16rem] flex-col self-start border-r bg-card p-6 md:sticky md:top-0 md:flex">
         <div className="mb-8 px-2">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Billing Platform</h1>
         </div>
