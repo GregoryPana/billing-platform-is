@@ -1635,7 +1635,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
         ) : null}
 
         {active_view === "user-guide" && (
-          <section className="panel">
+          <section className="panel doc-panel">
             <div className="panel-header">
               <div>
                 <h2>User Guide</h2>
@@ -2754,7 +2754,7 @@ const CycleProgressTracker = ({ cycle, scripts = [], runs = [], approvals = [] }
         )}
 
         {active_view === "documentation" && (
-          <section className="panel">
+          <section className="panel doc-panel">
             <div className="panel-header">
               <div>
                 <h2>Documentation</h2>

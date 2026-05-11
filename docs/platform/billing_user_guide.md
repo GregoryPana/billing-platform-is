@@ -2,18 +2,12 @@
 
 This guide explains the complete billing process from start to finish. It shows exactly who does what, when handoffs happen, and what should be done after each step.
 
----
-
 ## Who This Guide Is For 👥
 
-| Role | Description |
-|------|-------------|
-| **Billing users** 💼 | Run billing, generate scripts and notifications, and track progress. |
-| **Finance users** 📊 | Review and approve key steps before billing can move forward. |
-| **View-only users** 👁️ | Can read progress but cannot change anything. |
-| **Admins** 🔧 | Manage user access. |
-
----
+- **Billing users** 💼: Run billing, generate scripts and notifications, and track progress.
+- **Finance users** 📊: Review and approve key steps before billing can move forward.
+- **View-only users** 👁️: Can read progress but cannot change anything.
+- **Admins** 🔧: Manage user access.
 
 ## Roles and Responsibilities 👔
 
@@ -33,8 +27,6 @@ This guide explains the complete billing process from start to finish. It shows 
   - **Move to live** ✅ (after test runs are done)
   - **Move to notifications** 📧 (after live runs finish)
 - Provides comments if something needs to be corrected.
-
----
 
 ## End-to-End Flow 🔄
 
