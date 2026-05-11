@@ -530,16 +530,21 @@
 }
 
 .doc-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   margin: 0;
   padding: 1.5rem 2rem;
   border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
 }
 
 .doc-content.markdown {
-  max-width: 920px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 2rem;
-  line-height: 1.75;
+  padding: 2.1rem 2rem 2.4rem;
+  line-height: 1.72;
   color: hsl(var(--foreground));
 }
 
@@ -562,7 +567,7 @@
   font-size: clamp(1.25rem, 1.5vw, 1.55rem);
   font-weight: 600;
   line-height: 1.35;
-  margin: 2.25rem 0 0.85rem;
+  margin: 2rem 0 0.8rem;
   color: hsl(var(--foreground));
   border-bottom: 1px solid #e2e8f0;
   padding-bottom: 0.6rem;
@@ -582,7 +587,7 @@
 
 .doc-content.markdown ul,
 .doc-content.markdown ol {
-  margin: 0 0 1rem;
+  margin: 0 0 1.05rem;
   padding-left: 1.4rem;
 }
 
@@ -644,8 +649,7 @@
   width: 100%;
   border-collapse: collapse;
   margin: 0 0 1.25rem;
-  display: block;
-  overflow-x: auto;
+  table-layout: fixed;
 }
 
 .doc-content.markdown th,
@@ -653,6 +657,8 @@
   border: 1px solid #e2e8f0;
   padding: 0.75rem 1rem;
   text-align: left;
+  vertical-align: top;
+  word-break: break-word;
 }
 
 .doc-content.markdown th {
@@ -683,6 +689,11 @@
   color: #1d4ed8;
 }
 
+.doc-actions {
+  margin: 0;
+  padding: 1rem 2rem 0;
+}
+
 @media (max-width: 900px) {
   .doc-panel .panel-header {
     padding: 1.1rem 1rem;
@@ -693,5 +704,9 @@
 
   .doc-content.markdown {
     padding: 1.25rem 1rem;
+  }
+
+  .doc-actions {
+    padding: 0.8rem 1rem 0;
   }
 }
