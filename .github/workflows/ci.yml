@@ -64,6 +64,8 @@ jobs:
             --exclude ".git/" \
             --exclude "backend/.env" \
             --exclude "backend/.venv/" \
+            --exclude "**/__pycache__/" \
+            --exclude "**/*.pyc" \
             --exclude "frontend/.env.production" \
             --exclude "frontend/node_modules/" \
             --exclude "frontend/dist/" \
