@@ -51,18 +51,23 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
-      - name: Ensure repo at /opt/billing
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout deploy commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Sync repo to /opt/billing
         run: |
           set -e
-          if [ -d /opt/billing/.git ]; then
-            git -C /opt/billing fetch --prune
-            git -C /opt/billing checkout main
-            git -C /opt/billing pull --ff-only
-          else
-            git clone https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git /opt/billing
-          fi
+          mkdir -p /opt/billing
+          rsync -a --delete \
+            --exclude ".git/" \
+            --exclude "backend/.env" \
+            --exclude "backend/.venv/" \
+            --exclude "frontend/.env.production" \
+            --exclude "frontend/node_modules/" \
+            --exclude "frontend/dist/" \
+            ./ /opt/billing/
 
       - name: Write backend env
         run: |
