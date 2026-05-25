@@ -11,6 +11,12 @@ This should eventually remove or greatly reduce the need for:
 - local password storage
 - manual user creation for normal access onboarding
 
+The target access model for this application is exactly three roles:
+
+- `finance_user`
+- `billing_user`
+- `system_admin`
+
 ## Current Auth Model
 
 The current implementation uses:
@@ -45,18 +51,79 @@ Recommended high-level shape:
 4. Backend resolves the user identity from claims.
 5. Backend maps the identity to an application role.
 
-## Recommended Role Strategy
+## Role Strategy
 
 Use Entra group or app-role claims as the source of authorization.
 
-Recommended mapping:
+Target application roles:
 
-- Entra billing group/app role -> `billing`
-- Entra finance group/app role -> `finance`
-- Entra admin group/app role -> `admin`
-- Entra viewer group/app role -> `viewer`
+- Entra finance group/app role -> `finance_user`
+- Entra billing group/app role -> `billing_user`
+- Entra admin group/app role -> `system_admin`
+
+Expected access model:
+
+- `finance_user`: finance-only functionality
+- `billing_user`: billing functionality only
+- `system_admin`: both finance and billing functionality, plus logs and audit visibility
 
 This is preferable to email-based mapping because it is centrally manageable and easier to audit.
+
+## User And Group Visibility From Entra
+
+### What the app can reliably see on login
+
+When a user authenticates with Entra ID, the app can capture claims for that signed-in user, such as:
+
+- unique user identifier
+- display name
+- email or preferred username
+- app role claims or group IDs
+
+### What the app does not automatically get
+
+The app does not automatically receive a full list of all users, all groups, or all group memberships for the Entra app registration.
+
+To enumerate that centrally, the application would need Microsoft Graph access with additional consented permissions.
+
+### Recommended design for this system
+
+Do not depend on full directory enumeration for normal runtime access control.
+
+Instead:
+
+1. treat Entra token claims as the source of truth for the current session
+2. capture signed-in user details locally for audit and support visibility
+3. update the local user record whenever the user logs in and current claims differ
+
+## Local User Record Strategy
+
+Keep a local `users` table, but repurpose it.
+
+Recommended purpose:
+
+- audit readability
+- support visibility
+- local history of who accessed the platform
+- tracking latest observed role and group/app-role assignment
+
+Recommended fields to retain or add:
+
+- stable Entra subject or object ID
+- provider name, for example `entra_id`
+- display name
+- email
+- current effective app role
+- latest group IDs or role claims snapshot
+- first seen timestamp
+- last seen timestamp
+- active flag if needed for local reporting
+
+Important rule:
+
+- authorization should come from the current Entra token claims, not from the cached local row
+
+That ensures that if a user's Entra groups or roles change, their next authenticated session reflects the new access immediately.
 
 ## Recommended Implementation Phases
 
@@ -74,11 +141,13 @@ Backend changes:
 - add token validation against Microsoft identity metadata and JWKS
 - extend `get_current_actor()` so it can validate Entra bearer tokens
 - add a normalized identity model containing:
-  - user id or subject
+  - Entra subject or object ID
   - display name
   - email or preferred username
   - mapped app role
-- optionally upsert a local `users` row for audit readability and continuity
+  - latest group or app-role claims
+- upsert a local `users` row for audit readability and continuity
+- record user access events in audit logs on successful authenticated access
 
 Frontend changes:
 
@@ -124,13 +193,7 @@ Likely removals or reductions:
 - local password reset/update paths
 - most direct user creation flows
 
-Admin may still remain if the app needs:
-
-- read-only visibility into users
-- exceptional role overrides
-- operational support tools
-
-But if Entra groups fully own access, the admin surface can shrink significantly.
+The `system_admin` role still remains as an application role, but its assignment should come from Entra rather than local onboarding.
 
 ## Backend Work Plan
 
@@ -143,7 +206,9 @@ Add settings such as:
 - `ENTRA_API_AUDIENCE`
 - `ENTRA_AUTHORITY`
 - `ENTRA_ENABLED`
-- `ENTRA_ALLOWED_GROUP_IDS`
+- `ENTRA_FINANCE_GROUP_ID`
+- `ENTRA_BILLING_GROUP_ID`
+- `ENTRA_SYSTEM_ADMIN_GROUP_ID`
 
 ### 2. Add token validation service
 
@@ -158,6 +223,7 @@ Responsibilities:
 - validate JWT signature and claims
 - normalize user claims
 - extract roles or groups
+- map claims to exactly one effective application role
 
 ### 3. Update auth dependency
 
@@ -171,19 +237,22 @@ Prefer a small abstraction like:
 - `resolve_current_identity()`
 - `map_identity_to_actor()`
 
-### 4. Decide how much of `users` remains
+### 4. Repurpose `users` as an audit-oriented identity cache
 
-Recommended minimal retention:
+Recommended retention:
 
-- keep `users` for audit display and optional local metadata
+- keep `users` for audit display and local support metadata
 - stop using it as the primary credential store
 - treat `password_hash` as legacy once local auth is removed
 
-Potential schema additions:
+Potential schema additions or adjustments:
 
 - `external_provider`
 - `external_subject`
 - `display_name`
+- `last_login_at`
+- `last_seen_role`
+- `last_seen_groups`
 
 ### 5. Update audit behavior
 
@@ -193,6 +262,7 @@ Recommended:
 
 - store actor email/display name where helpful in metadata
 - preserve stable actor identifiers from Entra `sub` or object ID claims
+- add explicit user-access audit events for login/session establishment
 
 ## Frontend Work Plan
 
@@ -230,12 +300,14 @@ When rollout is complete, remove:
 
 ### Users table
 
-Existing users can be preserved.
+Existing users can be preserved during migration.
 
 Recommended approach:
 
-- match users by email or username during transition
+- match users by email during transition where possible
 - backfill external identity fields on first successful Entra login
+- convert the table into a local identity cache and audit support table
+- do not use the row itself as the authority for current access
 - do not delete existing users immediately
 
 ### Signup requests
@@ -308,6 +380,7 @@ But none of that is part of the current deploy workflow, and nothing in the curr
 
 - group/role claims may not be present by default unless Entra app registration is configured correctly
 - audience mismatch between frontend-acquired token and backend validation is a common failure mode
+- full group membership enumeration requires Microsoft Graph permissions and admin consent
 - local admin workflows may still be needed temporarily during transition
 - audit readability can degrade if identity normalization is not designed carefully
 - token validation should be robust and cached to avoid unnecessary network dependency on every request
@@ -320,7 +393,7 @@ The safest first delivery is:
 2. add backend validation of Entra bearer tokens
 3. add frontend Microsoft sign-in
 4. keep local login temporarily for fallback
-5. map Entra groups/app roles to current app roles
+5. map Entra groups/app roles to the three target app roles
 6. defer removal of signup/admin flows until Entra access is stable
 
 ## Suggested Branch Strategy
@@ -334,7 +407,7 @@ Suggested delivery approach:
 1. doc and design updates
 2. backend token validation support
 3. frontend Microsoft sign-in support
-4. role mapping and user migration handling
+4. role mapping, local user-cache behavior, and audit handling
 5. cleanup of local auth/admin flows
 
 ## Immediate Next Tasks
@@ -343,4 +416,5 @@ Suggested delivery approach:
 2. confirm whether the backend should validate Entra tokens directly or rely on a gateway pattern
 3. add configuration scaffolding and auth service abstraction
 4. implement frontend MSAL integration
-5. test the auth flow without touching Nginx paths used by other applications
+5. implement local user-cache updates and user-access audit events
+6. test the auth flow without touching Nginx paths used by other applications
