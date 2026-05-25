@@ -1,273 +1,194 @@
 # Billing Collaboration Platform
 
-## 1. Project Overview
-The Billing Collaboration Platform is a web application for creating billing command scripts, tracking execution, and enforcing finance approvals before moving to live runs and notifications. It replaces the prior Streamlit stack with a React + FastAPI + Postgres architecture to support multiple users, role-based access, and auditability.
+## Overview
 
-**Problems it solves**
-- Manual script creation and execution tracking
-- Missing approval gates between billing and finance
-- Limited visibility into run status and audit history
+The Billing Collaboration Platform is an internal workflow application for monthly billing operations.
 
-**Primary users**
-- Billing users who create cycles, generate scripts, and record runs
-- Finance users who review and approve test/live/post-live stages
-- Admin users who manage access and oversight
-- Viewer users who need read-only visibility
+It helps teams:
 
-## 2. Key Features
-**Frontend**
-- Role-based navigation for billing, finance, admin, and viewer users
-- Dashboard with cycle status, approvals, and run summaries
-- Tables for script runs and approvals queue, filtered by cycle, environment, and script type
+- create billing cycles
+- generate backend billing commands for test and live runs
+- track whether those commands were executed successfully
+- request and record finance approvals at control points
+- generate notification command sets after billing is complete
+- retain a persistent operational history in Postgres
 
-**Backend**
-- FastAPI endpoints for cycles, scripts, runs, approvals, notifications, and audit logs
-- Approval gates to prevent live actions without test approval
-- Script generation auto-creates planned run records per cycle type
-- Billing can request finance approvals only after required test/live runs are executed
-- UTC+4 timezone handling for all timestamps
-- Global approval request settings (recipients + default message) stored in Postgres
+This system does not execute billing commands itself. It generates, exports, and tracks them.
 
-**Data**
-- Postgres schema for users, cycles, scripts, runs, approvals, notifications, and audit logs
-- JSON parameters stored for each script definition
+## Implemented Workflow
 
-**Integrations**
-- SMTP (planned) or n8n webhook (optional) for notifications
+1. Billing creates a billing cycle.
+2. Billing generates test scripts for one or more cycle types.
+3. The system stores those commands and creates planned run records.
+4. Billing runs the commands outside the app and updates run status.
+5. Billing requests finance approval to move to live.
+6. Finance approves or rejects that request.
+7. Billing generates and tracks live scripts.
+8. Billing requests finance approval to move to notifications.
+9. After approval, billing generates backend notification commands.
 
-## 3. System Architecture
-**High-level flow**
-React frontend calls the FastAPI backend, which persists data in Postgres. The backend validates workflow gates and writes audit records for every action. File exports and notification delivery are handled server-side.
+## Roles
 
-**Components**
-- React UI: role-based screens, status cards, tables
-- FastAPI API: workflow and validation logic
-- Postgres: source of truth for all records
+- `billing`: create cycles, generate scripts, track runs, request approvals, manage request settings, generate notifications
+- `finance`: review and approve or reject requests
+- `admin`: manage users and signup requests, plus broader platform visibility
+- `viewer`: read-only access to selected screens
 
-**Data flow**
-1. Billing creates a cycle and generates test scripts.
-2. Script generation creates planned run records for each cycle type.
-3. Billing marks runs executed/failed and requests finance approval.
-4. Finance approves test stage, enabling live script generation.
-5. Billing marks live runs and requests post-live approval.
-6. Finance approves post-live, enabling notifications and closure.
+## Current Feature Set
 
-## 4. Tech Stack
-- Frontend: React + Vite
-- Backend: FastAPI + SQLAlchemy
-- Database: Postgres 16
-- Styling: Custom CSS following `ui-styling-guide.md`
-- Runtime: Uvicorn
+### Frontend
 
-## 5. Project Structure
-```
+- login with username or email plus password
+- signup request flow for new users
+- role-based navigation
+- overview dashboard with cycle progress tracker
+- billing cycle creation
+- script generation for `test` and `live`
+- run status tracking per generated script
+- approval request submission to finance recipients
+- finance review and decision workflow
+- request settings for approval recipients and default message
+- notification command generation and download
+- embedded documentation and billing process reference
+- admin user management and signup request review
+
+### Backend
+
+- JWT authentication
+- role-protected REST endpoints under `/api`
+- Postgres persistence with SQLAlchemy models
+- live-generation gate requiring approved test stage
+- notification gate requiring approved post-live stage
+- grouped and full script exports written to disk
+- audit event storage for key workflow actions
+- n8n webhook integration for approval and signup notifications
+
+## Architecture
+
+### Stack
+
+- frontend: React 19 + Vite
+- backend: FastAPI + SQLAlchemy
+- database: PostgreSQL 16
+- auth: local JWT-based authentication
+- deployment: GitHub Actions + self-hosted runner + systemd
+
+### Repository layout
+
+```text
 .
 ├── architecture/
-│   └── blueprint.md          # Workflow and approval design
+│   └── blueprint.md
 ├── backend/
 │   ├── app/
-│   │   ├── api/               # API routers
-│   │   ├── db/                # Database session + init
-│   │   ├── models/            # SQLAlchemy models
-│   │   ├── schemas/           # Pydantic schemas
-│   │   ├── services/          # Workflow + audit services
-│   │   ├── utils/             # Datetime utilities
-│   │   └── main.py            # FastAPI entrypoint
+│   │   ├── api/
+│   │   ├── db/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   └── main.py
 │   └── requirements.txt
 ├── docs/
-│   └── platform/              # In-app documentation
+│   └── platform/
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   └── index.css
 │   └── package.json
-├── .env.example
+├── ops/
+│   └── billing-api.service
 ├── docker-compose.yml
+├── project.md
 └── README.md
 ```
 
-## 6. Frontend
-**Entry points**
-- `frontend/src/main.jsx`
-- `frontend/src/App.jsx`
+### Important implementation notes
 
-**Documentation content**
-- `docs/platform/billing_process.md`
+- the frontend is currently a single large app centered in `frontend/src/App.jsx`
+- the backend creates tables on startup; there is no migration framework yet
+- CORS is currently configured only for `http://localhost:5173`
+- export files are written relative to the backend working directory, which means runtime exports end up under `backend/backend/exports/` when the backend is started from `backend/`
 
-**Main flows**
-- Overview dashboard for billing activity and approvals
-- Runs tracking table filtered by cycle/environment/script type and approval queue
+## API Summary
 
-**State management**
-- React component state (scaffolded)
+All application endpoints are mounted under `/api`.
 
-**Backend communication**
-- Planned via REST calls to `/api/*`
+### Auth
 
-**Environment variables**
-- `VITE_API_URL` (optional, defaults to `http://localhost:8000/api`)
-  - Production uses GitHub Actions secrets to generate `/opt/billing/frontend/.env.production`.
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/signup`
+- `GET /auth/requests`
+- `POST /auth/requests/{request_id}/approve`
+- `POST /auth/requests/{request_id}/reject`
 
-## 7. Backend
-**Entry points**
-- `backend/app/main.py`
+### Cycles
 
-**Core logic**
-- Workflow gate checks in `backend/app/services/workflow_service.py`
-- Command parameter defaults in `backend/app/services/command_service.py`
-- Audit logging in `backend/app/services/audit_service.py`
+- `GET /cycles/`
+- `POST /cycles/`
+- `PATCH /cycles/{cycle_id}/status`
 
-**Data access**
-- SQLAlchemy models in `backend/app/models/`
+### Scripts
 
-**Environment variables**
-- Local: `backend/.env.local`
-- Production: `backend/.env`
-- `DATABASE_URL` (psycopg3 driver)
-- `TIMEZONE_OFFSET_HOURS`
-- `N8N_WEBHOOK_URL`
-- `N8N_APPROVAL_WEBHOOK_URL`
-- `N8N_SIGNUP_WEBHOOK_URL`
-- `N8N_SIGNUP_APPROVE_WEBHOOK_URL`
-- `N8N_WEBHOOK_VERIFY` (set `false` only for self-signed certs in dev)
-- `JWT_SECRET`
-- `JWT_EXP_MINUTES`
-  - Production values are written from GitHub Actions secrets on each deploy.
+- `GET /scripts/`
+- `POST /scripts/generate`
+- `POST /scripts/export`
+- `POST /scripts/export-all`
+- `GET /scripts/exports/{export_id}/download`
 
-## 8. API Reference
-All endpoints are under `/api`.
+### Runs
 
-**Cycles**
-- `GET /cycles` → list cycles
-- `POST /cycles` → create cycle
-  - Body: `{ "usage_month": "YYYY-MM", "billing_month": "YYYY-MM", "notes": "..." }`
-- `PATCH /cycles/{cycle_id}/status` → update status
-  - Body: `{ "status": "draft|test_in_progress|test_approved|live_in_progress|live_approved|post_live_approved|closed" }`
+- `GET /runs/`
+- `POST /runs/`
+- `PATCH /runs/`
 
-**Scripts**
-- `GET /scripts` → list script definitions
-- `POST /scripts/generate` → generate scripts
-  - Body: `{ "billing_cycle_id": "uuid", "environment": "test|live", "script_type": "preparation|printing", "log_types": ["I1A"], "overrides": {"p6": "..."} }`
-  - Errors: 400 if live actions without test approval or missing p6 for printing
-- `POST /scripts/export` → export grouped command file
-  - Body: `{ "billing_cycle_id": "uuid", "environment": "test|live", "script_type": "preparation|printing" }`
-  - Response includes `file_name` and `file_path`
-- `POST /scripts/export-all` → export all commands for a billing run
-  - Body: `{ "billing_cycle_id": "uuid" }`
-  - Response includes `file_name` and `file_path`
-- `GET /scripts/exports/{export_id}/download` → download grouped command file
+### Approvals
 
-**Runs**
-- `GET /runs` → list script runs
-- `POST /runs` → create a run record
-  - Body: `{ "script_definition_id": "uuid", "status": "planned|executed|failed", "notes": "..." }`
-- `PATCH /runs` → update run status
-  - Body: `{ "script_run_id": "uuid", "status": "planned|executed|failed", "notes": "..." }`
+- `GET /approvals/`
+- `POST /approvals/`
+- `POST /approvals/request`
+- `GET /approvals/settings`
+- `PUT /approvals/settings`
 
-**Approvals**
-- `GET /approvals` → list approvals
-- `POST /approvals` → create/update approval
-  - Body: `{ "billing_cycle_id": "uuid", "stage": "test|live|post_live", "status": "approved|rejected", "comments": "..." }`
-- `POST /approvals/request` → request approval (billing)
-  - Body: `{ "billing_cycle_id": "uuid", "stage": "test|post_live", "comments": "..." }`
-- `GET /approvals/settings` → get global approval settings (billing/admin)
-- `PUT /approvals/settings` → update global approval settings
-  - Body: `{ "billing_email": "...", "default_message": "...", "finance_recipients": ["..."] }`
+### Notifications
 
-**Approval webhook payload (n8n)**
-```json
-[
-  {
-    "body": {
-      "recipients": ["finance@example.com"],
-      "billing_email": "information-system@cwseychelles.com",
-      "requested_by": "Billing User",
-      "timestamp": "2026-01-26T07:38:28.974Z",
-      "cycle": "Mar 2026 - Mar 2026",
-      "approval_request": "Request to Send Billing Notifications",
-      "message": "Please approve the requested."
-    }
-  }
-]
-```
+- `GET /notifications/`
+- `POST /notifications/`
 
-**Approval response webhook payload (n8n)**
-```json
-[
-  {
-    "body": {
-      "finance_email": "finance@example.com",
-      "finance_name": "Finance User",
-      "billing_email": "information-system@cwseychelles.com",
-      "timestamp": "2026-01-26T07:38:28.974Z",
-      "cycle": "Mar 2026 - Mar 2026",
-      "approval_request": "Request to Send Billing Notifications",
-      "decision": "approved",
-      "comment": "Approved to proceed"
-    }
-  }
-]
-```
+### Audit
 
-**Signup request webhook payload (n8n)**
-```json
-[
-  {
-    "body": {
-      "username": "new_user",
-      "name": "New User",
-      "email": "new_user@example.com",
-      "timestamp": "2026-01-26T07:38:28.974Z",
-      "admin_email": "admin@example.com"
-    }
-  }
-]
-```
+- `GET /audit/`
 
-**Signup approval webhook payload (n8n)**
-```json
-[
-  {
-    "body": {
-      "timestamp": "30-01-2026 10:42",
-      "admin_name": "Admin User",
-      "admin_email": "admin@example.com",
-      "requested_user_name": "New User",
-      "requested_user_username": "new_user",
-      "requested_user_email": "new_user@example.com"
-    }
-  }
-]
-```
+### Users
 
-**Notifications**
-- `GET /notifications` → list notifications
-- `POST /notifications` → queue notification
-  - Body: `{ "billing_cycle_id": "uuid", "notification_date": "YYYY-MM-DD" }`
-  - Errors: 400 if post-live approval missing
+- `GET /users/`
+- `POST /users/`
+- `PATCH /users/{user_id}`
+- `DELETE /users/{user_id}`
 
-**Audit**
-- `GET /audit` → list audit events
+### Health
 
-**Users**
-- `GET /users` → list users (admin only)
+- `GET /health`
 
-**Authentication**
-- JWT bearer token from `/auth/login`
-- Signup requests require `name`, `username`, `email`, and `password`.
+## Workflow Gates
 
-**Default users (seeded)**
-- billing_user / ChangeMe123!
-- finance_user / ChangeMe123!
-- admin / AdminChange2026!
-- viewer / ChangeMe123!
+The implementation currently enforces these rules:
 
-Change these passwords after first login.
+- live script generation requires an approved `test` approval
+- notification command generation requires an approved `post_live` approval
+- approval requests require all scripts for the relevant stage to be marked `executed`
 
-## 9. Data Model
-Tables (draft):
-- `users` (includes required `name`)
+The codebase contains `test`, `live`, and `post_live` approval stage values, but the main billing workflow in the UI uses only:
+
+- `test` for move-to-live
+- `post_live` for move-to-notifications
+
+Finance can still manually record a `live` approval in its review form, but it is not the main gate used by the billing-side request flow.
+
+## Data Model
+
+Main tables:
+
+- `users`
 - `signup_requests`
 - `approval_request_settings`
 - `billing_cycles`
@@ -278,135 +199,139 @@ Tables (draft):
 - `notifications`
 - `audit_logs`
 
-Seed users are created on startup with fixed UUIDs for local development:
-- billing_user: `00000000-0000-0000-0000-000000000001`
-- finance_user: `00000000-0000-0000-0000-000000000002`
-- admin: `00000000-0000-0000-0000-000000000003`
-- viewer: `00000000-0000-0000-0000-000000000004`
+## Configuration
 
-## 10. Local Development
-**Requirements**
+### Backend environment variables
+
+- `APP_NAME`
+- `ENVIRONMENT`
+- `DATABASE_URL`
+- `TIMEZONE_OFFSET_HOURS`
+- `N8N_WEBHOOK_URL`
+- `N8N_APPROVAL_WEBHOOK_URL`
+- `N8N_SIGNUP_WEBHOOK_URL`
+- `N8N_SIGNUP_APPROVE_WEBHOOK_URL`
+- `N8N_WEBHOOK_VERIFY`
+- `JWT_SECRET`
+- `JWT_EXP_MINUTES`
+
+### Frontend environment variables
+
+- `VITE_API_URL`
+- `VITE_APPROVAL_WEBHOOK_URL`
+
+## Local Development
+
+### Requirements
+
 - Node.js 18+
 - Python 3.11+
-- Docker (for Postgres)
+- Docker
 
-**Setup**
-1. Start Postgres:
-   ```bash
-   docker-compose up -d
-   ```
-2. Backend setup:
-   ```bash
-   cd backend
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   uvicorn app.main:app --reload
-   ```
-   The API auto-creates tables on startup.
-3. Frontend setup:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+### Start Postgres
 
-**Frontend configuration**
-- Local: `frontend/.env.local`
-- Production build: `frontend/.env.production`
-
-Create one of the following as needed:
-```
-VITE_API_URL=http://localhost:8000/api
-VITE_APPROVAL_WEBHOOK_URL=https://n8n-lan.cwsey.com:8443/webhook-test/billing-approval-request
+```bash
+docker-compose up -d
 ```
 
-## 11. Testing
-Not implemented yet. Planned: pytest for API tests and Vitest/Playwright for UI.
+The provided compose file maps host port `5435` to container port `5432`.
+If you use the compose database locally, set `DATABASE_URL` accordingly.
 
-## 12. Deployment
-### Self-hosted VM deployment
-Target: `/opt/billing` on the Ubuntu VM.
+Example:
 
-**Backend service (systemd)**
-- Install `ops/billing-api.service` to `/etc/systemd/system/billing-api.service`
-- Enable and start:
-  ```bash
-  sudo systemctl daemon-reload
-  sudo systemctl enable --now billing-api
-  ```
+```env
+DATABASE_URL=postgresql+psycopg://billing:billing@localhost:5435/billing
+```
 
-**Environment files**
-- Backend (production): `/opt/billing/backend/.env`
-- Frontend (production build): `/opt/billing/frontend/.env.production`
+### Start backend
 
-**Nginx (example)**
-- API: `/billing-api/` → `http://localhost:8010/`
-- UI: `/billing/` → `/opt/billing/frontend/dist/`
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
 
-**GitHub Actions deploy**
-- Uses the self-hosted runner to pull to `/opt/billing`, write env files, build the frontend, and restart `billing-api`.
+### Start frontend
 
-**Deployment visibility requirement (planned)**
-- App name
-- Version or commit hash
-- Deploy timestamp
-- Environment
-- Health status
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-**Environment contract (planned)**
-- Runtime user: TBD
-- Ports: API `8000`, UI `5173`, Postgres `5432`
-- Volumes: Postgres data volume (docker)
-- External dependencies: Postgres, SMTP or n8n
-- Restart policy: TBD
+### Local frontend API default
 
-## 13. CI/CD
-GitHub Actions workflow: `.github/workflows/ci.yml`
+If `VITE_API_URL` is not set, the frontend currently defaults to:
 
-- Runs backend dependency install and smoke check
-- Builds the frontend
-- Deploy job (manual trigger) emits deployment visibility metadata:
-  - app name
-  - version/commit hash
-  - deploy timestamp (UTC)
-  - environment
-  - health status
+```text
+http://localhost:8001/api
+```
 
-## 14. Operations and Monitoring
-Not applicable. No monitoring or health dashboards are wired up yet.
+That default does not match the README used previously, so set `VITE_API_URL` explicitly for local work if needed.
 
-## 15. Common Errors and Fixes
-- **Unauthorized**: Login to get a bearer token and include `Authorization: Bearer <token>`.
-- **Live action blocked**: Finance test approval must be recorded first.
-- **Notification blocked**: Post-live approval must be recorded first.
-- **Passlib bcrypt error on startup**: Ensure `bcrypt<4.1` is installed (required by `passlib`).
+## Default Seed Users
 
-## 16. Change Guide
-- **Add a new cycle type**: update UI list and backend generation defaults in `backend/app/services/command_service.py`.
-- **Update approval stages**: update `backend/app/services/workflow_service.py` and cycle statuses.
-- **Add a new role**: update role checks in `backend/app/services/auth_service.py`.
+Created automatically when the user table is empty:
 
-## 17. Glossary
-- **Billing Cycle**: Pair of usage and billing months for script generation.
-- **Preparation Script**: Initial script run to prepare billing data.
-- **Printing Script**: Second-phase script that generates bills.
-- **Post-Live Approval**: Finance approval required before notifications.
+- `billing_user / ChangeMe123!`
+- `finance_user / ChangeMe123!`
+- `admin / AdminChange2026!`
+- `viewer / ChangeMe123!`
 
-## 18. Known Gaps
-- Authentication is header-based placeholder only.
-- Bulk run updates are not implemented.
-- Notification delivery uses SMTP or n8n based on configuration, but retries and async processing are not implemented.
-- Tests and CI/CD are not set up.
+Change these outside local development.
 
-## 19. License
-Not specified.
+## Deployment
 
-## 20. User Guide
-1. **Overview**: Review the active cycle, pending approvals, and recent runs.
-2. **Billing Cycles**: Create a cycle with usage/billing months.
-3. **Script Generation**: Generate test scripts first; live scripts require finance approval.
-4. **Runs Tracking**: Select a cycle and mark scripts as planned, executed, or failed to keep audit history.
-5. **Approvals**: Billing requests approvals after runs are executed; finance reviews pending requests.
-6. **Notifications**: After post-live approval, queue notifications for distribution.
-7. **Audit Log**: Review all actions recorded by user or system.
+The repository indicates a current production-style deployment on a Linux VM.
+
+### Runtime locations from repo config
+
+- app root: `/opt/billing`
+- backend working directory: `/opt/billing/backend`
+- backend env file: `/opt/billing/backend/.env`
+- frontend env file: `/opt/billing/frontend/.env.production`
+- frontend build output: `/opt/billing/frontend/dist`
+- systemd unit name: `billing-api`
+
+### Runtime process
+
+The backend is configured to run as:
+
+```text
+/opt/billing/backend/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8010
+```
+
+### CI/CD
+
+GitHub Actions does the following:
+
+- runs backend dependency installation and a Python smoke check
+- installs frontend dependencies and builds the production bundle
+- deploys on a self-hosted runner labeled `billing`
+- keeps the checked-out repo at `/opt/billing`
+- rewrites env files from GitHub secrets
+- restarts `billing-api`
+
+### Reverse proxy expectation
+
+The docs and workflow imply an Nginx reverse proxy in front of the app, with paths similar to:
+
+- UI: `/billing/`
+- API: `/billing-api/`
+
+## Current Known Gaps
+
+- no automated backend or frontend test suite yet
+- no migration framework yet
+- audit logging is partial, not exhaustive
+- notification generation stores backend command text rather than executing or delivering notifications
+- frontend logic is concentrated in one large file and could be decomposed later
+
+## Documentation
+
+- high-level implementation summary: `project.md`
+- architecture notes: `architecture/blueprint.md`
+- deployment notes: `docs/github-deployment-guide.md`
+- billing process references: `docs/platform/`

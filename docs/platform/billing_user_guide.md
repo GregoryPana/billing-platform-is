@@ -238,14 +238,15 @@ This guide explains the complete billing process from start to finish. It shows 
 
 ---
 
-## Step 12: Confirm Completion and Review Audit Log 📋
+## Step 12: Confirm Completion and Review History 📋
 
-**Where:** Go to **Audit Log** 📝 in the sidebar.
+**Where:**
+- Billing users: review the latest status in **Approvals**, **Notifications**, and **Runs Tracking**
+- Admin users: you can also review **Audit Log** 📝 in the sidebar
 
 **What to do:**
-- Review the audit log entries for the cycle
-- Check the Result column to see if actions were success, executed, approved, or failed
-- Confirm that approvals, script generation, and notification commands are all recorded
+- Confirm that approvals, script generation, runs, and notification commands are all present
+- If you are an admin, review the audit log entries for the cycle and check the Result column
 
 **What should happen next:**
 - The billing run is complete for this cycle

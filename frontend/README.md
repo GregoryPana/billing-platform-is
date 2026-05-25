@@ -1,16 +1,57 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This frontend is a React + Vite single-page application for the Billing Collaboration Platform.
 
-Currently, two official plugins are available:
+## Purpose
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The UI supports:
 
-## React Compiler
+- authentication and signup request submission
+- role-based navigation
+- billing cycle creation
+- script generation and export
+- run tracking
+- finance approval workflows
+- request settings management
+- notification command generation
+- embedded operational documentation
+- admin user and signup-request management
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Main Source Files
 
-## Expanding the ESLint configuration
+- `src/main.jsx`: app bootstrap
+- `src/App.jsx`: main application UI and state management
+- `src/api.js`: API base URL and authenticated fetch helpers
+- `src/App.css`: component-level styles
+- `src/index.css`: base tokens and global styles
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Current Architecture Notes
+
+- the app does not use a router; screen switching is local state-driven
+- most application logic is concentrated in `src/App.jsx`
+- the frontend polls backend data every 30 seconds after login
+- markdown docs from `docs/platform/` are rendered directly in the UI
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+```
+
+## Environment Variables
+
+- `VITE_API_URL`: backend API base URL
+- `VITE_APPROVAL_WEBHOOK_URL`: optional frontend-side approval link setting
+
+If `VITE_API_URL` is not set, the code currently defaults to:
+
+```text
+http://localhost:8001/api
+```

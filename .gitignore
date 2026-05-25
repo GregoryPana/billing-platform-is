@@ -13,3 +13,4 @@ frontend/dist/
 .tmp/
 *.pyc
 *.log
+session-*.md

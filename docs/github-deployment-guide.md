@@ -140,19 +140,21 @@ Example secrets:
 Avoid committing `.env` files. Use `.env.example` for documentation.
 
 ### Billing Platform secrets (this repo)
-These names are used by `.github/workflows/ci.yml` and will overwrite `/opt/billing/backend/.env` on each deploy.
+These names are used by `.github/workflows/ci.yml` and overwrite `/opt/billing/backend/.env` and `/opt/billing/frontend/.env.production` on each deploy.
 
 Backend:
 - `BILLING_DATABASE_URL`
 - `BILLING_N8N_WEBHOOK_URL` (approval request from billing)
 - `BILLING_N8N_APPROVAL_WEBHOOK_URL` (finance approval decision)
 - `BILLING_N8N_SIGNUP_WEBHOOK_URL` (signup request notification)
+- `BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL` (signup approval notification)
 - `BILLING_N8N_WEBHOOK_VERIFY` (`true`/`false` for TLS verification)
 - `BILLING_JWT_SECRET`
 - `BILLING_JWT_EXP_MINUTES` (optional)
 
 Frontend:
 - `BILLING_API_URL` (e.g. `https://n8n-lan.cwsey.com/billing-api`)
+- `BILLING_APPROVAL_WEBHOOK_URL` (written to `VITE_APPROVAL_WEBHOOK_URL`)
 
 ## 7) Docker services (Postgres, etc.)
 
@@ -185,7 +187,10 @@ Find the active server block:
 ```bash
 sudo nginx -T | grep -n "server_name"
 ```
-Add new locations **before** a catch-all `location / {}`:
+Add new locations **before** a catch-all `location / {}`.
+For this repo, the current VM setup preserves a public `/billing-api/` prefix and rewrites it to backend `/api/`.
+
+Example:
 ```
 location /<app>-api/ { proxy_pass http://localhost:8010/api/; }
 location /<app>/ { alias /opt/<app>/frontend/dist/; try_files $uri $uri/ /<app>/index.html; }
@@ -255,7 +260,8 @@ git push
 
 - `docker compose ps` shows required containers running
 - `systemctl status <app>-api` is active
-- API reachable: `curl http://localhost:8010/api/health`
+- API health reachable: `curl http://localhost:8010/health`
+- API routes reachable behind the proxy at `/<app>-api/...`
 - UI reachable in browser via Nginx
 
 ---

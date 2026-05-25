@@ -16,6 +16,8 @@ Finance actions happen at two required stages:
 1. **Move to live** (after test runs are complete).
 2. **Move to notifications** (after live run and printing are complete).
 
+The data model also supports a `live` approval stage, and finance can still record it manually from the approval form if the team wants that extra checkpoint. It is not the main billing-side request flow used by the current UI.
+
 ## Step 1: Review Move to Live Request ✅
 
 **Where:** Go to **Approvals**.
@@ -46,7 +48,7 @@ Finance actions happen at two required stages:
 
 **What should happen next:**
 
-- If approved, billing can generate notification commands.
+- If approved, billing can generate and run notification commands.
 - If rejected, billing resolves issues and resubmits.
 
 ## Quick Decision Checklist
