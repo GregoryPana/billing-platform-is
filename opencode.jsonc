@@ -1,0 +1,38 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "codegraph": {
+      "type": "local",
+      "command": [
+        "codegraph",
+        "serve",
+        "--mcp"
+      ],
+      "enabled": true
+    }
+  },
+  "skills": {
+    "paths": [
+      "./skills",
+      "./.opencode/skills"
+    ]
+  },
+  "command": {
+    "project-change": {
+      "description": "Run a governed Billing Collaboration Platform change and end with a Hermes Update Pack.",
+      "template": "Use the CWS Billing Platform change skill and the Hermes Update Pack skill. Work only within the Billing Collaboration Platform repo. Use CodeGraph first when available. Preserve secrets and existing dirty work. After any meaningful investigation or change, append a compact entry (3-8 lines) to .opencode/hermes-pending-updates.md per the hermes-update-pack skill, then ask Gregory in one line whether to generate the consolidated Hermes Update Pack now. Only produce the full pack when Gregory says yes or runs /hermes-handoff; skip the queue only for production deployment, auth/schema, destructive or security events."
+    },
+    "hermes-handoff": {
+      "description": "Produce the mandatory Hermes Update Pack for this project session.",
+      "template": "Use the hermes-update-pack skill. Read all unflushed entries in .opencode/hermes-pending-updates.md plus current repo state and produce ONE consolidated Hermes Update Pack covering everything since the last flush, then move flushed entries under a '## Flushed <date>' heading. Use the canonical project name 'Billing Collaboration Platform'. Do not include secrets. Be explicit about branch, latest commit and whether it is pushed to origin, changed files, pre-existing dirty files, commands/tests, deployment impact, auth/security/data impact, documentation impact, decisions, risks, and suggested Hermes knowledge graph updates."
+    }
+  },
+  "agent": {
+    "build": {
+      "prompt": "Use the CWS Billing Platform change skill and the Hermes Update Pack skill. Work only within the Billing Collaboration Platform repo. Use CodeGraph first when available. Preserve secrets and existing dirty work. After any meaningful investigation or change, append a compact entry (3-8 lines) to .opencode/hermes-pending-updates.md per the hermes-update-pack skill, then ask Gregory in one line whether to generate the consolidated Hermes Update Pack now. Only produce the full pack when Gregory says yes or runs /hermes-handoff; skip the queue only for production deployment, auth/schema, destructive or security events."
+    },
+    "plan": {
+      "prompt": "When planning Billing Collaboration Platform work, state whether the task requires a Hermes Update Pack and identify likely knowledge-graph impacts. Preserve secrets and controlled operational areas."
+    }
+  }
+}
