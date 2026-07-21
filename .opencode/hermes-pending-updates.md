@@ -1,6 +1,26 @@
 # Hermes Pending Updates
 
-## Flushed 2026-07-21
+## Flushed 2026-07-21 (second flush, 11:50 — Tasks 3, 4, 5)
+
+## 2026-07-21 11:19 — Task 3 of Revenue Protection Issue Control plan (authorization + issue API lifecycle)
+- branch/commit: feature/entra-id-auth @ d9d8d90 (pushed to origin: no)
+- files: backend/app/api/routes/issues.py (new), backend/app/api/router.py (modified — registered issues router), backend/app/schemas/issues.py (modified — added BillingIssueCommentCreate, BillingIssueEditRequest), backend/tests/test_billing_issue_routes.py (new, 15 tests), backend/tests/test_billing_issue_permissions.py (new, 14 tests)
+- verification: 29 new tests + full suite 43/43 passed against disposable docker-compose Postgres (torn down after); alembic heads/current unchanged at d6843df39f2f (no new migration needed); backend py_compile clean
+- flags: auth/security/data impact (new authorization surface: Billing-reads/Finance-writes permission matrix enforced per docs/plans/2026-07-21-revenue-protection-issue-control.md Task 3) | decision made (reopen gated on an existing approved stage="test" `approvals` row rather than a separate flag; post_live_observation never reopenable, matching design's MVP scope) | no new risk beyond the existing pre-merge production alembic-stamp requirement
+
+## 2026-07-21 11:33 — Task 4 of Revenue Protection Issue Control plan (server-side Move-to-Live gate)
+- branch/commit: feature/entra-id-auth @ 1d153e2 (pushed to origin: no)
+- files: backend/app/services/issue_control_service.py (new), backend/app/api/routes/approvals.py (modified — gate call inserted before the approval-webhook branch)
+- verification: 9 new tests + full suite 52/52 passed against disposable docker-compose Postgres (torn down after); alembic heads/current unchanged at d6843df39f2f; backend py_compile clean. Confirmed no test ever exercises the real n8n webhook configured in backend/.env.local — blocked-path tests use finance_user but fail before the webhook branch runs, allowed-path tests use system_admin which skips that branch entirely.
+- flags: auth/security/data impact (approval authorization logic changed: stage="test" + status="approved" now server-rejected while any finance_test_review issue is open, for every role) | decision made (gate applies to all roles, not just finance_user, per the "frontend-only hiding cannot bypass" acceptance criterion) | no new risk beyond the existing pre-merge production alembic-stamp requirement
+
+## 2026-07-21 11:46 — Task 5 of Revenue Protection Issue Control plan (Finance review + Billing visibility UI)
+- branch/commit: feature/entra-id-auth @ f53cd66 (pushed to origin: no)
+- files: frontend/src/features/issues/{issue-api.js, issue-status.js, FinanceIssuePanel.jsx, IssueFormDialog.jsx, IssueActivityDialog.jsx} (new), frontend/src/components/ui/dialog.jsx (new), frontend/src/features/cycles/ApprovalStage.jsx (modified)
+- verification: npm run lint + npm run build both clean; curl-based end-to-end check against a disposable docker-compose Postgres confirmed create/read/403/approval-gate all work through the new UI's exact API calls; dev servers booted cleanly. **Could not perform rendered-browser/console/responsive verification** (no chromium-cli/Playwright in this environment; port 5173 was already held by Gregory's own dev server, left untouched) — this is a real gap against the Frontend Design Quality Gate, flagged in the plan file
+- flags: deployment-needed (frontend bundle changed) | decision made (built a local non-Radix Dialog primitive matching existing confirm-dialog.jsx convention rather than adding @radix-ui/react-dialog; issue data scoped to FinanceIssuePanel rather than AppDataContext) | new risk: **visual/responsive/console UI verification is outstanding** — recommend a manual browser pass (or approved Playwright install) before treating Task 5 as fully complete
+
+Consolidated into a Hermes Update Pack on 2026-07-21 11:50 (3 entries above). Session handed off to a new session; see handover prompt for full context.
 
 ## 2026-07-21 05:15 — Finance cycle-review issue control planning package
 - branch/commit: feature/entra-id-auth @ 3fa2156 (pushed to origin: no new commit)
@@ -42,28 +62,4 @@ Two items outstanding for Gregory (exact commands already given to him): (1) run
 
 Note: DB-level CHECK constraints now enforce completion-requires-outcome/actor/time and raised_in_error-requires-comment directly at the schema layer (belt-and-suspenders ahead of Task 3's API-layer enforcement). The "Other classification requires detail" rule needs a DB lookup of the classification name and is deferred to Task 3 (route/service layer), where classification_id can actually be resolved. Next: Task 3 (authorization + issue API lifecycle) — the first task exposing new endpoints.
 
-Consolidated into a Hermes Update Pack on 2026-07-21 10:30 (7 entries above).
-
-## 2026-07-21 11:19 — Task 3 of Revenue Protection Issue Control plan (authorization + issue API lifecycle)
-- branch/commit: feature/entra-id-auth @ d9d8d90 (pushed to origin: no)
-- files: backend/app/api/routes/issues.py (new), backend/app/api/router.py (modified — registered issues router), backend/app/schemas/issues.py (modified — added BillingIssueCommentCreate, BillingIssueEditRequest), backend/tests/test_billing_issue_routes.py (new, 15 tests), backend/tests/test_billing_issue_permissions.py (new, 14 tests)
-- verification: 29 new tests + full suite 43/43 passed against disposable docker-compose Postgres (torn down after); alembic heads/current unchanged at d6843df39f2f (no new migration needed); backend py_compile clean
-- flags: auth/security/data impact (new authorization surface: Billing-reads/Finance-writes permission matrix enforced per docs/plans/2026-07-21-revenue-protection-issue-control.md Task 3) | decision made (reopen gated on an existing approved stage="test" `approvals` row rather than a separate flag; post_live_observation never reopenable, matching design's MVP scope) | no new risk beyond the existing pre-merge production alembic-stamp requirement
-
-Next: Task 4 (server-side Move-to-Live gate in approvals.py + issue_control_service.py) — awaiting Gregory's go-ahead before continuing past Task 3.
-
-## 2026-07-21 11:33 — Task 4 of Revenue Protection Issue Control plan (server-side Move-to-Live gate)
-- branch/commit: feature/entra-id-auth @ 1d153e2 (pushed to origin: no)
-- files: backend/app/services/issue_control_service.py (new), backend/app/api/routes/approvals.py (modified — gate call inserted before the approval-webhook branch)
-- verification: 9 new tests + full suite 52/52 passed against disposable docker-compose Postgres (torn down after); alembic heads/current unchanged at d6843df39f2f; backend py_compile clean. Confirmed no test ever exercises the real n8n webhook configured in backend/.env.local — blocked-path tests use finance_user but fail before the webhook branch runs, allowed-path tests use system_admin which skips that branch entirely.
-- flags: auth/security/data impact (approval authorization logic changed: stage="test" + status="approved" now server-rejected while any finance_test_review issue is open, for every role) | decision made (gate applies to all roles, not just finance_user, per the "frontend-only hiding cannot bypass" acceptance criterion) | no new risk beyond the existing pre-merge production alembic-stamp requirement
-
-Next: Task 5 (Finance review + Billing visibility UI) — first frontend task in this plan; awaiting Gregory's go-ahead before continuing past Task 4.
-
-## 2026-07-21 11:46 — Task 5 of Revenue Protection Issue Control plan (Finance review + Billing visibility UI)
-- branch/commit: feature/entra-id-auth @ f53cd66 (pushed to origin: no)
-- files: frontend/src/features/issues/{issue-api.js, issue-status.js, FinanceIssuePanel.jsx, IssueFormDialog.jsx, IssueActivityDialog.jsx} (new), frontend/src/components/ui/dialog.jsx (new), frontend/src/features/cycles/ApprovalStage.jsx (modified)
-- verification: npm run lint + npm run build both clean; curl-based end-to-end check against a disposable docker-compose Postgres confirmed create/read/403/approval-gate all work through the new UI's exact API calls; dev servers booted cleanly. **Could not perform rendered-browser/console/responsive verification** (no chromium-cli/Playwright in this environment; port 5173 was already held by Gregory's own dev server, left untouched) — this is a real gap against the Frontend Design Quality Gate, flagged in the plan file
-- flags: deployment-needed (frontend bundle changed) | decision made (built a local non-Radix Dialog primitive matching existing confirm-dialog.jsx convention rather than adding @radix-ui/react-dialog; issue data scoped to FinanceIssuePanel rather than AppDataContext) | new risk: **visual/responsive/console UI verification is outstanding** — recommend a manual browser pass (or approved Playwright install) before treating Task 5 as fully complete
-
-Next: Task 6 (Billing run-level execution issue capture) — awaiting Gregory's go-ahead, and ideally a manual browser check of Task 5 first.
+Consolidated into a Hermes Update Pack on 2026-07-21 10:30 (7 entries above). Tasks 3, 4, and 5 (originally logged here) were consolidated into a second Hermes Update Pack on 2026-07-21 11:50 and moved under the "Flushed" heading at the top of this file.
