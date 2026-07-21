@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { api_base_url, api_fetch, get_auth_token } from "../../api"
 import { show_toast, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
+import { Badge } from "../../components/ui/badge"
+import { Button } from "../../components/ui/button"
 import { build_default_parameters, cycle_types } from "../../lib/format"
+import { ExecutionIssueDialog } from "../issues/ExecutionIssueDialog"
+import { IssueActivityDialog } from "../issues/IssueActivityDialog"
+import { list_finance_issues, list_issue_classifications } from "../issues/issue-api"
 
 /* One stage = script generation + run tracking for a single cycle+environment.
    The cycle and environment are fixed by the workspace; no re-selection. */
@@ -20,7 +25,42 @@ export function ScriptsRunsStage({ cycle, environment, blocked, blocked_reason }
   const [generating, set_generating] = useState(false)
   const [last_generated_count, set_last_generated_count] = useState(null)
 
+  const [execution_issues, set_execution_issues] = useState([])
+  const [execution_classifications_by_id, set_execution_classifications_by_id] = useState(new Map())
+  const [issue_dialog_run, set_issue_dialog_run] = useState(null)
+  const [active_execution_issue, set_active_execution_issue] = useState(null)
+
   const cycle_month = cycle?.billing_month || cycle?.usage_month || ""
+
+  const reload_execution_issues = useCallback(async () => {
+    try {
+      const data = await list_finance_issues(cycle.id, "execution_issue")
+      set_execution_issues(data)
+    } catch {
+      // Non-critical: the run table already conveys readiness via run status.
+    }
+  }, [cycle.id])
+
+  useEffect(() => {
+    reload_execution_issues()
+  }, [reload_execution_issues])
+
+  useEffect(() => {
+    list_issue_classifications("execution_issue")
+      .then((data) => set_execution_classifications_by_id(new Map(data.map((item) => [item.id, item.name]))))
+      .catch(() => {})
+  }, [])
+
+  const execution_issues_by_run_id = useMemo(() => {
+    const map = new Map()
+    for (const issue of execution_issues) {
+      if (!issue.related_script_run_id) continue
+      const list = map.get(issue.related_script_run_id) || []
+      list.push(issue)
+      map.set(issue.related_script_run_id, list)
+    }
+    return map
+  }, [execution_issues])
 
   useEffect(() => {
     if (use_default_params) {
@@ -217,12 +257,13 @@ export function ScriptsRunsStage({ cycle, environment, blocked, blocked_reason }
         <h3>Run Tracking</h3>
         <p>Mark each script executed or failed as it completes on the billing host.</p>
       </div>
-      <div className="table">
-        <div className="table-row table-head runs">
+      <div className="data-table">
+        <div className="data-row table-head runs">
           <span>Cycle Type</span>
           <span>Script</span>
           <span>Status</span>
           <span>Executed</span>
+          <span>Execution Issues</span>
         </div>
         {stage_scripts.length === 0 ? (
           <div className="empty-state">
@@ -232,8 +273,9 @@ export function ScriptsRunsStage({ cycle, environment, blocked, blocked_reason }
           stage_scripts.map((script) => {
             const run = runs_by_script_id.get(String(script.id))
             const current_status = run?.status || "planned"
+            const run_issues = run ? execution_issues_by_run_id.get(String(run.id)) || [] : []
             return (
-              <div className="table-row runs" key={script.id}>
+              <div className="data-row runs" key={script.id}>
                 <span>{script.log_type}</span>
                 <span className="capitalize">{script.script_type}</span>
                 <select
@@ -248,11 +290,53 @@ export function ScriptsRunsStage({ cycle, environment, blocked, blocked_reason }
                   <option value="failed">Failed</option>
                 </select>
                 <span>{run?.run_timestamp ? new Date(run.run_timestamp).toLocaleString() : "-"}</span>
+                <span className="stacked-cell">
+                  {run_issues.length > 0 && (
+                    <button
+                      type="button"
+                      className="bg-transparent p-0 text-left"
+                      onClick={() => set_active_execution_issue(run_issues[0])}
+                      aria-label={`View ${run_issues.length} logged execution issue(s) for ${script.log_type} ${script.script_type}`}
+                    >
+                      <Badge variant="warning">{run_issues.length} logged</Badge>
+                    </button>
+                  )}
+                  {can_operate && run && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => set_issue_dialog_run(run)}
+                    >
+                      Log Execution Issue
+                    </Button>
+                  )}
+                </span>
               </div>
             )
           })
         )}
       </div>
+
+      <ExecutionIssueDialog
+        open={Boolean(issue_dialog_run)}
+        onOpenChange={(value) => !value && set_issue_dialog_run(null)}
+        cycle_id={cycle.id}
+        run_id={issue_dialog_run?.id}
+        run_label={`this ${environment} run`}
+        on_created={reload_execution_issues}
+      />
+      <IssueActivityDialog
+        open={Boolean(active_execution_issue)}
+        onOpenChange={(value) => !value && set_active_execution_issue(null)}
+        issue={active_execution_issue}
+        classification_name={
+          active_execution_issue ? execution_classifications_by_id.get(active_execution_issue.classification_id) : undefined
+        }
+        can_manage={false}
+        test_approved={false}
+        on_changed={reload_execution_issues}
+      />
 
       {stage_scripts.length > 0 && (
         <>
