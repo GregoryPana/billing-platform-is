@@ -113,8 +113,8 @@ export function NotificationsStage({ cycle, blocked }) {
         <h3>Notification History</h3>
         <p>Commands generated for this cycle.</p>
       </div>
-      <div className="table">
-        <div className="table-row table-head">
+      <div className="data-table">
+        <div className="data-row table-head">
           <span>Command</span>
           <span>Status</span>
           <span>Created</span>
@@ -124,7 +124,7 @@ export function NotificationsStage({ cycle, blocked }) {
           <div className="empty-state">No notification commands generated for this cycle yet.</div>
         ) : (
           cycle_notifications.map((notification) => (
-            <div className="table-row" key={notification.id}>
+            <div className="data-row" key={notification.id}>
               <span>
                 <pre className="command-block mono">{notification.message}</pre>
               </span>

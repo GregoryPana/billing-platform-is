@@ -168,22 +168,26 @@
     @apply grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)];
   }
 
-  .table {
+  /* Named data-table, not table: Tailwind's own `table` utility (display:table)
+     shares the class name and wins the cascade from the later utilities layer,
+     collapsing this to shrink-to-fit table sizing instead of the intended grid rows. */
+  .data-table {
     @apply overflow-hidden rounded-md border border-border bg-card;
   }
-  .table-row {
+  .data-row {
     @apply grid grid-cols-[1.5fr_1fr_1fr_1fr] items-center gap-x-4 border-b border-border px-4 py-4 text-sm transition-colors last:border-b-0;
   }
-  .table-row:not(.table-head):hover {
+  .data-row:not(.table-head):hover {
     @apply bg-muted/50;
   }
   .table-head {
     @apply bg-muted/50 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground;
   }
-  .table-row.runs {
+  .data-row.runs {
     @apply gap-x-3;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr 1.4fr;
   }
-  .table-row.admin {
+  .data-row.admin {
     grid-template-columns: 1fr 1fr 1.4fr 0.9fr 1fr 1.2fr;
   }
 
@@ -458,14 +462,14 @@
   .parameter-grid {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
-  .table-row {
+  .data-row {
     grid-template-columns: 1.2fr 1fr 1fr 1fr;
     column-gap: 10px;
     padding-left: 10px;
     padding-right: 10px;
     font-size: 13px;
   }
-  .table-row.admin {
+  .data-row.admin {
     grid-template-columns: 1fr 1fr 1.2fr;
   }
 }

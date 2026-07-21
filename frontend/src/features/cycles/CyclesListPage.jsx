@@ -82,8 +82,8 @@ export function CyclesListPage() {
             <p>Open a cycle to work it through scripts, runs, approvals, and notifications.</p>
           </div>
         </div>
-        <div className="table">
-          <div className="table-row table-head">
+        <div className="data-table">
+          <div className="data-row table-head">
             <span>Usage → Billing</span>
             <span>Phase</span>
             <span>Progress</span>
@@ -98,7 +98,7 @@ export function CyclesListPage() {
               const model = compute_cycle_steps(cycle, scripts, runs, approvals)
               return (
                 <div
-                  className="table-row cursor-pointer"
+                  className="data-row cursor-pointer"
                   key={cycle.id}
                   role="link"
                   tabIndex={0}

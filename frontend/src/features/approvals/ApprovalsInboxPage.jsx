@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { Inbox } from "lucide-react"
 
 import { api_fetch } from "../../api"
@@ -11,6 +11,7 @@ import { cycle_month_pair, format_stage_label } from "../../lib/format"
 /* Finance-facing decision queue. Deep-linkable per request via /approvals/:id. */
 export function ApprovalsInboxPage() {
   const { approval_id } = useParams()
+  const navigate = useNavigate()
   const { approvals, pending_approvals, cycles_by_id, reload_all, set_error_message } = useAppData()
 
   const [expanded_id, set_expanded_id] = useState(approval_id || null)
@@ -68,8 +69,8 @@ export function ApprovalsInboxPage() {
             No pending approvals. New requests from billing will appear here.
           </div>
         ) : (
-          <div className="table">
-            <div className="table-row table-head">
+          <div className="data-table">
+            <div className="data-row table-head">
               <span>Cycle</span>
               <span>Stage</span>
               <span>Requested</span>
@@ -82,7 +83,7 @@ export function ApprovalsInboxPage() {
               return (
                 <div key={approval.id} className="flex flex-col">
                   <div
-                    className="table-row cursor-pointer"
+                    className="data-row cursor-pointer"
                     onClick={() => set_expanded_id(is_expanded ? null : approval.id)}
                   >
                     <span>{cycle_month_pair(cycle)}</span>
@@ -105,6 +106,17 @@ export function ApprovalsInboxPage() {
                     <div className="detail-card">
                       <strong>Message from billing</strong>
                       <p>{approval.comments || "No comments provided."}</p>
+                      {approval.stage === "test" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          onClick={() => navigate(`/cycles/${approval.billing_cycle_id}`)}
+                        >
+                          Review Finance Issues in Cycle Workspace
+                        </Button>
+                      )}
                       <form
                         className="mt-4 grid gap-3"
                         onSubmit={(event) => {
@@ -154,8 +166,8 @@ export function ApprovalsInboxPage() {
             <p>Completed approvals across all billing cycles.</p>
           </div>
         </div>
-        <div className="table">
-          <div className="table-row table-head">
+        <div className="data-table">
+          <div className="data-row table-head">
             <span>Cycle</span>
             <span>Stage</span>
             <span>Status</span>
@@ -170,7 +182,7 @@ export function ApprovalsInboxPage() {
               return (
                 <div key={approval.id} className="flex flex-col">
                   <div
-                    className="table-row cursor-pointer"
+                    className="data-row cursor-pointer"
                     onClick={() => set_expanded_id(is_expanded ? null : approval.id)}
                   >
                     <span>{cycle_month_pair(cycle)}</span>

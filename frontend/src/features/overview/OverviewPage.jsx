@@ -142,8 +142,8 @@ export function OverviewPage() {
                 <p>Latest execution status updates across all cycles.</p>
               </div>
             </div>
-            <div className="table">
-              <div className="table-row table-head">
+            <div className="data-table">
+              <div className="data-row table-head">
                 <span>Cycle</span>
                 <span>Cycle Type</span>
                 <span>Script</span>
@@ -157,7 +157,7 @@ export function OverviewPage() {
                   const script = scripts_by_id.get(String(run.script_definition_id))
                   const cycle = script ? cycles_by_id.get(String(script.billing_cycle_id)) : null
                   return (
-                    <div className="table-row" key={run.id}>
+                    <div className="data-row" key={run.id}>
                       <span>{cycle ? cycle_month_pair(cycle) : "-"}</span>
                       <span>{script?.log_type || "-"}</span>
                       <span className="capitalize">{script?.script_type || "-"}</span>
@@ -193,8 +193,8 @@ export function OverviewPage() {
               </Button>
             ) : null}
           </div>
-          <div className="table">
-            <div className="table-row table-head">
+          <div className="data-table">
+            <div className="data-row table-head">
               <span>Cycle</span>
               <span>Stage</span>
               <span>Status</span>
@@ -208,7 +208,7 @@ export function OverviewPage() {
               (is_finance ? pending_approvals : approvals.slice(0, 6)).map((approval) => {
                 const cycle = cycles_by_id.get(String(approval.billing_cycle_id))
                 return (
-                  <div className="table-row" key={approval.id}>
+                  <div className="data-row" key={approval.id}>
                     <span>{cycle_month_pair(cycle)}</span>
                     <span>{format_stage_label(approval.stage)}</span>
                     <span>

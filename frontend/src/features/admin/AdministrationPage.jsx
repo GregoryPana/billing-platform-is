@@ -291,8 +291,8 @@ function UsersTab() {
             <p>Edit user details, roles, and status.</p>
           </div>
         </div>
-        <div className="table">
-          <div className="table-row table-head admin">
+        <div className="data-table">
+          <div className="data-row table-head admin">
             <span>Name</span>
             <span>Username</span>
             <span>Email</span>
@@ -301,7 +301,7 @@ function UsersTab() {
             <span>Action</span>
           </div>
           {users.map((user) => (
-            <div className="table-row admin" key={user.id}>
+            <div className="data-row admin" key={user.id}>
               <span>{user.name}</span>
               <span>{user.username}</span>
               <span>{user.email}</span>
@@ -420,8 +420,8 @@ function AccessRequestsTab() {
           <p>Approve or reject pending signup requests, assigning a role on approval.</p>
         </div>
       </div>
-      <div className="table">
-        <div className="table-row table-head admin">
+      <div className="data-table">
+        <div className="data-row table-head admin">
           <span>Name</span>
           <span>Username</span>
           <span>Email</span>
@@ -433,7 +433,7 @@ function AccessRequestsTab() {
           <div className="empty-state">No signup requests pending. New requests appear here for review.</div>
         ) : (
           pending.map((request) => (
-            <div className="table-row admin" key={request.id}>
+            <div className="data-row admin" key={request.id}>
               <span>{request.name}</span>
               <span>{request.username}</span>
               <span>{request.email}</span>
@@ -466,8 +466,8 @@ function AccessRequestsTab() {
 
       <details className="panel-details">
         <summary>Processed requests ({handled.length})</summary>
-        <div className="table">
-          <div className="table-row table-head admin">
+        <div className="data-table">
+          <div className="data-row table-head admin">
             <span>Name</span>
             <span>Username</span>
             <span>Email</span>
@@ -479,7 +479,7 @@ function AccessRequestsTab() {
             <div className="empty-state">No processed signup requests.</div>
           ) : (
             handled.map((request) => (
-              <div className="table-row admin" key={request.id}>
+              <div className="data-row admin" key={request.id}>
                 <span>{request.name}</span>
                 <span>{request.username}</span>
                 <span>{request.email}</span>
@@ -508,8 +508,8 @@ function AuditTab() {
           <p>Every action recorded for traceability.</p>
         </div>
       </div>
-      <div className="table">
-        <div className="table-row table-head">
+      <div className="data-table">
+        <div className="data-row table-head">
           <span>Action</span>
           <span>Entity</span>
           <span>Result</span>
@@ -522,7 +522,7 @@ function AuditTab() {
             const metadata = safe_parse_metadata(entry.metadata_json || entry.metadata)
             const result = format_audit_result(entry, metadata)
             return (
-              <div className="table-row" key={entry.id}>
+              <div className="data-row" key={entry.id}>
                 <span className="audit-action">{format_audit_action_label(entry.action, entry.actor_type)}</span>
                 <span>{entry.entity_type || metadata.entity_type || "-"}</span>
                 <span>

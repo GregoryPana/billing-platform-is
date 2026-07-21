@@ -106,8 +106,8 @@ export function FinanceIssuePanel({ cycle, test_approved, on_open_count_change }
           {can_manage ? " Approval can proceed once test runs are ready." : ""}
         </div>
       ) : (
-        <div className="table mb-2">
-          <div className="table-row table-head">
+        <div className="data-table mb-2">
+          <div className="data-row table-head">
             <span>Title</span>
             <span>Classification</span>
             <span>Status</span>
@@ -119,7 +119,7 @@ export function FinanceIssuePanel({ cycle, test_approved, on_open_count_change }
               <button
                 key={issue.id}
                 type="button"
-                className="table-row w-full cursor-pointer bg-transparent text-left"
+                className="data-row w-full cursor-pointer bg-transparent text-left"
                 onClick={() => set_active_issue(issue)}
               >
                 <span className="stacked-cell font-medium text-foreground">{issue.title}</span>

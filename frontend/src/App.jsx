@@ -96,7 +96,7 @@ function App() {
             <Route
               path="/cycles"
               element={
-                <RequireRole role={role} allowed={["billing_user", "system_admin"]}>
+                <RequireRole role={role} allowed={["billing_user", "finance_user", "system_admin"]}>
                   <CyclesListPage />
                 </RequireRole>
               }
@@ -104,7 +104,7 @@ function App() {
             <Route
               path="/cycles/:cycle_id"
               element={
-                <RequireRole role={role} allowed={["billing_user", "system_admin"]}>
+                <RequireRole role={role} allowed={["billing_user", "finance_user", "system_admin"]}>
                   <CycleWorkspacePage />
                 </RequireRole>
               }
