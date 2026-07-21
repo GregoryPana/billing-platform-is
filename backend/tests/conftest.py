@@ -18,7 +18,10 @@ os.environ["DATABASE_URL"] = os.environ.get(
 os.environ.setdefault("JWT_SECRET", "test-secret")
 os.environ.setdefault("N8N_WEBHOOK_VERIFY", "false")
 
-from app.db.session import engine  # noqa: E402
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
+
+from app.db.session import engine, SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402
 
 SEEDED_USERS = {
@@ -28,19 +31,46 @@ SEEDED_USERS = {
 }
 
 
-@pytest.fixture()
-def client():
-    """A TestClient against a wiped-and-reseeded disposable test database.
+def _alembic_config() -> Config:
+    cfg = Config(str(BACKEND_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
+    return cfg
 
-    Runs the app's real startup path (init_db: create_all + seed) so tests
-    exercise the same boot behaviour as local/production, against a database
-    that only this test suite should ever point at.
-    """
+
+def _reset_database() -> None:
+    """Wipe and re-migrate a disposable test database via the real Alembic
+    migration path (not Base.metadata.create_all()), so tests exercise the
+    same schema and data-seed steps as a real deploy."""
     with engine.begin() as connection:
         connection.execute(text("DROP SCHEMA public CASCADE"))
         connection.execute(text("CREATE SCHEMA public"))
+    command.upgrade(_alembic_config(), "head")
+
+
+@pytest.fixture()
+def client():
+    """A TestClient against a freshly migrated disposable test database.
+
+    App startup still runs init_db() (create_all is then a no-op since
+    Alembic already created the tables; user seeding still runs), so tests
+    also exercise the same boot behaviour as local/production.
+    """
+    _reset_database()
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture()
+def db_session():
+    """A raw session against the same freshly migrated disposable database,
+    for tests that assert directly on model/constraint behaviour without
+    needing the HTTP app (e.g. model-layer CHECK constraint tests)."""
+    _reset_database()
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture()
