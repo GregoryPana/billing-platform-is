@@ -75,6 +75,15 @@ def _apply_schema_updates() -> None:
                 text("UPDATE signup_requests SET name = username WHERE name IS NULL OR name = ''")
             )
 
+    _deactivate_retired_viewer_role()
+
+
+def _deactivate_retired_viewer_role() -> None:
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE users SET is_active = false WHERE role = 'viewer' AND is_active = true")
+        )
+
 
 def _seed_default_users() -> None:
     db = SessionLocal()
@@ -115,17 +124,6 @@ def _seed_default_users() -> None:
                 role="admin",
                 is_active=True,
                 password_hash=hash_password("AdminChange2026!"),
-                created_at=now,
-                updated_at=now,
-            ),
-            models.User(
-                id=uuid.UUID("00000000-0000-0000-0000-000000000004"),
-                name="Viewer User",
-                username="viewer",
-                email="viewer@example.com",
-                role="viewer",
-                is_active=True,
-                password_hash=hash_password("ChangeMe123!"),
                 created_at=now,
                 updated_at=now,
             ),

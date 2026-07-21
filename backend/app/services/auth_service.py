@@ -20,15 +20,13 @@ LEGACY_TO_EFFECTIVE_ROLE = {
     "billing_user": "billing_user",
     "finance": "finance_user",
     "finance_user": "finance_user",
-    "viewer": "viewer",
 }
 EFFECTIVE_TO_STORED_ROLE = {
     "system_admin": "admin",
     "billing_user": "billing",
     "finance_user": "finance",
-    "viewer": "viewer",
 }
-LOCAL_ASSIGNABLE_ROLES = {"admin", "billing", "finance", "viewer", "system_admin", "billing_user", "finance_user"}
+LOCAL_ASSIGNABLE_ROLES = {"admin", "billing", "finance", "system_admin", "billing_user", "finance_user"}
 
 
 class CurrentActor(BaseModel):

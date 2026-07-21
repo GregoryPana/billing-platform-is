@@ -14,6 +14,6 @@ router = APIRouter()
 @router.get("/", response_model=list[AuditLogRead])
 def list_audit_logs(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(AuditLog).order_by(AuditLog.created_at.desc())))

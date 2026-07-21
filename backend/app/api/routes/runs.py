@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/", response_model=list[ScriptRunRead])
 def list_runs(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(ScriptRun).order_by(ScriptRun.created_at.desc())))
 

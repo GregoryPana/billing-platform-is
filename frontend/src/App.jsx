@@ -85,7 +85,7 @@ function App() {
     return <LoginPage on_authenticated={set_current_user} />
   }
 
-  const role = current_user.role || "viewer"
+  const role = current_user.role || ""
 
   return (
     <AppDataProvider current_user={current_user} role={role} on_sign_out={handle_sign_out}>
@@ -96,7 +96,7 @@ function App() {
             <Route
               path="/cycles"
               element={
-                <RequireRole role={role} allowed={["billing_user", "system_admin", "viewer"]}>
+                <RequireRole role={role} allowed={["billing_user", "system_admin"]}>
                   <CyclesListPage />
                 </RequireRole>
               }
@@ -104,7 +104,7 @@ function App() {
             <Route
               path="/cycles/:cycle_id"
               element={
-                <RequireRole role={role} allowed={["billing_user", "system_admin", "viewer"]}>
+                <RequireRole role={role} allowed={["billing_user", "system_admin"]}>
                   <CycleWorkspacePage />
                 </RequireRole>
               }

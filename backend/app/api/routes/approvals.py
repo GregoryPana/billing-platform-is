@@ -57,7 +57,7 @@ def _format_cycle_label(cycle: BillingCycle | None) -> str:
 @router.get("/", response_model=list[ApprovalRead])
 def list_approvals(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(Approval).order_by(Approval.created_at.desc())))
 

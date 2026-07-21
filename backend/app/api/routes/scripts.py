@@ -26,7 +26,7 @@ router = APIRouter()
 @router.get("/", response_model=list[ScriptDefinitionRead])
 def list_scripts(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(ScriptDefinition).order_by(ScriptDefinition.created_at.desc())))
 
@@ -191,7 +191,7 @@ def export_all_scripts(
 def download_export(
     export_id: UUID,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     generated_file = db.get(GeneratedFile, export_id)
     if not generated_file:

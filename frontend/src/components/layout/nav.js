@@ -8,14 +8,14 @@ export const nav_config = [
     label: "Overview",
     icon: LayoutDashboard,
     description: "Track in-flight cycles, recent runs, and pending approvals at a glance.",
-    roles: ["billing_user", "finance_user", "system_admin", "viewer"],
+    roles: ["billing_user", "finance_user", "system_admin"],
   },
   {
     path: "/cycles",
     label: "Billing Cycles",
     icon: RefreshCcw,
     description: "Create cycles and walk each one through scripts, runs, approvals, and notifications.",
-    roles: ["billing_user", "system_admin", "viewer"],
+    roles: ["billing_user", "system_admin"],
   },
   {
     path: "/approvals",
@@ -36,7 +36,7 @@ export const nav_config = [
     label: "Help",
     icon: BookOpen,
     description: "User guide and reference documentation for the billing process.",
-    roles: ["billing_user", "finance_user", "system_admin", "viewer"],
+    roles: ["billing_user", "finance_user", "system_admin"],
   },
 ]
 

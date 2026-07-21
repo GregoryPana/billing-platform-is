@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/", response_model=list[BillingCycleRead])
 def list_cycles(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(BillingCycle).order_by(BillingCycle.created_at.desc())))
 

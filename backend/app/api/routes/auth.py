@@ -76,7 +76,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserAuthRead)
-def me(actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))), db: Session = Depends(get_db)):
+def me(actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))), db: Session = Depends(get_db)):
     user = db.get(User, actor.id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
