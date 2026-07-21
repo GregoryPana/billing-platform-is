@@ -9,6 +9,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: billing
+          POSTGRES_PASSWORD: billing
+          POSTGRES_DB: billing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U billing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,7 +36,7 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Backend smoke check
         run: |
@@ -34,6 +48,13 @@ jobs:
           cd backend
           alembic heads --resolve-dependencies | tee /tmp/alembic_heads.txt
           test "$(wc -l < /tmp/alembic_heads.txt)" -eq 1
+
+      - name: Backend tests
+        env:
+          TEST_DATABASE_URL: "postgresql+psycopg://billing:billing@localhost:5432/billing"
+        run: |
+          cd backend
+          pytest -q
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -157,12 +178,13 @@ jobs:
           APP_NAME: billing-platform
           ENVIRONMENT: production
         run: |
-          echo "app_name=${APP_NAME}" | tee deploy_metadata.txt
-          echo "version=${GITHUB_SHA}" | tee -a deploy_metadata.txt
-          echo "deploy_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" | tee -a deploy_metadata.txt
-          echo "environment=${ENVIRONMENT}" | tee -a deploy_metadata.txt
-          cat /tmp/health_status.txt | tee -a deploy_metadata.txt
-          cd /opt/billing/backend && ./.venv/bin/alembic current | tee -a ../../deploy_metadata.txt
+          METADATA_FILE="${GITHUB_WORKSPACE}/deploy_metadata.txt"
+          echo "app_name=${APP_NAME}" | tee "${METADATA_FILE}"
+          echo "version=${GITHUB_SHA}" | tee -a "${METADATA_FILE}"
+          echo "deploy_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" | tee -a "${METADATA_FILE}"
+          echo "environment=${ENVIRONMENT}" | tee -a "${METADATA_FILE}"
+          cat /tmp/health_status.txt | tee -a "${METADATA_FILE}"
+          (cd /opt/billing/backend && ./.venv/bin/alembic current) | tee -a "${METADATA_FILE}"
 
       - name: Upload deployment metadata
         uses: actions/upload-artifact@v4
