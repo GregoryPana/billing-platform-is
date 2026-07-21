@@ -29,6 +29,12 @@ jobs:
           cd backend
           python -m py_compile app/main.py
 
+      - name: Alembic single-head check
+        run: |
+          cd backend
+          alembic heads --resolve-dependencies | tee /tmp/alembic_heads.txt
+          test "$(wc -l < /tmp/alembic_heads.txt)" -eq 1
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -124,8 +130,27 @@ jobs:
           ./.venv/bin/pip install --upgrade pip
           ./.venv/bin/pip install -r requirements.txt
 
+      - name: Run database migrations
+        run: |
+          cd /opt/billing/backend
+          ./.venv/bin/alembic upgrade head
+          ./.venv/bin/alembic current
+
       - name: Restart billing API
         run: sudo systemctl restart billing-api
+
+      - name: Wait for service health
+        run: |
+          for i in $(seq 1 15); do
+            if sudo systemctl is-active --quiet billing-api; then
+              echo "health_status=active" > /tmp/health_status.txt
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "health_status=inactive" > /tmp/health_status.txt
+          echo "billing-api did not report active after restart" >&2
+          exit 1
 
       - name: Emit deployment metadata
         env:
@@ -136,7 +161,8 @@ jobs:
           echo "version=${GITHUB_SHA}" | tee -a deploy_metadata.txt
           echo "deploy_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" | tee -a deploy_metadata.txt
           echo "environment=${ENVIRONMENT}" | tee -a deploy_metadata.txt
-          echo "health_status=unknown" | tee -a deploy_metadata.txt
+          cat /tmp/health_status.txt | tee -a deploy_metadata.txt
+          cd /opt/billing/backend && ./.venv/bin/alembic current | tee -a ../../deploy_metadata.txt
 
       - name: Upload deployment metadata
         uses: actions/upload-artifact@v4

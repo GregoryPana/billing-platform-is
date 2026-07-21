@@ -16,6 +16,10 @@ def init_db() -> None:
 
 
 def _apply_schema_updates() -> None:
+    # Frozen as of the Alembic baseline (backend/alembic/versions/cd4f477b7e33_baseline_existing_schema.py).
+    # Do not add new ALTER TABLE statements here for new functionality (e.g. issue-control
+    # tables) - write an Alembic migration instead. This function stays only as a safety net
+    # for databases that predate the baseline; see docs/DEPLOYMENT_SAFETY.md.
     inspector = inspect(engine)
     columns = {column["name"] for column in inspector.get_columns("users")}
     if "password_hash" not in columns:
