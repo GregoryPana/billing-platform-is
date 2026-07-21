@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Billing Collaboration Platform — Finance Review Wireframe</title>
+  <style>
+    :root { --bg:#f7faff; --card:#fff; --text:#132033; --muted:#53657c; --border:#d8e1ee; --primary:#005bb8; --success:#087c50; --warning:#a15c00; --danger:#b42318; --radius:12px; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--text); font-family:Arial,sans-serif; line-height:1.45; }
+    .shell { display:grid; grid-template-columns:240px 1fr; min-height:100vh; } aside { background:#fff; border-right:1px solid var(--border); padding:24px 16px; } .brand { font-weight:700; margin-bottom:30px; } nav p { margin:0 0 8px; padding:10px 12px; border-radius:8px; color:var(--muted); } nav .active { background:#eaf3ff; color:#003b79; font-weight:700; } main { padding:32px; max-width:1500px; width:100%; margin:0 auto; } h1 { margin:0; font-size:28px; } h2 { font-size:18px; margin:0; } h3 { font-size:15px; margin:0; } .lede { color:var(--muted); margin:6px 0 24px; } .card { background:var(--card); border-radius:var(--radius); box-shadow:0 1px 4px #102b4b14; padding:22px; margin-bottom:18px; } .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; } .metric { background:#f3f7fc; border-radius:10px; padding:14px; } .metric small { color:var(--muted); display:block; } .metric strong { font-size:24px; } .stage { color:var(--success); font-weight:700; } .issue-summary { display:flex; gap:12px; flex-wrap:wrap; margin:14px 0; } .pill { border-radius:999px; padding:5px 10px; font-size:13px; font-weight:700; white-space:nowrap; } .open { background:#fff2d8; color:var(--warning); } .done { background:#dbf6e8; color:var(--success); } .invalid { background:#eef2f7; color:#42546b; } table { width:100%; border-collapse:collapse; font-size:14px; } th { text-align:left; color:var(--muted); background:#f5f8fc; font-size:12px; text-transform:uppercase; letter-spacing:.04em; } th,td { padding:13px 10px; border-bottom:1px solid var(--border); vertical-align:top; } .actions { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; } button { border:0; border-radius:8px; padding:10px 14px; font-weight:700; cursor:default; } .primary { background:var(--primary); color:white; } .secondary { background:#eaf3ff; color:#00488e; } .disabled { background:#d9e0ea; color:#6b7b90; } .note { border-left:4px solid #d99522; background:#fff9ed; padding:12px 14px; color:#69450b; margin-top:16px; } .read-only { border-left-color:#3b82c4; background:#f0f7ff; color:#16436f; } .foot { color:var(--muted); font-size:13px; margin-top:20px; } @media(max-width:800px){ .shell{grid-template-columns:1fr} aside{display:none} main{padding:18px}.summary{grid-template-columns:1fr 1fr} table{display:block;overflow-x:auto;white-space:nowrap} }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">CWS · Billing Collaboration</div>
+      <nav><p>Overview</p><p>All Cycles</p><p class="active">Cycle Workspace</p><p>Approvals Inbox</p><p>Administration</p><p>Help</p></nav>
+    </aside>
+    <main>
+      <h1>July 2026 Billing Cycle</h1>
+      <p class="lede">Finance test review — validate produced test bills and approve movement to Live only when review findings are complete.</p>
+
+      <section class="card">
+        <h2>Cycle readiness</h2>
+        <div class="summary">
+          <div class="metric"><small>Test Preparation</small><strong class="stage">Complete</strong></div>
+          <div class="metric"><small>Test Printing</small><strong class="stage">Complete</strong></div>
+          <div class="metric"><small>Finance review</small><strong>1 open</strong></div>
+          <div class="metric"><small>Next action</small><strong>Resolve review issue</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Finance review issues</h2>
+        <p class="lede">Finance findings from its off-platform test-bill validation. Billing can read these records; Finance controls completion and approval.</p>
+        <div class="issue-summary"><span class="pill open">1 Open</span><span class="pill done">2 Completed — Resolved</span><span class="pill invalid">1 Raised in Error</span></div>
+        <div class="actions"><button class="primary">Log Finance Review Issue</button><button class="secondary">Filter: All Findings</button></div>
+        <table>
+          <thead><tr><th>Classification</th><th>Finding</th><th>Status</th><th>Finance activity</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>Loyalty Points</td><td>Points balance differs on selected test bills.</td><td><span class="pill open">Open</span></td><td>Finance: “Recheck needed after Billing correction.”</td><td>View / add Finance update</td></tr>
+            <tr><td>Bill with Zero or Negative Value</td><td>Zero-value bill reviewed and corrected.</td><td><span class="pill done">Completed</span></td><td>Finance verified 21 Jul 2026.</td><td>View history</td></tr>
+            <tr><td>Incorrect Product Setup</td><td>Product setup validated after correction.</td><td><span class="pill done">Completed</span></td><td>Finance completion comment retained.</td><td>View history</td></tr>
+            <tr><td>Other</td><td>Duplicate finding logged during review.</td><td><span class="pill invalid">Raised in Error</span></td><td>Excluded from headline KPI totals; audit retained.</td><td>View history</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Move to Live is locked because one Finance review issue remains open. Finance must complete or mark it Raised in Error with a comment before approval is available.</div>
+      </section>
+
+      <section class="card">
+        <h2>Finance decision</h2>
+        <p class="lede">Finance has final control over whether Billing may proceed to Live.</p>
+        <div class="actions"><button class="disabled">Approve Move to Live — 1 issue open</button><button class="secondary">Reject with Finance comment</button></div>
+      </section>
+
+      <section class="card read-only">
+        <h2>Billing view of Finance findings</h2>
+        <p>Billing sees the classification, detailed Finance comments and history for this cycle. Billing can use the information to correct or report the issue, but cannot close, invalidate, reopen or approve a Finance finding.</p>
+      </section>
+      <p class="foot">Static planning wireframe only. It contains no live billing data and does not represent an implemented screen.</p>
+    </main>
+  </div>
+</body>
+</html>

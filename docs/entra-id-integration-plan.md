@@ -396,6 +396,108 @@ The safest first delivery is:
 5. map Entra groups/app roles to the three target app roles
 6. defer removal of signup/admin flows until Entra access is stable
 
+## Application-Specific Entra Setup
+
+For this billing application, the Entra registration should be configured around the deployed paths already in use:
+
+- frontend base URL: `https://n8n-lan.cwsey.com/billing/`
+- backend public API base URL: `https://n8n-lan.cwsey.com/billing-api/`
+
+Recommended app roles:
+
+- `finance_user`
+- `billing_user`
+- `system_admin`
+
+Recommended API scope:
+
+- `access_as_user`
+
+Recommended frontend redirect URIs:
+
+- `https://n8n-lan.cwsey.com/billing/`
+- `http://localhost:5173/` for local development if needed
+
+Recommended post-logout URIs:
+
+- `https://n8n-lan.cwsey.com/billing/`
+- `http://localhost:5173/` for local development if needed
+
+## Testing Strategy Without Separate Environments
+
+Because this repository deploys directly from `main` to the live VM, testing must be staged functionally inside the application rather than by using separate infrastructure.
+
+### Safety rules
+
+1. keep Entra auth behind explicit feature flags until validation is complete
+2. keep local login available during the migration period
+3. avoid removing existing auth flows until Entra sign-in is proven in production
+4. deploy small reversible increments
+5. validate auth using a limited pilot group before broad rollout
+
+### Recommended rollout phases
+
+#### Phase A: passive backend support
+
+- deploy backend Entra validation code with `ENTRA_ENABLED=false`
+- confirm local auth still works unchanged
+- verify startup, health, and normal workflow behavior
+
+#### Phase B: controlled Entra enablement
+
+- set backend and frontend Entra env vars
+- keep local login visible
+- test with a very small pilot set of assigned users
+- validate:
+  - sign-in succeeds
+  - `/auth/me` succeeds with Entra token
+  - correct role is derived
+  - unauthorized users receive `403`
+  - existing local users can still work if rollback is needed
+
+#### Phase C: business workflow testing
+
+Test with non-destructive operational paths first:
+
+- overview loads
+- approvals screen access is correct by role
+- request settings access is correct by role
+- audit log shows user access events
+- no unexpected role leakage appears in navigation
+
+Then test controlled write operations:
+
+- create a test billing cycle
+- generate test scripts only
+- do not use live script generation as the first auth validation step
+
+#### Phase D: cutover planning
+
+- once Entra login is stable, decide a date to hide local sign-in from normal users
+- only after a stable period should signup requests and local admin onboarding be retired
+
+### Live verification checklist
+
+After each production deployment, verify:
+
+- `/billing/` loads
+- existing local login still works if expected
+- Microsoft sign-in button appears only when Entra is enabled
+- Entra sign-in returns the user to `/billing/`
+- API calls succeed with Entra bearer token
+- `finance_user` cannot access billing-only operations
+- `billing_user` cannot access finance-only review actions intended for finance
+- `system_admin` can access both operational areas and audit/log views
+
+### Rollback strategy
+
+If Entra rollout causes production issues:
+
+1. turn `VITE_ENTRA_ENABLED=false`
+2. turn `ENTRA_ENABLED=false`
+3. redeploy
+4. continue operating with local auth while investigating
+
 ## Suggested Branch Strategy
 
 Current working branch:

@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.models.notification import Notification
 from app.schemas.notifications import NotificationRead, NotificationRequest
 from app.services.audit_service import record_audit_event
-from app.services.auth_service import CurrentActor, require_role
+from app.services.auth_service import CurrentActor, require_role, role_set
 from app.services.notification_service import build_notification_command
 from app.services.workflow_service import ensure_post_live_approved
 from app.utils.datetime_utils import utc_plus_4_now
@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("/", response_model=list[NotificationRead])
 def list_notifications(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
 ):
     return list(db.scalars(select(Notification).order_by(Notification.created_at.desc())))
 
@@ -27,7 +27,7 @@ def list_notifications(
 def create_notification(
     payload: NotificationRequest,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     ensure_post_live_approved(db, payload.billing_cycle_id)
 

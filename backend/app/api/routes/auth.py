@@ -21,14 +21,44 @@ from app.services.auth_service import (
     CurrentActor,
     create_access_token,
     hash_password,
+    LOCAL_ASSIGNABLE_ROLES,
+    normalize_role,
     require_role,
+    role_set,
+    to_stored_role,
     verify_password,
 )
+from app.services.audit_service import record_audit_event
 from app.utils.datetime_utils import utc_plus_4_now
 from app.config import settings
 
 
 router = APIRouter()
+
+
+def _auth_user_payload(user: User, auth_source: str = "local") -> UserAuthRead:
+    return UserAuthRead(
+        id=user.id,
+        name=user.name,
+        username=user.username,
+        email=user.email,
+        role=normalize_role(user.role),
+        is_active=user.is_active,
+        auth_source=auth_source,
+    )
+
+
+def _user_payload(user: User) -> UserRead:
+    return UserRead(
+        id=user.id,
+        name=user.name,
+        username=user.username,
+        email=user.email,
+        role=normalize_role(user.role),
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -41,15 +71,25 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive")
     token = create_access_token(user)
-    return TokenResponse(access_token=token, user=UserAuthRead.model_validate(user))
+    record_audit_event(db, str(user.id), "user", "user_access", "user", str(user.id), {"auth_source": "local"})
+    return TokenResponse(access_token=token, user=_auth_user_payload(user, auth_source="local"))
 
 
 @router.get("/me", response_model=UserAuthRead)
-def me(actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})), db: Session = Depends(get_db)):
+def me(actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))), db: Session = Depends(get_db)):
     user = db.get(User, actor.id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return UserAuthRead.model_validate(user)
+    record_audit_event(
+        db,
+        actor.id,
+        actor.actor_type,
+        "user_access",
+        "user",
+        actor.id,
+        {"auth_source": actor.auth_source, "role": actor.role, "email": actor.email},
+    )
+    return _auth_user_payload(user, auth_source=actor.auth_source)
 
 
 @router.post("/signup", response_model=SignupRequestRead)
@@ -68,7 +108,7 @@ def signup(payload: SignupRequestCreate, db: Session = Depends(get_db)):
     if existing_request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signup request already pending")
 
-    admin_email = db.scalar(select(User.email).where(User.role == "admin", User.is_active.is_(True)))
+    admin_email = db.scalar(select(User.email).where(User.role.in_(["admin", "system_admin"]), User.is_active.is_(True)))
     if not admin_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active admin email configured")
 
@@ -113,7 +153,7 @@ def signup(payload: SignupRequestCreate, db: Session = Depends(get_db)):
 @router.get("/requests", response_model=list[SignupRequestRead])
 def list_signup_requests(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin"))),
 ):
     return list(db.scalars(select(SignupRequest).order_by(SignupRequest.created_at.desc())))
 
@@ -123,9 +163,9 @@ def approve_signup_request(
     request_id: str,
     payload: SignupApproval,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin"))),
 ):
-    if payload.role not in {"billing", "finance", "admin", "viewer"}:
+    if payload.role not in LOCAL_ASSIGNABLE_ROLES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
     request = db.get(SignupRequest, request_id)
     if not request or request.status != "pending":
@@ -141,7 +181,7 @@ def approve_signup_request(
         name=request.name,
         username=request.username,
         email=request.email,
-        role=payload.role,
+        role=to_stored_role(payload.role),
         is_active=True,
         password_hash=request.password_hash,
         created_at=utc_plus_4_now(),
@@ -184,14 +224,14 @@ def approve_signup_request(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Signup approval webhook unreachable",
             ) from exc
-    return UserRead.model_validate(user)
+    return _user_payload(user)
 
 
 @router.post("/requests/{request_id}/reject", response_model=SignupRequestRead)
 def reject_signup_request(
     request_id: str,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin"))),
 ):
     request = db.get(SignupRequest, request_id)
     if not request or request.status != "pending":

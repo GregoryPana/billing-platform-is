@@ -13,7 +13,7 @@ from app.models.user import User
 from app.schemas.approvals import ApprovalRead, ApprovalRequest, ApprovalRequestCreate
 from app.schemas.approval_settings import ApprovalSettingsRead, ApprovalSettingsUpdate
 from app.services.audit_service import record_audit_event
-from app.services.auth_service import CurrentActor, require_role
+from app.services.auth_service import CurrentActor, require_role, role_set
 from app.services.workflow_service import ensure_stage_runs_executed
 from app.utils.datetime_utils import utc_plus_4_now
 from app.config import settings
@@ -57,7 +57,7 @@ def _format_cycle_label(cycle: BillingCycle | None) -> str:
 @router.get("/", response_model=list[ApprovalRead])
 def list_approvals(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user", "viewer"))),
 ):
     return list(db.scalars(select(Approval).order_by(Approval.created_at.desc())))
 
@@ -65,7 +65,7 @@ def list_approvals(
 @router.get("/settings", response_model=ApprovalSettingsRead)
 def get_approval_settings(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     settings_record = _get_or_create_settings(db)
     return ApprovalSettingsRead(
@@ -79,7 +79,7 @@ def get_approval_settings(
 def update_approval_settings(
     payload: ApprovalSettingsUpdate,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     settings_record = _get_or_create_settings(db)
     if payload.billing_email is not None:
@@ -102,7 +102,7 @@ def update_approval_settings(
 def create_or_update_approval(
     payload: ApprovalRequest,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "finance"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "finance_user"))),
 ):
     approval = db.scalar(
         select(Approval).where(
@@ -111,7 +111,7 @@ def create_or_update_approval(
         )
     )
 
-    if actor.role == "finance":
+    if actor.role == "finance_user":
         if not approval or approval.status != "pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -122,7 +122,7 @@ def create_or_update_approval(
     if not cycle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing cycle not found")
 
-    if actor.role == "finance" and payload.status == "approved":
+    if actor.role == "finance_user" and payload.status == "approved":
         if not settings.n8n_approval_webhook_url:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -211,7 +211,7 @@ def create_or_update_approval(
 def request_approval(
     payload: ApprovalRequestCreate,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     if not settings.n8n_webhook_url:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Approval webhook URL not configured")

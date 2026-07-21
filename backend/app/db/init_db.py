@@ -31,6 +31,41 @@ def _apply_schema_updates() -> None:
             connection.execute(
                 text("UPDATE users SET name = username WHERE name IS NULL OR name = ''")
             )
+    if "external_provider" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS external_provider VARCHAR(50)"))
+    if "external_subject" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS external_subject VARCHAR(255)"))
+            connection.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_external_subject ON users (external_subject) WHERE external_subject IS NOT NULL"
+                )
+            )
+    if "last_seen_role" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_role VARCHAR(50)"))
+    if "last_seen_groups" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_groups JSONB"))
+            connection.execute(
+                text("UPDATE users SET last_seen_groups = '[]'::jsonb WHERE last_seen_groups IS NULL")
+            )
+            connection.execute(
+                text("ALTER TABLE users ALTER COLUMN last_seen_groups SET DEFAULT '[]'::jsonb")
+            )
+            connection.execute(
+                text("ALTER TABLE users ALTER COLUMN last_seen_groups SET NOT NULL")
+            )
+    if "last_login_at" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ"))
+    if "auth_metadata" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_metadata TEXT"))
+            connection.execute(text("UPDATE users SET auth_metadata = '' WHERE auth_metadata IS NULL"))
+            connection.execute(text("ALTER TABLE users ALTER COLUMN auth_metadata SET DEFAULT ''"))
+            connection.execute(text("ALTER TABLE users ALTER COLUMN auth_metadata SET NOT NULL"))
 
     signup_columns = {column["name"] for column in inspector.get_columns("signup_requests")}
     if "name" not in signup_columns:

@@ -85,6 +85,16 @@ jobs:
           N8N_WEBHOOK_VERIFY=${{ secrets.BILLING_N8N_WEBHOOK_VERIFY || true }}
           JWT_SECRET="${{ secrets.BILLING_JWT_SECRET }}"
           JWT_EXP_MINUTES=${{ secrets.BILLING_JWT_EXP_MINUTES || 480 }}
+          ENTRA_ENABLED=${{ secrets.BILLING_ENTRA_ENABLED || false }}
+          ENTRA_TENANT_ID="${{ secrets.BILLING_ENTRA_TENANT_ID }}"
+          ENTRA_CLIENT_ID="${{ secrets.BILLING_ENTRA_CLIENT_ID }}"
+          ENTRA_AUTHORITY="${{ secrets.BILLING_ENTRA_AUTHORITY }}"
+          ENTRA_ISSUER="${{ secrets.BILLING_ENTRA_ISSUER }}"
+          ENTRA_AUDIENCE="${{ secrets.BILLING_ENTRA_AUDIENCE }}"
+          ENTRA_JWKS_URL="${{ secrets.BILLING_ENTRA_JWKS_URL }}"
+          ENTRA_FINANCE_GROUP_ID="${{ secrets.BILLING_ENTRA_FINANCE_GROUP_ID }}"
+          ENTRA_BILLING_GROUP_ID="${{ secrets.BILLING_ENTRA_BILLING_GROUP_ID }}"
+          ENTRA_SYSTEM_ADMIN_GROUP_ID="${{ secrets.BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID }}"
           EOF
 
       - name: Write frontend env
@@ -92,6 +102,13 @@ jobs:
           cat > /opt/billing/frontend/.env.production <<'EOF'
           VITE_API_URL=${{ secrets.BILLING_API_URL }}
           VITE_APPROVAL_WEBHOOK_URL=${{ secrets.BILLING_APPROVAL_WEBHOOK_URL }}
+          VITE_ENTRA_ENABLED=${{ secrets.BILLING_ENTRA_ENABLED || false }}
+          VITE_ENTRA_TENANT_ID=${{ secrets.BILLING_ENTRA_TENANT_ID }}
+          VITE_ENTRA_CLIENT_ID=${{ secrets.BILLING_ENTRA_CLIENT_ID }}
+          VITE_ENTRA_AUTHORITY=${{ secrets.BILLING_ENTRA_AUTHORITY }}
+          VITE_ENTRA_API_SCOPE=${{ secrets.BILLING_ENTRA_API_SCOPE }}
+          VITE_ENTRA_REDIRECT_URI=${{ secrets.BILLING_ENTRA_REDIRECT_URI }}
+          VITE_ENTRA_POST_LOGOUT_REDIRECT_URI=${{ secrets.BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI }}
           EOF
 
       - name: Build frontend

@@ -38,6 +38,7 @@ class UserAuthRead(BaseSchema):
     email: str
     role: str
     is_active: bool
+    auth_source: str = "local"
 
 
 class TokenResponse(BaseSchema):
