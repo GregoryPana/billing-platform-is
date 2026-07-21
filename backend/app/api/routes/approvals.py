@@ -14,6 +14,7 @@ from app.schemas.approvals import ApprovalRead, ApprovalRequest, ApprovalRequest
 from app.schemas.approval_settings import ApprovalSettingsRead, ApprovalSettingsUpdate
 from app.services.audit_service import record_audit_event
 from app.services.auth_service import CurrentActor, require_role, role_set
+from app.services.issue_control_service import ensure_move_to_live_not_blocked
 from app.services.workflow_service import ensure_stage_runs_executed
 from app.utils.datetime_utils import utc_plus_4_now
 from app.config import settings
@@ -121,6 +122,13 @@ def create_or_update_approval(
     cycle = db.get(BillingCycle, payload.billing_cycle_id)
     if not cycle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing cycle not found")
+
+    # Server-authoritative Move to Live gate: applies to every role, not just
+    # Finance, so a direct API request cannot bypass it even if the frontend
+    # only hides the button for Finance. Checked before the approval webhook
+    # so a blocked approval never fires the (real) webhook.
+    if payload.stage == "test" and payload.status == "approved":
+        ensure_move_to_live_not_blocked(db, payload.billing_cycle_id)
 
     if actor.role == "finance_user" and payload.status == "approved":
         if not settings.n8n_approval_webhook_url:
