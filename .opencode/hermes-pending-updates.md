@@ -59,3 +59,11 @@ Next: Task 4 (server-side Move-to-Live gate in approvals.py + issue_control_serv
 - flags: auth/security/data impact (approval authorization logic changed: stage="test" + status="approved" now server-rejected while any finance_test_review issue is open, for every role) | decision made (gate applies to all roles, not just finance_user, per the "frontend-only hiding cannot bypass" acceptance criterion) | no new risk beyond the existing pre-merge production alembic-stamp requirement
 
 Next: Task 5 (Finance review + Billing visibility UI) — first frontend task in this plan; awaiting Gregory's go-ahead before continuing past Task 4.
+
+## 2026-07-21 11:46 — Task 5 of Revenue Protection Issue Control plan (Finance review + Billing visibility UI)
+- branch/commit: feature/entra-id-auth @ f53cd66 (pushed to origin: no)
+- files: frontend/src/features/issues/{issue-api.js, issue-status.js, FinanceIssuePanel.jsx, IssueFormDialog.jsx, IssueActivityDialog.jsx} (new), frontend/src/components/ui/dialog.jsx (new), frontend/src/features/cycles/ApprovalStage.jsx (modified)
+- verification: npm run lint + npm run build both clean; curl-based end-to-end check against a disposable docker-compose Postgres confirmed create/read/403/approval-gate all work through the new UI's exact API calls; dev servers booted cleanly. **Could not perform rendered-browser/console/responsive verification** (no chromium-cli/Playwright in this environment; port 5173 was already held by Gregory's own dev server, left untouched) — this is a real gap against the Frontend Design Quality Gate, flagged in the plan file
+- flags: deployment-needed (frontend bundle changed) | decision made (built a local non-Radix Dialog primitive matching existing confirm-dialog.jsx convention rather than adding @radix-ui/react-dialog; issue data scoped to FinanceIssuePanel rather than AppDataContext) | new risk: **visual/responsive/console UI verification is outstanding** — recommend a manual browser pass (or approved Playwright install) before treating Task 5 as fully complete
+
+Next: Task 6 (Billing run-level execution issue capture) — awaiting Gregory's go-ahead, and ideally a manual browser check of Task 5 first.
