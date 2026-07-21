@@ -71,6 +71,26 @@ class BillingIssueReopenRequest(BaseSchema):
     comment: str = Field(min_length=1)
 
 
+class BillingIssueCommentCreate(BaseSchema):
+    comment: str = Field(min_length=1)
+
+
+class BillingIssueEditRequest(BaseSchema):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    detail: str | None = Field(default=None, min_length=1)
+    classification_id: UUID | None = None
+    # Mandatory per docs/FINANCE_ISSUE_CONTROL_DESIGN.md section 5: any field
+    # correction must carry an explanation, since the original finding is
+    # never silently overwritten.
+    comment: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_at_least_one_field(self) -> "BillingIssueEditRequest":
+        if self.title is None and self.detail is None and self.classification_id is None:
+            raise ValueError("at least one of title, detail, classification_id must be provided")
+        return self
+
+
 class BillingIssueActivityRead(BaseSchema):
     id: UUID
     billing_issue_id: UUID

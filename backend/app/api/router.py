@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import approvals, audit, auth, cycles, notifications, runs, scripts, users
+from app.api.routes import approvals, audit, auth, cycles, issues, notifications, runs, scripts, users
 
 
 api_router = APIRouter()
@@ -12,3 +12,4 @@ api_router.include_router(approvals.router, prefix="/approvals", tags=["approval
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
+api_router.include_router(issues.router, prefix="/issues", tags=["issues"])
