@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { api_fetch } from "../../api"
 import { show_toast, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
+import { FinanceIssuePanel } from "../issues/FinanceIssuePanel"
 import { compute_stage_ready, cycle_month_pair, format_stage_label } from "../../lib/format"
 
 /* Approval checkpoint for one cycle+stage. Billing requests here (recipients
@@ -36,6 +37,8 @@ export function ApprovalStage({ cycle, stage }) {
   const [sending, set_sending] = useState(false)
   const [decision, set_decision] = useState({ status: "approved", comments: "" })
   const [deciding, set_deciding] = useState(false)
+  const [open_finance_issue_count, set_open_finance_issue_count] = useState(0)
+  const move_to_live_blocked = stage === "test" && open_finance_issue_count > 0
 
   useEffect(() => {
     set_selected_recipients(finance_recipients)
@@ -141,6 +144,14 @@ export function ApprovalStage({ cycle, stage }) {
         </div>
       ) : null}
 
+      {stage === "test" && (
+        <FinanceIssuePanel
+          cycle={cycle}
+          test_approved={approval?.status === "approved"}
+          on_open_count_change={set_open_finance_issue_count}
+        />
+      )}
+
       {can_request && (
         <>
           <div className="panel-subheader">
@@ -189,6 +200,13 @@ export function ApprovalStage({ cycle, stage }) {
             <h3>Record Decision</h3>
             <p>Approve to unlock the next stage, or reject with comments for billing to address.</p>
           </div>
+          {move_to_live_blocked && (
+            <div className="alert warning">
+              Approve Move to Live is disabled while {open_finance_issue_count} Finance review issue
+              {open_finance_issue_count === 1 ? " remains" : "s remain"} open. Complete each issue above to unlock
+              approval, or reject with comments.
+            </div>
+          )}
           <form className="form-grid" onSubmit={handle_decision}>
             <label>
               Decision
@@ -196,7 +214,9 @@ export function ApprovalStage({ cycle, stage }) {
                 value={decision.status}
                 onChange={(event) => set_decision((previous) => ({ ...previous, status: event.target.value }))}
               >
-                <option value="approved">Approved</option>
+                <option value="approved" disabled={move_to_live_blocked}>
+                  Approved
+                </option>
                 <option value="rejected">Rejected</option>
               </select>
             </label>
@@ -207,7 +227,11 @@ export function ApprovalStage({ cycle, stage }) {
                 onChange={(event) => set_decision((previous) => ({ ...previous, comments: event.target.value }))}
               />
             </label>
-            <button className="primary-button" type="submit" disabled={deciding}>
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={deciding || (move_to_live_blocked && decision.status === "approved")}
+            >
               {deciding ? "Submitting…" : "Submit Decision"}
             </button>
           </form>
