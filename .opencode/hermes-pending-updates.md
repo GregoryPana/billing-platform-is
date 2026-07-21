@@ -51,3 +51,11 @@ Consolidated into a Hermes Update Pack on 2026-07-21 10:30 (7 entries above).
 - flags: auth/security/data impact (new authorization surface: Billing-reads/Finance-writes permission matrix enforced per docs/plans/2026-07-21-revenue-protection-issue-control.md Task 3) | decision made (reopen gated on an existing approved stage="test" `approvals` row rather than a separate flag; post_live_observation never reopenable, matching design's MVP scope) | no new risk beyond the existing pre-merge production alembic-stamp requirement
 
 Next: Task 4 (server-side Move-to-Live gate in approvals.py + issue_control_service.py) — awaiting Gregory's go-ahead before continuing past Task 3.
+
+## 2026-07-21 11:33 — Task 4 of Revenue Protection Issue Control plan (server-side Move-to-Live gate)
+- branch/commit: feature/entra-id-auth @ 1d153e2 (pushed to origin: no)
+- files: backend/app/services/issue_control_service.py (new), backend/app/api/routes/approvals.py (modified — gate call inserted before the approval-webhook branch)
+- verification: 9 new tests + full suite 52/52 passed against disposable docker-compose Postgres (torn down after); alembic heads/current unchanged at d6843df39f2f; backend py_compile clean. Confirmed no test ever exercises the real n8n webhook configured in backend/.env.local — blocked-path tests use finance_user but fail before the webhook branch runs, allowed-path tests use system_admin which skips that branch entirely.
+- flags: auth/security/data impact (approval authorization logic changed: stage="test" + status="approved" now server-rejected while any finance_test_review issue is open, for every role) | decision made (gate applies to all roles, not just finance_user, per the "frontend-only hiding cannot bypass" acceptance criterion) | no new risk beyond the existing pre-merge production alembic-stamp requirement
+
+Next: Task 5 (Finance review + Billing visibility UI) — first frontend task in this plan; awaiting Gregory's go-ahead before continuing past Task 4.
