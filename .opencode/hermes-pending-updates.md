@@ -43,3 +43,11 @@ Two items outstanding for Gregory (exact commands already given to him): (1) run
 Note: DB-level CHECK constraints now enforce completion-requires-outcome/actor/time and raised_in_error-requires-comment directly at the schema layer (belt-and-suspenders ahead of Task 3's API-layer enforcement). The "Other classification requires detail" rule needs a DB lookup of the classification name and is deferred to Task 3 (route/service layer), where classification_id can actually be resolved. Next: Task 3 (authorization + issue API lifecycle) — the first task exposing new endpoints.
 
 Consolidated into a Hermes Update Pack on 2026-07-21 10:30 (7 entries above).
+
+## 2026-07-21 11:19 — Task 3 of Revenue Protection Issue Control plan (authorization + issue API lifecycle)
+- branch/commit: feature/entra-id-auth @ d9d8d90 (pushed to origin: no)
+- files: backend/app/api/routes/issues.py (new), backend/app/api/router.py (modified — registered issues router), backend/app/schemas/issues.py (modified — added BillingIssueCommentCreate, BillingIssueEditRequest), backend/tests/test_billing_issue_routes.py (new, 15 tests), backend/tests/test_billing_issue_permissions.py (new, 14 tests)
+- verification: 29 new tests + full suite 43/43 passed against disposable docker-compose Postgres (torn down after); alembic heads/current unchanged at d6843df39f2f (no new migration needed); backend py_compile clean
+- flags: auth/security/data impact (new authorization surface: Billing-reads/Finance-writes permission matrix enforced per docs/plans/2026-07-21-revenue-protection-issue-control.md Task 3) | decision made (reopen gated on an existing approved stage="test" `approvals` row rather than a separate flag; post_live_observation never reopenable, matching design's MVP scope) | no new risk beyond the existing pre-merge production alembic-stamp requirement
+
+Next: Task 4 (server-side Move-to-Live gate in approvals.py + issue_control_service.py) — awaiting Gregory's go-ahead before continuing past Task 3.
