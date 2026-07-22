@@ -1,5 +1,11 @@
 # Hermes Pending Updates
 
+## 2026-07-22 09:05 — Task 7 of Revenue Protection Issue Control plan (Finance post-live observations)
+- branch/commit: feature/entra-id-auth @ 46061f6 (uncommitted changes on top, pushed to origin: no)
+- files: backend/tests/test_post_live_observation_permissions.py (new, 12 tests, TDD-first), frontend/src/features/issues/PostLiveObservationPanel.jsx (new), frontend/src/features/cycles/NotificationsStage.jsx (modified — panel wired in above the notification-guide content)
+- verification: full backend suite 69/69 passed (57 prior + 12 new) against a disposable docker-compose Postgres (torn down after); npm run lint + npm run build both clean; browser-verified with a scratch (uncommitted, deleted after use) Playwright script against a disposable stack (backend :8001, frontend :5180, Gregory's own 5173 never touched) — Billing read-only with 0 create buttons and correct empty state, Finance create/complete works and 0 reopen buttons appear post-completion, Admin sees the create button, mobile 390px renders correctly, zero console errors in any role
+- flags: auth/security/data impact: none new — backend already fully implemented the post_live_observation permission matrix from Task 3's original context-branching design (no issues.py changes needed); the new test file is dedicated documentation/coverage, not a behavior change | decision made (reused IssueFormDialog/IssueActivityDialog as-is rather than new components — IssueFormDialog already had post_live_observation copy pre-built from Task 5, and IssueActivityDialog's reopen gate already keys off context so passing test_approved={false} is safe/inert for this context) | temporary CORS entry (http://localhost:5180) added to backend/app/main.py for verification and reverted before finishing — git diff on that file is empty | no new risk beyond the existing pre-merge production alembic-stamp requirement documented in docs/DEPLOYMENT_SAFETY.md | not yet committed, pending Gregory's go-ahead
+
 ## Flushed 2026-07-21 (third flush, 16:15 — Tasks 5 gap closure, 6) — see docs/hermes-update-packs/2026-07-21-tasks-5-6.md
 
 ## 2026-07-21 16:05 — Task 5 browser verification gap closed (two real bugs found and fixed)

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react"
 import { api_fetch } from "../../api"
 import { show_toast, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
+import { PostLiveObservationPanel } from "../issues/PostLiveObservationPanel"
 import { cycle_month_pair, download_text_file, format_input_date } from "../../lib/format"
 
 export function NotificationsStage({ cycle, blocked }) {
@@ -43,6 +44,8 @@ export function NotificationsStage({ cycle, blocked }) {
 
   return (
     <>
+      <PostLiveObservationPanel cycle={cycle} />
+
       <div className="notification-guide">
         <div className="notification-block">
           <h4>Email Notifications</h4>
