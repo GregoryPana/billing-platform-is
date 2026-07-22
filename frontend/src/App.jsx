@@ -11,6 +11,7 @@ import { OverviewPage } from "./features/overview/OverviewPage"
 import { CyclesListPage } from "./features/cycles/CyclesListPage"
 import { CycleWorkspacePage } from "./features/cycles/CycleWorkspacePage"
 import { ApprovalsInboxPage } from "./features/approvals/ApprovalsInboxPage"
+import { BillingIssueReportingPage } from "./features/reporting/BillingIssueReportingPage"
 import { AdministrationPage } from "./features/admin/AdministrationPage"
 import { HelpPage } from "./features/help/HelpPage"
 import "./App.css"
@@ -122,6 +123,14 @@ function App() {
               element={
                 <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
                   <ApprovalsInboxPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/reporting"
+              element={
+                <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
+                  <BillingIssueReportingPage />
                 </RequireRole>
               }
             />

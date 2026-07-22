@@ -128,7 +128,7 @@ def create_or_update_approval(
     # only hides the button for Finance. Checked before the approval webhook
     # so a blocked approval never fires the (real) webhook.
     if payload.stage == "test" and payload.status == "approved":
-        ensure_move_to_live_not_blocked(db, payload.billing_cycle_id)
+        ensure_move_to_live_not_blocked(db, payload.billing_cycle_id, actor.id, actor.actor_type)
 
     if actor.role == "finance_user" and payload.status == "approved":
         if not settings.n8n_approval_webhook_url:
