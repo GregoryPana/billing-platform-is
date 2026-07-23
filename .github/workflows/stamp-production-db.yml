@@ -1,0 +1,68 @@
+name: stamp-production-db
+
+# One-time, manually-triggered utility to mark production's existing schema as
+# up to date with Alembic, WITHOUT running any DDL (`alembic stamp head`, not
+# `upgrade head`). See docs/DEPLOYMENT_SAFETY.md for why this is required
+# before the normal deploy job's `alembic upgrade head` step is safe to run.
+#
+# This never runs automatically (workflow_dispatch only) and never touches
+# /opt/billing — it checks out into a throwaway directory on the runner and
+# only talks to the database.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type STAMP-PRODUCTION to proceed'
+        required: true
+
+jobs:
+  stamp:
+    runs-on: [self-hosted, billing]
+    steps:
+      - name: Require explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "STAMP-PRODUCTION" ]; then
+            echo "Confirmation input did not match STAMP-PRODUCTION; aborting." >&2
+            exit 1
+          fi
+
+      - name: Checkout into throwaway directory
+        uses: actions/checkout@v4
+        with:
+          path: stamp-checkout
+          fetch-depth: 1
+
+      - name: Install backend deps into throwaway venv
+        run: |
+          cd stamp-checkout/backend
+          python3 -m venv .venv-stamp
+          ./.venv-stamp/bin/pip install --upgrade pip
+          ./.venv-stamp/bin/pip install -r requirements.txt
+
+      - name: Alembic current (before stamp)
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+        run: |
+          cd stamp-checkout/backend
+          echo "Expect: no output (no alembic_version row yet)"
+          ./.venv-stamp/bin/alembic current
+
+      - name: Alembic stamp head
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+        run: |
+          cd stamp-checkout/backend
+          ./.venv-stamp/bin/alembic stamp head
+
+      - name: Alembic current (after stamp)
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+        run: |
+          cd stamp-checkout/backend
+          echo "Expect: 6ab1c9b21c7b (head)"
+          ./.venv-stamp/bin/alembic current
+
+      - name: Clean up throwaway checkout
+        if: always()
+        run: rm -rf stamp-checkout
