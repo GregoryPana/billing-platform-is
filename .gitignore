@@ -7,6 +7,8 @@ frontend/.env.local
 frontend/.env.production
 backend/.venv/
 backend/__pycache__/
+__pycache__/
+.pytest_cache/
 backend/exports/
 frontend/node_modules/
 frontend/dist/
@@ -14,3 +16,5 @@ frontend/dist/
 *.pyc
 *.log
 session-*.md
+.codegraph/
+.codegraph-win/

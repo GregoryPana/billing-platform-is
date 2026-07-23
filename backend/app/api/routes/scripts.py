@@ -13,7 +13,7 @@ from app.models.script_run import ScriptRun
 from app.schemas.exports import ScriptExportAllRequest, ScriptExportRead, ScriptExportRequest
 from app.schemas.scripts import ScriptDefinitionRead, ScriptGenerateRequest
 from app.services.audit_service import record_audit_event
-from app.services.auth_service import CurrentActor, require_role
+from app.services.auth_service import CurrentActor, require_role, role_set
 from app.services.command_service import CYCLES, format_command, generate_parameters
 from app.services.file_export_service import EXPORT_DIR, create_full_export, create_grouped_export
 from app.services.workflow_service import ensure_test_approved
@@ -26,7 +26,7 @@ router = APIRouter()
 @router.get("/", response_model=list[ScriptDefinitionRead])
 def list_scripts(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(ScriptDefinition).order_by(ScriptDefinition.created_at.desc())))
 
@@ -35,7 +35,7 @@ def list_scripts(
 def generate_scripts(
     payload: ScriptGenerateRequest,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     if payload.environment.lower() == "live":
         ensure_test_approved(db, payload.billing_cycle_id)
@@ -121,7 +121,7 @@ def generate_scripts(
 def export_scripts(
     payload: ScriptExportRequest,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     environment = payload.environment.lower()
     script_type = payload.script_type.lower()
@@ -154,7 +154,7 @@ def export_scripts(
 def export_all_scripts(
     payload: ScriptExportAllRequest,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     has_live = db.scalar(
         select(ScriptDefinition.id)
@@ -191,7 +191,7 @@ def export_all_scripts(
 def download_export(
     export_id: UUID,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     generated_file = db.get(GeneratedFile, export_id)
     if not generated_file:

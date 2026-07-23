@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.models.billing_cycle import BillingCycle
 from app.schemas.cycles import BillingCycleCreate, BillingCycleRead, BillingCycleStatusUpdate
 from app.services.audit_service import record_audit_event
-from app.services.auth_service import CurrentActor, require_role
+from app.services.auth_service import CurrentActor, require_role, role_set
 from app.utils.datetime_utils import utc_plus_4_now
 
 
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/", response_model=list[BillingCycleRead])
 def list_cycles(
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance", "viewer"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     return list(db.scalars(select(BillingCycle).order_by(BillingCycle.created_at.desc())))
 
@@ -25,7 +25,7 @@ def list_cycles(
 def create_cycle(
     payload: BillingCycleCreate,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user"))),
 ):
     cycle = BillingCycle(
         usage_month=payload.usage_month,
@@ -48,7 +48,7 @@ def update_cycle_status(
     cycle_id: str,
     payload: BillingCycleStatusUpdate,
     db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role({"admin", "billing", "finance"})),
+    actor: CurrentActor = Depends(require_role(role_set("system_admin", "billing_user", "finance_user"))),
 ):
     cycle = db.get(BillingCycle, cycle_id)
     cycle.status = payload.status

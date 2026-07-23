@@ -396,6 +396,108 @@ The safest first delivery is:
 5. map Entra groups/app roles to the three target app roles
 6. defer removal of signup/admin flows until Entra access is stable
 
+## Application-Specific Entra Setup
+
+For this billing application, the Entra registration should be configured around the deployed paths already in use:
+
+- frontend base URL: `https://n8n-lan.cwsey.com/billing/`
+- backend public API base URL: `https://n8n-lan.cwsey.com/billing-api/`
+
+Recommended app roles:
+
+- `finance_user`
+- `billing_user`
+- `system_admin`
+
+Recommended API scope:
+
+- `access_as_user`
+
+Recommended frontend redirect URIs:
+
+- `https://n8n-lan.cwsey.com/billing/`
+- `http://localhost:5173/` for local development if needed
+
+Recommended post-logout URIs:
+
+- `https://n8n-lan.cwsey.com/billing/`
+- `http://localhost:5173/` for local development if needed
+
+## Testing Strategy Without Separate Environments
+
+Because this repository deploys directly from `main` to the live VM, testing must be staged functionally inside the application rather than by using separate infrastructure.
+
+### Safety rules
+
+1. keep Entra auth behind explicit feature flags until validation is complete
+2. keep local login available during the migration period
+3. avoid removing existing auth flows until Entra sign-in is proven in production
+4. deploy small reversible increments
+5. validate auth using a limited pilot group before broad rollout
+
+### Recommended rollout phases
+
+#### Phase A: passive backend support
+
+- deploy backend Entra validation code with `ENTRA_ENABLED=false`
+- confirm local auth still works unchanged
+- verify startup, health, and normal workflow behavior
+
+#### Phase B: controlled Entra enablement
+
+- set backend and frontend Entra env vars
+- keep local login visible
+- test with a very small pilot set of assigned users
+- validate:
+  - sign-in succeeds
+  - `/auth/me` succeeds with Entra token
+  - correct role is derived
+  - unauthorized users receive `403`
+  - existing local users can still work if rollback is needed
+
+#### Phase C: business workflow testing
+
+Test with non-destructive operational paths first:
+
+- overview loads
+- approvals screen access is correct by role
+- request settings access is correct by role
+- audit log shows user access events
+- no unexpected role leakage appears in navigation
+
+Then test controlled write operations:
+
+- create a test billing cycle
+- generate test scripts only
+- do not use live script generation as the first auth validation step
+
+#### Phase D: cutover planning
+
+- once Entra login is stable, decide a date to hide local sign-in from normal users
+- only after a stable period should signup requests and local admin onboarding be retired
+
+### Live verification checklist
+
+After each production deployment, verify:
+
+- `/billing/` loads
+- existing local login still works if expected
+- Microsoft sign-in button appears only when Entra is enabled
+- Entra sign-in returns the user to `/billing/`
+- API calls succeed with Entra bearer token
+- `finance_user` cannot access billing-only operations
+- `billing_user` cannot access finance-only review actions intended for finance
+- `system_admin` can access both operational areas and audit/log views
+
+### Rollback strategy
+
+If Entra rollout causes production issues:
+
+1. turn `VITE_ENTRA_ENABLED=false`
+2. turn `ENTRA_ENABLED=false`
+3. redeploy
+4. continue operating with local auth while investigating
+
 ## Suggested Branch Strategy
 
 Current working branch:
@@ -418,3 +520,71 @@ Suggested delivery approach:
 4. implement frontend MSAL integration
 5. implement local user-cache updates and user-access audit events
 6. test the auth flow without touching Nginx paths used by other applications
+
+## Implementation status (2026-07-22, Task 9 of `docs/plans/2026-07-21-revenue-protection-issue-control.md`)
+
+Items 3–5 above are done in code, on `feature/entra-id-auth`, ahead of any
+production rollout. This section records what exists so a future session
+doesn't have to re-derive it:
+
+- **Backend token validation and dual auth:** `backend/app/services/entra_auth_service.py`
+  fetches OpenID config, validates RS256 JWTs via JWKS (issuer/audience/expiry/signature),
+  and maps claims to exactly one of `system_admin`/`billing_user`/`finance_user`
+  (`roles` claim checked first, falling back to `groups` + the `ENTRA_*_GROUP_ID`
+  settings — item 1 above is still an open decision since no real Entra registration
+  exists yet to know which claim shape it will actually send). `get_current_actor()`
+  in `backend/app/services/auth_service.py` tries local JWT first and only falls
+  back to Entra validation when `ENTRA_ENABLED=true`, so local auth is untouched
+  while the flag is off (item 2's "direct backend validation" approach, not a gateway).
+- **Local user-cache upsert:** `upsert_entra_user()` creates or updates a `users`
+  row keyed by `external_subject` (falling back to email match for pre-existing
+  local accounts), populating `external_provider`, `last_seen_role`,
+  `last_seen_groups`, `last_login_at`, `auth_metadata` — matches this doc's
+  "Local User Record Strategy" section exactly. Authorization itself still comes
+  from the current token's claims, not the cached row.
+- **Frontend MSAL integration:** `frontend/src/entra.js` (raw `@azure/msal-browser`,
+  not `@azure/msal-react` — a deliberate deviation, works fine for this app's needs)
+  plus a dual-mode `LoginPage.jsx` that shows local login and, only when
+  `entra_enabled` is true, a "Sign In With Microsoft" button alongside it.
+- **Audit events:** `/auth/me` records a `user_access` audit event regardless of
+  `auth_source` (local or `entra_id`), satisfying this doc's "add explicit
+  user-access audit events" ask; there's no separate event distinguishing a
+  first-time Entra provisioning upsert from an ordinary repeat access — treated
+  as an acceptable simplification, not a gap, since the audit row already carries
+  `auth_source`.
+- **Automated test coverage (new, 2026-07-22):** `backend/tests/test_entra_auth_service.py`
+  and `backend/tests/test_entra_dual_auth.py` (12 tests) cover claim-to-role mapping
+  and precedence, expired/invalid/malformed-token rejection, the local-user-cache
+  upsert/migration-by-email behavior, and the dual-auth fallback end to end through
+  `/api/auth/me` (local unaffected when Entra is enabled; Entra path never attempted
+  when the flag is off; 403 for a valid Entra actor with a disallowed role). This
+  closes the gap called out in commit `8f6d8db`: *"No automated auth test exists yet."*
+  Full backend suite: 102/102 passing.
+- **CI/CD:** `.github/workflows/ci.yml`'s deploy job already writes all `ENTRA_*`
+  backend and `VITE_ENTRA_*` frontend env vars from GitHub secrets, defaulting
+  `ENTRA_ENABLED`/`VITE_ENTRA_ENABLED` to `false`. No further CI/CD change was
+  made this session — the existing single-shot deploy (build → migrate → restart
+  → uptime/`alembic current` proof) already satisfies the plan's "deploy proof"
+  requirement for every rollout phase; the phased pilot/rollout itself is an
+  Entra-side group/role-assignment decision, not a CI/CD staging mechanism, so
+  it doesn't need pipeline changes. Per `CLAUDE.md`, CI/CD is not altered without
+  Gregory's explicit approval, and none was needed here.
+- **`EXIT.md`:** created at the repo root with the registration-record template
+  from `06_ENTRA_ID_INTEGRATION_GUIDE.md` §18 and a rollout-phase checklist
+  mirroring this doc's "Recommended rollout phases" — currently all fields are
+  `_pending_` because no Azure AD app registration exists yet for this application.
+
+**What is still genuinely outstanding before any production Entra rollout phase
+can start** (all require Gregory's/IT's direct action, not further code):
+
+1. An actual Entra app registration (tenant ID, client ID, redirect URLs, app
+   roles or groups) has to be created in Azure AD — nothing above simulates or
+   assumes one exists. Fill in `EXIT.md`'s registration table once it is.
+2. Decide app roles vs. security groups as the claim source (Immediate Next
+   Task 1, still open) — informs which `ENTRA_*_GROUP_ID` secrets, if any, get set.
+3. The two long-standing local blockers unrelated to Entra itself: production's
+   `alembic stamp head` (see `docs/DEPLOYMENT_SAFETY.md`) and the local 3-role
+   login smoke test — both still open, tracked in the plan tracker's Handover section.
+4. Once 1–3 are done, the actual phased rollout (Phase A–D) is a
+   deploy-and-observe exercise against production, which is explicitly out of
+   scope to perform without Gregory's direct, in-the-moment approval at each step.
