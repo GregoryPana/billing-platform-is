@@ -24,18 +24,21 @@ through every Task 9 rollout phase.
 
 | Field | Value |
 | --- | --- |
-| App registration name | _pending_ |
-| Enterprise application name | _pending_ |
-| Tenant ID | _pending_ |
-| Client ID | _pending_ |
-| Application ID URI | _pending_ (expected pattern: `api://<client-id>`) |
-| API scope(s) | _pending_ (recommended: `access_as_user`) |
-| Redirect URLs | _pending_ (expected: `https://n8n-lan.cwsey.com/billing/`, `http://localhost:5173/` for local dev) |
-| Post-logout URLs | _pending_ (expected: same as redirect URLs) |
+| App registration name | `Billing Collaboration Platform` |
+| Enterprise application name | `Billing Collaboration Platform` (confirmed — matches the app registration name) |
+| Tenant ID | `97df7dc2-f178-4ce4-b55e-bcafc144485e` |
+| Client ID (Application ID) | `ff645f66-7fab-4907-8ed0-3f232af516f8` |
+| Object ID | `f933caef-130c-4893-ae89-06246affd109` |
+| Application ID URI | `api://ff645f66-7fab-4907-8ed0-3f232af516f8` (confirmed) |
+| API scope(s) | `access_as_user` |
+| Redirect URLs | `https://n8n-lan.cwsey.com/billing/` (prod), `http://localhost:5173/` (local dev) — SPA platform, no implicit grant |
+| Post-logout URLs | `https://n8n-lan.cwsey.com/billing/` |
 | App roles | `finance_user`, `billing_user`, `system_admin` (exact three — no additional roles; `viewer` was retired in commit `8f6d8db` and must not be re-added) |
-| Assigned groups | _pending_ — decide whether role mapping uses Entra **app roles** (`roles` claim, preferred — see `entra_auth_service._claims_to_role`) or **security groups** (`groups` claim + `ENTRA_*_GROUP_ID` settings) before pilot enrollment |
-| Request/approval reference | _pending_ — raise with the IT infrastructure / Microsoft 365 administration function per `06_ENTRA_ID_INTEGRATION_GUIDE.md` §3 |
+| Assigned groups | Role mapping uses Entra **app roles** via the `roles` claim (see `entra_auth_service._claims_to_role`). One security group per role, assigned to its matching app role in the Enterprise Application: `Billing-App-SystemAdmin` → System Admin, `Billing-App-BillingUser` → Billing User, `Billing-App-FinanceUser` → Finance User (confirmed). Gregory added to `Billing-App-SystemAdmin`. |
+| Request/approval reference | not needed — Gregory holds Entra admin rights directly |
 | Support owner | Gregory Panagary |
+
+**Registration complete as of 2026-07-23.** Redirect URIs, API scope, app roles, and role-to-group assignment all done in Entra. `ENTRA_ENABLED` remains `false` in production — nothing above changes production behavior until Phase A/B are explicitly approved.
 
 ## Rollout status (Task 9)
 
