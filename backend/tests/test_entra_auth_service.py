@@ -54,6 +54,56 @@ def test_principal_email_raises_401_when_no_email_claim():
     assert exc_info.value.status_code == 401
 
 
+def test_acceptable_issuers_includes_v1_and_v2_when_not_explicitly_set(monkeypatch):
+    monkeypatch.setattr(svc.settings, "entra_issuer", None)
+    monkeypatch.setattr(svc.settings, "entra_authority", None)
+    monkeypatch.setattr(svc.settings, "entra_tenant_id", "test-tenant")
+
+    issuers = svc._entra_acceptable_issuers()
+
+    assert "https://login.microsoftonline.com/test-tenant/v2.0" in issuers
+    assert "https://sts.windows.net/test-tenant/" in issuers
+
+
+def test_acceptable_issuers_uses_explicit_override_only(monkeypatch):
+    monkeypatch.setattr(svc.settings, "entra_issuer", "https://custom-issuer.example.com/v2.0")
+    monkeypatch.setattr(svc.settings, "entra_tenant_id", "test-tenant")
+
+    issuers = svc._entra_acceptable_issuers()
+
+    assert issuers == ["https://custom-issuer.example.com/v2.0"]
+
+
+def test_validate_entra_token_accepts_v1_format_issuer(monkeypatch):
+    monkeypatch.setattr(svc, "_jwks_client_instance", lambda: type("K", (), {"get_signing_key_from_jwt": lambda self, t: type("S", (), {"key": "fake-key"})()})())
+    monkeypatch.setattr(svc.settings, "entra_audience", "api://test-client-id")
+    monkeypatch.setattr(svc.settings, "entra_issuer", None)
+    monkeypatch.setattr(svc.settings, "entra_authority", None)
+    monkeypatch.setattr(svc.settings, "entra_tenant_id", "test-tenant")
+
+    captured_kwargs = {}
+
+    def fake_decode(token, key, algorithms=None, audience=None, issuer=None):
+        captured_kwargs["issuer"] = issuer
+        assert issuer == [
+            "https://login.microsoftonline.com/test-tenant/v2.0",
+            "https://sts.windows.net/test-tenant/",
+        ]
+        return {
+            "oid": "entra-subject-v1",
+            "ver": "1.0",
+            "preferred_username": "test.user@example.com",
+            "roles": ["system_admin"],
+        }
+
+    monkeypatch.setattr(svc.jwt, "decode", fake_decode)
+
+    identity = svc.validate_entra_token("fake.token.value")
+    assert identity.subject == "entra-subject-v1"
+    assert identity.role == "system_admin"
+    assert captured_kwargs["issuer"] is not None
+
+
 def _stub_jwks(monkeypatch):
     class FakeSigningKey:
         key = "fake-key"
