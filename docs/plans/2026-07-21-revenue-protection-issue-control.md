@@ -312,6 +312,14 @@ Then inspect Test Approval as Billing, Finance and Admin in a browser at desktop
 
 **Acceptance:** no local auth path remains as an undocumented Entra bypass after cutover; rollback is documented and feature-flagged where required.
 
+**Status (2026-07-24):** Entra app registration complete (`EXIT.md`), production
+`alembic stamp head` done, 3-role local login smoke test passed. Deploy
+pipeline (`main` @ `1c9eb0f`) is green end-to-end. Remaining blocker before
+Phase A can start: no `BILLING_ENTRA_*` GitHub Actions secrets are configured
+yet — see `EXIT.md` "Phase A prerequisites" for the exact required names/values.
+`ENTRA_ENABLED` stays `false` in production until Gregory adds them and
+explicitly approves Phase A.
+
 ---
 
 ## Pre-merge and deploy quality gate

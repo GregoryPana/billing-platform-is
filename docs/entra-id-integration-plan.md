@@ -574,17 +574,40 @@ doesn't have to re-derive it:
   mirroring this doc's "Recommended rollout phases" — currently all fields are
   `_pending_` because no Azure AD app registration exists yet for this application.
 
-**What is still genuinely outstanding before any production Entra rollout phase
-can start** (all require Gregory's/IT's direct action, not further code):
+**Status update (2026-07-24):** items 1–3 below are now done. The remaining
+gap before Phase A can be meaningfully tested is item 4a (GitHub Actions
+secrets) — see below.
 
-1. An actual Entra app registration (tenant ID, client ID, redirect URLs, app
-   roles or groups) has to be created in Azure AD — nothing above simulates or
-   assumes one exists. Fill in `EXIT.md`'s registration table once it is.
-2. Decide app roles vs. security groups as the claim source (Immediate Next
-   Task 1, still open) — informs which `ENTRA_*_GROUP_ID` secrets, if any, get set.
-3. The two long-standing local blockers unrelated to Entra itself: production's
-   `alembic stamp head` (see `docs/DEPLOYMENT_SAFETY.md`) and the local 3-role
-   login smoke test — both still open, tracked in the plan tracker's Handover section.
-4. Once 1–3 are done, the actual phased rollout (Phase A–D) is a
+1. ~~An actual Entra app registration...~~ **Done 2026-07-23.** Recorded in
+   `EXIT.md`'s registration table: tenant ID `97df7dc2-f178-4ce4-b55e-bcafc144485e`,
+   client ID `ff645f66-7fab-4907-8ed0-3f232af516f8`, app roles
+   (`finance_user`/`billing_user`/`system_admin`) assigned via one security
+   group per role in the Enterprise Application.
+2. ~~Decide app roles vs. security groups as the claim source~~ **Done —
+   resolved as app roles** (see `EXIT.md`; the `roles` claim is the source,
+   not `groups`, so no `ENTRA_*_GROUP_ID` secrets are needed).
+3. ~~The two long-standing local blockers...~~ **Both done 2026-07-24.**
+   Production `alembic stamp head` ran successfully via the
+   `stamp-production-db` workflow (`alembic current` confirms `6ab1c9b21c7b
+   (head)`); the deploy pipeline is green end-to-end again (migration →
+   restart → health check). The local 3-role login smoke test also passed
+   against a disposable Postgres (billing/finance/admin all log in via local
+   auth, `/auth/me` maps each to the correct role, and role enforcement was
+   spot-checked on `/api/issue-reporting/summary`: 403 for billing, 200 for
+   finance).
+4. **New/still open:** the production deploy job
+   (`.github/workflows/ci.yml`) writes `ENTRA_*`/`VITE_ENTRA_*` env vars from
+   GitHub Actions secrets, but **no `BILLING_ENTRA_*` secrets exist in the
+   repo yet** (`gh secret list` confirms only `BILLING_API_URL`,
+   `BILLING_APPROVAL_WEBHOOK_URL`, `BILLING_DATABASE_URL`,
+   `BILLING_JWT_*`, `BILLING_N8N_*`). `entra_auth_service.py` and
+   `frontend/src/entra.js` both derive `authority`/`issuer`/`audience`/
+   `jwks_url`/`redirect_uri`/`api_scope` from tenant ID + client ID alone if
+   the more specific vars are unset, so only two backend + two frontend
+   secrets are strictly required (see exact values/names in the Hermes log
+   and `EXIT.md`). Gregory needs to add these via `gh secret set` or the
+   GitHub repo Settings UI — not something to script without his direct
+   action per `CLAUDE.md`'s production-config rule.
+5. Once 1–4 are done, the actual phased rollout (Phase A–D) is a
    deploy-and-observe exercise against production, which is explicitly out of
    scope to perform without Gregory's direct, in-the-moment approval at each step.
