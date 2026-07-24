@@ -159,6 +159,24 @@ Audience pattern often looks like:
 3. Add a scope named `access_as_user`
 4. Save
 
+### Mandatory manifest check (lesson from Billing Collaboration Platform, 2026-07-24)
+
+By default, a new app registration issues **v1.0-format access tokens**
+(`"ver": "1.0"`, `"iss": "https://sts.windows.net/<tenant>/"`) for its own
+exposed API scope — even when the client requests it through MSAL's v2.0
+endpoint, and even though the `aud` claim still comes back in v2 `api://`
+format. A backend that validates against the standard v2.0 issuer
+(`https://login.microsoftonline.com/<tenant>/v2.0`) will reject every one
+of these tokens with a generic `401`, despite the token being otherwise
+perfectly valid (correct audience, correct role, correct scope) — this is
+easy to misdiagnose as a consent, audience, or scope problem when it is
+none of those.
+
+**Fix:** open the app registration's **Manifest** and set
+`"requestedAccessTokenVersion": 2` (not `"accessTokenAcceptedVersion"` —
+that field name does not exist on this manifest). Do this for every new
+app registration as a standard step, not just when a 401 shows up.
+
 ## 9. Assign users and groups
 
 ### Why this matters
@@ -266,6 +284,7 @@ Likely causes:
 - wrong API scope
 - backend auth config mismatch
 - redirect/login flow tied to the wrong app registration
+- **`requestedAccessTokenVersion` not set to `2` in the app registration manifest** — the token looks correct in every other way (right audience, right role, right scope) but has `"ver": "1.0"` and a `sts.windows.net` issuer instead of the expected v2.0 `login.microsoftonline.com/.../v2.0` issuer. Decode the token payload (base64, no signature check needed) and check `ver`/`iss` before assuming it's a config/consent problem. See section 8's manifest check. As defense in depth, backends can also accept both issuer formats rather than relying solely on the manifest setting.
 
 ### Problem: backend error says token validation URL is invalid
 

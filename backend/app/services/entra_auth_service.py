@@ -47,11 +47,23 @@ def _entra_authority() -> str:
     return f"https://login.microsoftonline.com/{tenant_id}"
 
 
-def _entra_issuer() -> str:
+def _entra_acceptable_issuers() -> list[str]:
+    # Prefer the configured/derived v2.0 issuer, but also accept the v1.0
+    # issuer format (`https://sts.windows.net/<tenant>/`). Azure AD issues
+    # v1-format tokens for an app's own exposed API scope whenever that
+    # app registration's manifest has `requestedAccessTokenVersion` unset/1,
+    # regardless of which endpoint (v1 or v2) the client requested through -
+    # a common misconfiguration that otherwise makes every Entra sign-in
+    # fail with a generic "invalid token" 401 despite a perfectly valid,
+    # correctly-scoped token.
     issuer = _clean_optional(settings.entra_issuer)
     if issuer:
-        return issuer.rstrip("/")
-    return f"{_entra_authority()}/v2.0"
+        return [issuer.rstrip("/")]
+    issuers = [f"{_entra_authority()}/v2.0"]
+    tenant_id = _clean_optional(settings.entra_tenant_id)
+    if tenant_id:
+        issuers.append(f"https://sts.windows.net/{tenant_id}/")
+    return issuers
 
 
 def _entra_audience() -> str:
@@ -143,7 +155,7 @@ def validate_entra_token(token: str) -> EntraIdentity:
             signing_key.key,
             algorithms=["RS256"],
             audience=_entra_audience(),
-            issuer=_entra_issuer(),
+            issuer=_entra_acceptable_issuers(),
         )
     except jwt.ExpiredSignatureError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired") from exc
