@@ -1,5 +1,11 @@
 # Hermes Pending Updates
 
+## 2026-07-24 — Production deploy pipeline restored + Task 9 local blockers closed
+- branch/commit: main @ 1c9eb0f (PR #4, merged by Gregory); docs updates on fix/deploy-health-check-sudo @ pending commit (not yet pushed)
+- files: `.github/workflows/ci.yml` (dropped `sudo` from the health-check `systemctl is-active` call — runner's sudoers only grants NOPASSWD for `restart`, not `is-active`), `docs/entra-id-integration-plan.md` (status update: items 1-3 of the "still outstanding" list closed, new item 4 added for missing GitHub secrets), `EXIT.md` (repo/branch line updated, new "Phase A prerequisites" checklist section, stamp status corrected), `docs/plans/2026-07-21-revenue-protection-issue-control.md` (Task 9 status note added)
+- verification: production `alembic current` confirmed `6ab1c9b21c7b (head)` after running the `stamp-production-db` workflow (Gregory-approved); `main`'s CI run `1c9eb0f` confirmed green end-to-end (migration → restart → health check); 3-role local login smoke test run against a disposable Postgres (torn down after, real dev DB untouched) — billing/finance/admin all authenticate via local auth, `/auth/me` maps each to the correct role, and role enforcement spot-checked on `/api/issue-reporting/summary` (403 billing, 200 finance)
+- flags: auth/security/data impact (none — no auth behavior changed, only CI health-check command and doc tracking) | deployment impact (production deploy pipeline was broken for ~16 hours across two merges; now fixed and confirmed working) | decision made (did not set any `BILLING_ENTRA_*` GitHub secrets myself — production config change requires Gregory's direct action per `CLAUDE.md`; gave him the exact required secret names, noting most Entra config values have safe code-level defaults so only `BILLING_ENTRA_ENABLED`/`TENANT_ID`/`CLIENT_ID` are strictly required) | new risk: none — Phase A of the Entra rollout remains blocked on those secrets and is not started
+
 ## Flushed 2026-07-23 (Tasks 7, 8, and Task 9 first slice — consolidated Hermes Update Pack delivered in-conversation, all now committed: 2744cdf, e9d5f80, aea0801)
 
 ## 2026-07-22 (evening) — Task 9 of Revenue Protection Issue Control plan (Entra enforcement and safe rollout — code/test/doc slice)
