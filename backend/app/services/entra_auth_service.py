@@ -66,14 +66,21 @@ def _entra_acceptable_issuers() -> list[str]:
     return issuers
 
 
-def _entra_audience() -> str:
+def _entra_acceptable_audiences() -> list[str]:
+    # Prefer the configured/derived App ID URI audience, but also accept the
+    # bare client ID GUID. For a SPA calling its own exposed API, Azure AD
+    # sometimes returns `aud` as the plain client ID rather than the
+    # `api://<client_id>` App ID URI used to request the scope - the same
+    # kind of self-referencing-app quirk as the v1/v2 issuer format, and
+    # just as silent (a correctly scoped/roled token failing with a generic
+    # 401 on audience mismatch alone).
     audience = _clean_optional(settings.entra_audience)
     if audience:
-        return audience
+        return [audience]
     client_id = _clean_optional(settings.entra_client_id)
     if not client_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Entra client ID not configured")
-    return f"api://{client_id}"
+    return [f"api://{client_id}", client_id]
 
 
 def _openid_config() -> dict:
@@ -154,7 +161,7 @@ def validate_entra_token(token: str) -> EntraIdentity:
             token,
             signing_key.key,
             algorithms=["RS256"],
-            audience=_entra_audience(),
+            audience=_entra_acceptable_audiences(),
             issuer=_entra_acceptable_issuers(),
         )
     except jwt.ExpiredSignatureError as exc:
