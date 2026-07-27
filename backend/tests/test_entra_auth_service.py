@@ -104,6 +104,51 @@ def test_validate_entra_token_accepts_v1_format_issuer(monkeypatch):
     assert captured_kwargs["issuer"] is not None
 
 
+def test_acceptable_audiences_includes_uri_and_bare_client_id_when_not_explicitly_set(monkeypatch):
+    monkeypatch.setattr(svc.settings, "entra_audience", None)
+    monkeypatch.setattr(svc.settings, "entra_client_id", "test-client-id")
+
+    audiences = svc._entra_acceptable_audiences()
+
+    assert "api://test-client-id" in audiences
+    assert "test-client-id" in audiences
+
+
+def test_acceptable_audiences_uses_explicit_override_only(monkeypatch):
+    monkeypatch.setattr(svc.settings, "entra_audience", "api://custom-audience")
+    monkeypatch.setattr(svc.settings, "entra_client_id", "test-client-id")
+
+    audiences = svc._entra_acceptable_audiences()
+
+    assert audiences == ["api://custom-audience"]
+
+
+def test_validate_entra_token_accepts_bare_client_id_audience(monkeypatch):
+    monkeypatch.setattr(svc, "_jwks_client_instance", lambda: type("K", (), {"get_signing_key_from_jwt": lambda self, t: type("S", (), {"key": "fake-key"})()})())
+    monkeypatch.setattr(svc.settings, "entra_audience", None)
+    monkeypatch.setattr(svc.settings, "entra_client_id", "test-client-id")
+    monkeypatch.setattr(svc.settings, "entra_issuer", "https://login.microsoftonline.com/test-tenant/v2.0")
+
+    captured_kwargs = {}
+
+    def fake_decode(token, key, algorithms=None, audience=None, issuer=None):
+        captured_kwargs["audience"] = audience
+        assert audience == ["api://test-client-id", "test-client-id"]
+        return {
+            "oid": "entra-subject-bare-aud",
+            "aud": "test-client-id",
+            "preferred_username": "test.user@example.com",
+            "roles": ["system_admin"],
+        }
+
+    monkeypatch.setattr(svc.jwt, "decode", fake_decode)
+
+    identity = svc.validate_entra_token("fake.token.value")
+    assert identity.subject == "entra-subject-bare-aud"
+    assert identity.role == "system_admin"
+    assert captured_kwargs["audience"] is not None
+
+
 def _stub_jwks(monkeypatch):
     class FakeSigningKey:
         key = "fake-key"
