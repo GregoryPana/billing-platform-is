@@ -68,10 +68,10 @@ def test_execution_issue_classifications_are_seeded(client, auth_headers):
     assert all(item["is_active"] for item in response.json())
 
 
-def test_execution_issue_other_requires_detail(client, auth_headers):
+def test_execution_issue_other_requires_detail(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
-    _, run_id = _insert_script_definition_and_run(cycle_id, login.json()["user"]["id"])
+    billing_user_id = test_actor_id("billing_user")
+    _, run_id = _insert_script_definition_and_run(cycle_id, billing_user_id)
     payload = {
         "billing_cycle_id": cycle_id,
         "context": "execution_issue",
@@ -84,10 +84,10 @@ def test_execution_issue_other_requires_detail(client, auth_headers):
     assert response.status_code == 400
 
 
-def test_billing_can_list_execution_issues_for_cycle(client, auth_headers):
+def test_billing_can_list_execution_issues_for_cycle(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
-    _, run_id = _insert_script_definition_and_run(cycle_id, login.json()["user"]["id"])
+    billing_user_id = test_actor_id("billing_user")
+    _, run_id = _insert_script_definition_and_run(cycle_id, billing_user_id)
     payload = {
         "billing_cycle_id": cycle_id,
         "context": "execution_issue",
@@ -110,10 +110,10 @@ def test_billing_can_list_execution_issues_for_cycle(client, auth_headers):
     assert issues[0]["status"] == "open"
 
 
-def test_open_execution_issue_does_not_block_run_status_transitions(client, auth_headers):
+def test_open_execution_issue_does_not_block_run_status_transitions(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
-    _, run_id = _insert_script_definition_and_run(cycle_id, login.json()["user"]["id"], status="failed")
+    billing_user_id = test_actor_id("billing_user")
+    _, run_id = _insert_script_definition_and_run(cycle_id, billing_user_id, status="failed")
     payload = {
         "billing_cycle_id": cycle_id,
         "context": "execution_issue",
@@ -142,10 +142,10 @@ def test_open_execution_issue_does_not_block_run_status_transitions(client, auth
     assert matching[0]["status"] == "executed"
 
 
-def test_execution_issues_never_count_toward_move_to_live_gate(client, auth_headers):
+def test_execution_issues_never_count_toward_move_to_live_gate(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
-    _, run_id = _insert_script_definition_and_run(cycle_id, login.json()["user"]["id"])
+    billing_user_id = test_actor_id("billing_user")
+    _, run_id = _insert_script_definition_and_run(cycle_id, billing_user_id)
     payload = {
         "billing_cycle_id": cycle_id,
         "context": "execution_issue",

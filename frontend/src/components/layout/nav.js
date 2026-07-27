@@ -35,7 +35,7 @@ export const nav_config = [
     path: "/administration",
     label: "Administration",
     icon: Shield,
-    description: "Settings, user accounts, access requests, and the audit log.",
+    description: "Settings, user accounts, and the audit log.",
     roles: ["billing_user", "system_admin"],
   },
   {

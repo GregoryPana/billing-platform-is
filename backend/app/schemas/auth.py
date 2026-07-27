@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID
 
 from app.schemas.base import BaseSchema
@@ -7,28 +6,6 @@ from app.schemas.base import BaseSchema
 class LoginRequest(BaseSchema):
     username_or_email: str
     password: str
-
-
-class SignupRequestCreate(BaseSchema):
-    name: str
-    username: str
-    email: str
-    password: str
-
-
-class SignupRequestRead(BaseSchema):
-    id: UUID
-    name: str
-    username: str
-    email: str
-    status: str
-    assigned_role: str | None = None
-    created_at: datetime
-    reviewed_at: datetime | None = None
-
-
-class SignupApproval(BaseSchema):
-    role: str
 
 
 class UserAuthRead(BaseSchema):

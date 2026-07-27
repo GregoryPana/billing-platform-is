@@ -17,7 +17,6 @@ const empty_user_form = {
   name: "",
   username: "",
   email: "",
-  role: "billing_user",
   password: "",
   is_active: true,
 }
@@ -29,7 +28,6 @@ export function AdministrationPage() {
     const all = [
       { id: "settings", label: "Settings", roles: ["billing_user", "system_admin"] },
       { id: "users", label: "Users", roles: ["system_admin"] },
-      { id: "access-requests", label: "Access Requests", roles: ["system_admin"] },
       { id: "audit", label: "Audit Log", roles: ["system_admin"] },
     ]
     return all.filter((tab) => tab.roles.includes(role))
@@ -63,7 +61,6 @@ export function AdministrationPage() {
 
       {active_tab === "settings" && <SettingsTab />}
       {active_tab === "users" && <UsersTab />}
-      {active_tab === "access-requests" && <AccessRequestsTab />}
       {active_tab === "audit" && <AuditTab />}
     </>
   )
@@ -170,23 +167,9 @@ function SettingsTab() {
 
 function UsersTab() {
   const { users, reload_all, set_error_message } = useAppData()
-  const [create_form, set_create_form] = useState(empty_user_form)
   const [edit_user, set_edit_user] = useState(null)
   const [edit_form, set_edit_form] = useState(empty_user_form)
   const [delete_target, set_delete_target] = useState(null)
-
-  const handle_create = async (event) => {
-    event.preventDefault()
-    try {
-      await api_fetch("/users/", { method: "POST", body: JSON.stringify(create_form) })
-      set_create_form(empty_user_form)
-      show_toast("User created.", "success")
-      await reload_all()
-    } catch (error) {
-      set_error_message(error.message)
-      show_toast(error.message || "Could not create the user.", "error")
-    }
-  }
 
   const handle_update = async (event) => {
     event.preventDefault()
@@ -218,7 +201,7 @@ function UsersTab() {
     }
   }
 
-  const user_fields = (form, set_form, include_password_label) => (
+  const user_fields = (form, set_form) => (
     <>
       <label>
         Full name
@@ -238,14 +221,6 @@ function UsersTab() {
         />
       </label>
       <label>
-        Role
-        <select value={form.role} onChange={(event) => set_form((p) => ({ ...p, role: event.target.value }))}>
-          <option value="billing_user">Billing User</option>
-          <option value="finance_user">Finance User</option>
-          <option value="system_admin">System Admin</option>
-        </select>
-      </label>
-      <label>
         Status
         <select
           value={form.is_active ? "active" : "inactive"}
@@ -256,12 +231,11 @@ function UsersTab() {
         </select>
       </label>
       <label>
-        {include_password_label}
+        Reset password
         <input
           type="password"
           value={form.password}
           onChange={(event) => set_form((p) => ({ ...p, password: event.target.value }))}
-          required={include_password_label === "Password"}
         />
       </label>
     </>
@@ -272,23 +246,11 @@ function UsersTab() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2>Create User</h2>
-            <p>Add a user directly without the access-request flow.</p>
-          </div>
-        </div>
-        <form className="form-grid" onSubmit={handle_create}>
-          {user_fields(create_form, set_create_form, "Password")}
-          <button className="primary-button" type="submit">
-            Create User
-          </button>
-        </form>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
             <h2>Manage Users</h2>
-            <p>Edit user details, roles, and status.</p>
+            <p>
+              Role/access is assigned in Microsoft Entra, not here - editing or deactivating a row below does not
+              itself grant or revoke access. This list exists for visibility and local-account cleanup only.
+            </p>
           </div>
         </div>
         <div className="data-table">
@@ -319,7 +281,6 @@ function UsersTab() {
                       name: user.name,
                       username: user.username,
                       email: user.email,
-                      role: user.role,
                       password: "",
                       is_active: user.is_active,
                     })
@@ -346,7 +307,7 @@ function UsersTab() {
               <p>Leave the password blank to keep the current one.</p>
             </div>
             <form className="form-grid" onSubmit={handle_update}>
-              {user_fields(edit_form, set_edit_form, "Reset password")}
+              {user_fields(edit_form, set_edit_form)}
               <div className="form-actions">
                 <button className="primary-button" type="submit">
                   Save Changes
@@ -376,124 +337,6 @@ function UsersTab() {
         onCancel={() => set_delete_target(null)}
       />
     </>
-  )
-}
-
-function AccessRequestsTab() {
-  const { signup_requests, reload_all, set_error_message } = useAppData()
-  const [role_selection, set_role_selection] = useState({})
-
-  const pending = signup_requests.filter((request) => request.status === "pending")
-  const handled = signup_requests.filter((request) => request.status !== "pending")
-
-  const handle_approve = async (request_id) => {
-    const selected_role = role_selection[request_id] || "billing_user"
-    try {
-      await api_fetch(`/auth/requests/${request_id}/approve`, {
-        method: "POST",
-        body: JSON.stringify({ role: selected_role }),
-      })
-      show_toast("Access request approved.", "success")
-      await reload_all()
-    } catch (error) {
-      set_error_message(error.message)
-      show_toast(error.message || "Could not approve the request.", "error")
-    }
-  }
-
-  const handle_reject = async (request_id) => {
-    try {
-      await api_fetch(`/auth/requests/${request_id}/reject`, { method: "POST" })
-      show_toast("Access request rejected.", "info")
-      await reload_all()
-    } catch (error) {
-      set_error_message(error.message)
-      show_toast(error.message || "Could not reject the request.", "error")
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <h2>Access Requests</h2>
-          <p>Approve or reject pending signup requests, assigning a role on approval.</p>
-        </div>
-      </div>
-      <div className="data-table">
-        <div className="data-row table-head admin">
-          <span>Name</span>
-          <span>Username</span>
-          <span>Email</span>
-          <span>Status</span>
-          <span>Role</span>
-          <span>Action</span>
-        </div>
-        {pending.length === 0 ? (
-          <div className="empty-state">No signup requests pending. New requests appear here for review.</div>
-        ) : (
-          pending.map((request) => (
-            <div className="data-row admin" key={request.id}>
-              <span>{request.name}</span>
-              <span>{request.username}</span>
-              <span>{request.email}</span>
-              <span>
-                <StatusBadge status={request.status} />
-              </span>
-              <select
-                className="select-inline"
-                value={role_selection[request.id] || request.assigned_role || "billing_user"}
-                onChange={(event) =>
-                  set_role_selection((previous) => ({ ...previous, [request.id]: event.target.value }))
-                }
-              >
-                <option value="billing_user">Billing User</option>
-                <option value="finance_user">Finance User</option>
-                <option value="system_admin">System Admin</option>
-              </select>
-              <div className="form-actions">
-                <button className="secondary-button" type="button" onClick={() => handle_approve(request.id)}>
-                  Approve
-                </button>
-                <button className="ghost-button" type="button" onClick={() => handle_reject(request.id)}>
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <details className="panel-details">
-        <summary>Processed requests ({handled.length})</summary>
-        <div className="data-table">
-          <div className="data-row table-head admin">
-            <span>Name</span>
-            <span>Username</span>
-            <span>Email</span>
-            <span>Status</span>
-            <span>Role</span>
-            <span />
-          </div>
-          {handled.length === 0 ? (
-            <div className="empty-state">No processed signup requests.</div>
-          ) : (
-            handled.map((request) => (
-              <div className="data-row admin" key={request.id}>
-                <span>{request.name}</span>
-                <span>{request.username}</span>
-                <span>{request.email}</span>
-                <span>
-                  <StatusBadge status={request.status} />
-                </span>
-                <span>{request.assigned_role || "-"}</span>
-                <span className="muted">-</span>
-              </div>
-            ))
-          )}
-        </div>
-      </details>
-    </section>
   )
 }
 

@@ -32,7 +32,6 @@ export function AppDataProvider({ current_user, role, on_sign_out, children }) {
   const [notifications, set_notifications] = useState([])
   const [audit_logs, set_audit_logs] = useState([])
   const [users, set_users] = useState([])
-  const [signup_requests, set_signup_requests] = useState([])
   const [error_message, set_error_message] = useState("")
   const [initial_loading, set_initial_loading] = useState(true)
   const [approval_notifications, set_approval_notifications] = useState([])
@@ -66,12 +65,9 @@ export function AppDataProvider({ current_user, role, on_sign_out, children }) {
       set_audit_logs(audit_data)
 
       if (role === "system_admin") {
-        const [users_data, signup_data] = await Promise.all([api_fetch("/users/"), api_fetch("/auth/requests")])
-        set_users(users_data)
-        set_signup_requests(signup_data)
+        set_users(await api_fetch("/users/"))
       } else {
         set_users([])
-        set_signup_requests([])
       }
     } catch (error) {
       set_error_message(error.message)
@@ -173,7 +169,6 @@ export function AppDataProvider({ current_user, role, on_sign_out, children }) {
     notifications,
     audit_logs,
     users,
-    signup_requests,
     error_message,
     set_error_message,
     initial_loading,

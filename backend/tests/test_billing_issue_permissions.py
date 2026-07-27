@@ -131,10 +131,10 @@ def test_admin_can_create_finance_test_review_issue(client, auth_headers):
     assert response.status_code == 201
 
 
-def test_finance_cannot_create_execution_issue(client, auth_headers):
+def test_finance_cannot_create_execution_issue(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
-    run_id = _insert_script_run(cycle_id, login.json()["user"]["id"])
+    billing_user_id = test_actor_id("billing_user")
+    run_id = _insert_script_run(cycle_id, billing_user_id)
     payload = {
         "billing_cycle_id": cycle_id,
         "context": "execution_issue",
@@ -147,10 +147,10 @@ def test_finance_cannot_create_execution_issue(client, auth_headers):
     assert response.status_code == 403
 
 
-def test_billing_can_create_execution_issue_with_related_run(client, auth_headers):
+def test_billing_can_create_execution_issue_with_related_run(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
-    run_id = _insert_script_run(cycle_id, login.json()["user"]["id"])
+    billing_user_id = test_actor_id("billing_user")
+    run_id = _insert_script_run(cycle_id, billing_user_id)
     payload = {
         "billing_cycle_id": cycle_id,
         "context": "execution_issue",
