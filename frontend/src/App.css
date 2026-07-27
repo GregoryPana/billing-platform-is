@@ -271,6 +271,14 @@
     grid-column: 1 / -1;
   }
 
+  /* Dialogs (max-w-lg, ~512px) are narrower than .form-grid's 3-column
+     minimum (3 x 220px = 660px), which overflows the modal even when every
+     field is .full. Dialog forms only ever stack fields in one column, so
+     collapse the grid to match the space actually available. */
+  .dialog-panel .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .toggle-row {
     @apply inline-flex items-center gap-2 text-sm font-medium text-foreground;
   }
