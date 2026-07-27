@@ -12,13 +12,24 @@ from app.utils.datetime_utils import utc_plus_4_now
 router = APIRouter()
 
 
+def _display_role(role: str) -> str:
+    # The admin Users list must stay legible even if a row's stored role
+    # predates a retirement (e.g. the old "viewer" role, see 8f6d8db) or is
+    # otherwise unrecognized - surface it as-is rather than 403ing the whole
+    # list, so an admin can see and fix/delete the offending row from here.
+    try:
+        return normalize_role(role)
+    except HTTPException:
+        return role
+
+
 def _user_payload(user: User) -> UserRead:
     return UserRead(
         id=user.id,
         name=user.name,
         username=user.username,
         email=user.email,
-        role=normalize_role(user.role),
+        role=_display_role(user.role),
         is_active=user.is_active,
         created_at=user.created_at,
         updated_at=user.updated_at,
