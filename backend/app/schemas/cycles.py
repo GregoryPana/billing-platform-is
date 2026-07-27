@@ -6,7 +6,6 @@ from app.schemas.base import BaseSchema
 
 class BillingCycleCreate(BaseSchema):
     usage_month: str
-    billing_month: str
     notes: str | None = None
 
 

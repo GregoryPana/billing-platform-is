@@ -7,6 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.models.billing_cycle import BillingCycle
 from app.models.generated_file import GeneratedFile
 from app.models.script_definition import ScriptDefinition
 from app.models.script_run import ScriptRun
@@ -40,6 +41,10 @@ def generate_scripts(
     if payload.environment.lower() == "live":
         ensure_test_approved(db, payload.billing_cycle_id)
 
+    cycle = db.get(BillingCycle, payload.billing_cycle_id)
+    if not cycle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing cycle not found")
+
     target_definitions = select(ScriptDefinition.id).where(
         ScriptDefinition.billing_cycle_id == payload.billing_cycle_id,
         ScriptDefinition.environment == payload.environment.lower(),
@@ -72,6 +77,7 @@ def generate_scripts(
             payload.script_type,
             payload.environment,
             log_type,
+            cycle.usage_month,
             payload.overrides,
         )
         command_text = format_command(payload.script_type, payload.environment, log_type, parameters)

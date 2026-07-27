@@ -8,12 +8,29 @@ import { Button } from "../../components/ui/button"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { compute_cycle_steps, cycle_month_pair, format_cycle_status, format_month_label } from "../../lib/format"
 
+const current_month_value = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+}
+
+const next_month_value = (usage_month) => {
+  if (!usage_month) {
+    return ""
+  }
+  const [year, month] = usage_month.split("-").map(Number)
+  if (!year || !month) {
+    return ""
+  }
+  const next = new Date(year, month, 1)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`
+}
+
 export function CyclesListPage() {
   const { role, cycles, scripts, runs, approvals, reload_all, set_error_message } = useAppData()
   const navigate = useNavigate()
   const can_operate = role === "billing_user" || role === "system_admin"
 
-  const [cycle_form, set_cycle_form] = useState({ usage_month: "", billing_month: "", notes: "" })
+  const [cycle_form, set_cycle_form] = useState({ usage_month: current_month_value(), notes: "" })
   const [creating, set_creating] = useState(false)
 
   const handle_cycle_submit = async (event) => {
@@ -21,7 +38,7 @@ export function CyclesListPage() {
     try {
       set_creating(true)
       await api_fetch("/cycles/", { method: "POST", body: JSON.stringify(cycle_form) })
-      set_cycle_form({ usage_month: "", billing_month: "", notes: "" })
+      set_cycle_form({ usage_month: current_month_value(), notes: "" })
       show_toast("Billing cycle created.", "success")
       await reload_all()
     } catch (error) {
@@ -39,7 +56,7 @@ export function CyclesListPage() {
           <div className="panel-header">
             <div>
               <h2>Create Cycle</h2>
-              <p>Pair a usage month with the billing month it will be invoiced in.</p>
+              <p>Confirm the month being billed. The billing/log month is derived automatically as the month after.</p>
             </div>
           </div>
           <form className="form-grid" onSubmit={handle_cycle_submit}>
@@ -53,13 +70,8 @@ export function CyclesListPage() {
               />
             </label>
             <label>
-              Billing month
-              <input
-                type="month"
-                value={cycle_form.billing_month}
-                onChange={(event) => set_cycle_form((previous) => ({ ...previous, billing_month: event.target.value }))}
-                required
-              />
+              Billing month (derived)
+              <input type="month" value={next_month_value(cycle_form.usage_month)} readOnly disabled />
             </label>
             <label className="full">
               Notes

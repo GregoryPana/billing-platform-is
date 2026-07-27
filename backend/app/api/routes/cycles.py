@@ -7,7 +7,7 @@ from app.models.billing_cycle import BillingCycle
 from app.schemas.cycles import BillingCycleCreate, BillingCycleRead, BillingCycleStatusUpdate
 from app.services.audit_service import record_audit_event
 from app.services.auth_service import CurrentActor, require_role, role_set
-from app.utils.datetime_utils import utc_plus_4_now
+from app.utils.datetime_utils import next_month_str, utc_plus_4_now
 
 
 router = APIRouter()
@@ -29,7 +29,7 @@ def create_cycle(
 ):
     cycle = BillingCycle(
         usage_month=payload.usage_month,
-        billing_month=payload.billing_month,
+        billing_month=next_month_str(payload.usage_month),
         status="draft",
         notes=payload.notes,
         created_by=actor.id,
