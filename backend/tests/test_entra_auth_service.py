@@ -1,4 +1,6 @@
+import jwt as pyjwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 
 from app.services import entra_auth_service as svc
@@ -147,6 +149,46 @@ def test_validate_entra_token_accepts_bare_client_id_audience(monkeypatch):
     assert identity.subject == "entra-subject-bare-aud"
     assert identity.role == "system_admin"
     assert captured_kwargs["audience"] is not None
+
+
+def test_validate_entra_token_real_rs256_round_trip(monkeypatch):
+    # Every other test here mocks jwt.decode or the signing key, so none of
+    # them actually exercise RS256 signature verification - which is exactly
+    # how a missing `cryptography` dependency (PyJWT's RS256 backend) stayed
+    # invisible through 105/105 "passing" CI runs while every real Entra
+    # sign-in failed in production with a generic 401 "Invalid token"
+    # (jwt.exceptions.MissingCryptographyError, caught by the broad
+    # `except jwt.PyJWTError` in validate_entra_token). This test signs and
+    # verifies a real RS256 token so that gap can't recur silently.
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    class FakeSigningKey:
+        key = private_key.public_key()
+
+    class FakeJwksClient:
+        def get_signing_key_from_jwt(self, token):
+            return FakeSigningKey()
+
+    monkeypatch.setattr(svc, "_jwks_client_instance", lambda: FakeJwksClient())
+    monkeypatch.setattr(svc.settings, "entra_audience", None)
+    monkeypatch.setattr(svc.settings, "entra_client_id", "test-client-id")
+    monkeypatch.setattr(svc.settings, "entra_issuer", "https://login.microsoftonline.com/test-tenant/v2.0")
+
+    token = pyjwt.encode(
+        {
+            "oid": "entra-subject-real-rs256",
+            "aud": "test-client-id",
+            "iss": "https://login.microsoftonline.com/test-tenant/v2.0",
+            "preferred_username": "test.user@example.com",
+            "roles": ["system_admin"],
+        },
+        private_key,
+        algorithm="RS256",
+    )
+
+    identity = svc.validate_entra_token(token)
+    assert identity.subject == "entra-subject-real-rs256"
+    assert identity.role == "system_admin"
 
 
 def _stub_jwks(monkeypatch):
