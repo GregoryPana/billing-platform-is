@@ -30,7 +30,7 @@ export function ScriptsRunsStage({ cycle, environment, blocked, blocked_reason }
   const [issue_dialog_run, set_issue_dialog_run] = useState(null)
   const [active_execution_issue, set_active_execution_issue] = useState(null)
 
-  const cycle_month = cycle?.billing_month || cycle?.usage_month || ""
+  const cycle_month = cycle?.usage_month || ""
 
   const reload_execution_issues = useCallback(async () => {
     try {

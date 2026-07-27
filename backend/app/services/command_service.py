@@ -1,9 +1,9 @@
-from datetime import date
 import calendar
+from datetime import date
 
 from fastapi import HTTPException, status
 
-from app.utils.datetime_utils import utc_plus_4_now
+from app.utils.datetime_utils import next_month_str, utc_plus_4_now
 
 
 CYCLES = [
@@ -21,12 +21,9 @@ CYCLES = [
 ]
 
 
-def _default_preparation_params(environment: str, cycle: str) -> dict[str, str]:
-    now = utc_plus_4_now()
-    if now.month == 12:
-        first_of_next_month = now.replace(year=now.year + 1, month=1, day=1)
-    else:
-        first_of_next_month = now.replace(month=now.month + 1, day=1)
+def _default_preparation_params(environment: str, cycle: str, usage_month: str) -> dict[str, str]:
+    next_month_year, next_month_number = (int(part) for part in next_month_str(usage_month).split("-"))
+    first_of_next_month = date(next_month_year, next_month_number, 1)
     return {
         "p1": cycle,
         "p2": "T" if environment == "test" else "N",
@@ -39,11 +36,11 @@ def _default_preparation_params(environment: str, cycle: str) -> dict[str, str]:
     }
 
 
-def _default_printing_params(environment: str, cycle: str) -> dict[str, str]:
-    today = date.today()
-    first_day = today.replace(day=1)
-    last_day_value = calendar.monthrange(today.year, today.month)[1]
-    last_day = today.replace(day=last_day_value)
+def _default_printing_params(environment: str, cycle: str, usage_month: str) -> dict[str, str]:
+    usage_year, usage_month_number = (int(part) for part in usage_month.split("-"))
+    first_day = date(usage_year, usage_month_number, 1)
+    last_day_value = calendar.monthrange(usage_year, usage_month_number)[1]
+    last_day = date(usage_year, usage_month_number, last_day_value)
     return {
         "p1": "S",
         "p2": f"PBCC={cycle}|PITM=Y|PTEST={'Y' if environment == 'test' else 'N'}",
@@ -60,6 +57,7 @@ def generate_parameters(
     script_type: str,
     environment: str,
     log_type: str,
+    usage_month: str,
     overrides: dict[str, str] | None,
 ) -> dict[str, str]:
     environment_value = environment.lower()
@@ -69,9 +67,9 @@ def generate_parameters(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported cycle")
 
     if script_type_value == "preparation":
-        params = _default_preparation_params(environment_value, log_type)
+        params = _default_preparation_params(environment_value, log_type, usage_month)
     elif script_type_value == "printing":
-        params = _default_printing_params(environment_value, log_type)
+        params = _default_printing_params(environment_value, log_type, usage_month)
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid script type")
 
