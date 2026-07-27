@@ -128,9 +128,9 @@ def test_admin_approval_allowed_when_issue_raised_in_error(client, auth_headers)
     assert response.status_code == 200
 
 
-def test_execution_issue_does_not_block_move_to_live(client, auth_headers):
+def test_execution_issue_does_not_block_move_to_live(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
-    login = client.post("/api/auth/login", json={"username_or_email": "billing_user", "password": "ChangeMe123!"})
+    billing_user_id = test_actor_id("billing_user")
     definition_id = str(uuid.uuid4())
     run_id = str(uuid.uuid4())
     classification_id = str(uuid.uuid4())
@@ -144,7 +144,7 @@ def test_execution_issue_does_not_block_move_to_live(client, auth_headers):
                     (:id, :billing_cycle_id, 'test', 'preparation', 'daily', '{}', 'echo test', :created_by, now())
                 """
             ),
-            {"id": definition_id, "billing_cycle_id": cycle_id, "created_by": login.json()["user"]["id"]},
+            {"id": definition_id, "billing_cycle_id": cycle_id, "created_by": billing_user_id},
         )
         connection.execute(
             text(

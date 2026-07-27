@@ -4,25 +4,12 @@ from app.db.session import engine
 from app.services.auth_service import hash_password
 
 
-def test_seeded_billing_user_can_log_in(client):
-    response = client.post(
-        "/api/auth/login",
-        json={"username_or_email": "billing_user", "password": "ChangeMe123!"},
-    )
-    assert response.status_code == 200
-    assert response.json()["user"]["role"] == "billing_user"
-
-
-def test_seeded_finance_user_can_log_in(client):
-    response = client.post(
-        "/api/auth/login",
-        json={"username_or_email": "finance_user", "password": "ChangeMe123!"},
-    )
-    assert response.status_code == 200
-    assert response.json()["user"]["role"] == "finance_user"
-
-
 def test_seeded_system_admin_can_log_in(client):
+    # This is the only local account seeded in production - the break-glass
+    # admin (see app/db/init_db.py). billing_user/finance_user are no longer
+    # seeded as local accounts; those roles are Entra-only, exercised via the
+    # auth_headers fixture (dependency override) in other test files rather
+    # than a real login.
     response = client.post(
         "/api/auth/login",
         json={"username_or_email": "admin", "password": "AdminChange2026!"},

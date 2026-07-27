@@ -195,17 +195,14 @@ def test_reopen_before_approval_requires_comment_and_succeeds(client, auth_heade
     assert body["completion_outcome"] is None
 
 
-def test_reopen_after_move_to_live_approval_is_rejected(client, auth_headers):
+def test_reopen_after_move_to_live_approval_is_rejected(client, auth_headers, test_actor_id):
     cycle_id = _create_cycle(client, auth_headers)
     issue = _create_finance_issue(client, auth_headers, cycle_id)
     client.post(
         f"/api/issues/{issue['id']}/complete", json={"outcome": "resolved"}, headers=auth_headers("finance_user")
     ).raise_for_status()
 
-    finance_login = client.post(
-        "/api/auth/login", json={"username_or_email": "finance_user", "password": "ChangeMe123!"}
-    )
-    _insert_approved_move_to_live(cycle_id, finance_login.json()["user"]["id"])
+    _insert_approved_move_to_live(cycle_id, test_actor_id("finance_user"))
 
     response = client.post(
         f"/api/issues/{issue['id']}/reopen",

@@ -71,13 +71,10 @@ def _apply_schema_updates() -> None:
             connection.execute(text("ALTER TABLE users ALTER COLUMN auth_metadata SET DEFAULT ''"))
             connection.execute(text("ALTER TABLE users ALTER COLUMN auth_metadata SET NOT NULL"))
 
-    signup_columns = {column["name"] for column in inspector.get_columns("signup_requests")}
-    if "name" not in signup_columns:
-        with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE signup_requests ADD COLUMN IF NOT EXISTS name VARCHAR(255)"))
-            connection.execute(
-                text("UPDATE signup_requests SET name = username WHERE name IS NULL OR name = ''")
-            )
+    # The signup_requests table itself is left in place (inert - local signup
+    # is retired, see docs/entra-id-integration-plan.md) rather than dropped
+    # here; dropping it is a schema migration, done separately with explicit
+    # approval, not as a side effect of this safety-net function.
 
     _deactivate_retired_viewer_role()
 
@@ -90,6 +87,11 @@ def _deactivate_retired_viewer_role() -> None:
 
 
 def _seed_default_users() -> None:
+    # All routine access goes through Entra (see docs/entra-id-integration-plan.md);
+    # this is the single break-glass local account kept for the case Entra
+    # itself is unavailable or misconfigured. It is not exposed via any
+    # signup/self-service path - only pre-existing local login and the admin
+    # Users list. Rotate its password after first use if it's ever needed.
     db = SessionLocal()
     try:
         existing = db.scalar(select(models.User).limit(1))
@@ -97,42 +99,18 @@ def _seed_default_users() -> None:
             return
 
         now = utc_plus_4_now()
-        users = [
-            models.User(
-                id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-                name="Billing User",
-                username="billing_user",
-                email="billing@example.com",
-                role="billing",
-                is_active=True,
-                password_hash=hash_password("ChangeMe123!"),
-                created_at=now,
-                updated_at=now,
-            ),
-            models.User(
-                id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
-                name="Finance User",
-                username="finance_user",
-                email="finance@example.com",
-                role="finance",
-                is_active=True,
-                password_hash=hash_password("ChangeMe123!"),
-                created_at=now,
-                updated_at=now,
-            ),
-            models.User(
-                id=uuid.UUID("00000000-0000-0000-0000-000000000003"),
-                name="Admin User",
-                username="admin",
-                email="admin@example.com",
-                role="admin",
-                is_active=True,
-                password_hash=hash_password("AdminChange2026!"),
-                created_at=now,
-                updated_at=now,
-            ),
-        ]
-        db.add_all(users)
+        admin = models.User(
+            id=uuid.UUID("00000000-0000-0000-0000-000000000003"),
+            name="Break-Glass Admin",
+            username="admin",
+            email="admin@example.com",
+            role="admin",
+            is_active=True,
+            password_hash=hash_password("AdminChange2026!"),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(admin)
         db.commit()
     finally:
         db.close()

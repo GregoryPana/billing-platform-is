@@ -4,12 +4,23 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.users import UserCreate, UserRead, UserUpdate
+from app.schemas.users import UserRead, UserUpdate
 from app.services.auth_service import CurrentActor, LOCAL_ASSIGNABLE_ROLES, hash_password, normalize_role, require_role, role_set, to_stored_role
 from app.utils.datetime_utils import utc_plus_4_now
 
 
 router = APIRouter()
+
+
+def _display_role(role: str) -> str:
+    # The admin Users list must stay legible even if a row's stored role
+    # predates a retirement (e.g. the old "viewer" role, see 8f6d8db) or is
+    # otherwise unrecognized - surface it as-is rather than 403ing the whole
+    # list, so an admin can see and fix/delete the offending row from here.
+    try:
+        return normalize_role(role)
+    except HTTPException:
+        return role
 
 
 def _user_payload(user: User) -> UserRead:
@@ -18,7 +29,7 @@ def _user_payload(user: User) -> UserRead:
         name=user.name,
         username=user.username,
         email=user.email,
-        role=normalize_role(user.role),
+        role=_display_role(user.role),
         is_active=user.is_active,
         created_at=user.created_at,
         updated_at=user.updated_at,
@@ -30,35 +41,14 @@ def list_users(
     db: Session = Depends(get_db),
     actor: CurrentActor = Depends(require_role(role_set("system_admin"))),
 ):
+    # Local user creation is retired - see docs/entra-id-integration-plan.md.
+    # Entra-provisioned rows appear here automatically on first sign-in
+    # (upsert_entra_user); role for those rows always comes from the current
+    # Entra token's claims, never from this stored row, so editing/deleting a
+    # row here does not itself grant or revoke access - that is controlled by
+    # Entra AD security-group membership. This list exists for visibility and
+    # local-account cleanup only.
     return [_user_payload(user) for user in db.scalars(select(User).order_by(User.created_at.desc()))]
-
-
-@router.post("/", response_model=UserRead)
-def create_user(
-    payload: UserCreate,
-    db: Session = Depends(get_db),
-    actor: CurrentActor = Depends(require_role(role_set("system_admin"))),
-):
-    if payload.role not in LOCAL_ASSIGNABLE_ROLES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
-    existing = db.scalar(select(User).where((User.username == payload.username) | (User.email == payload.email)))
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
-    now = utc_plus_4_now()
-    user = User(
-        name=payload.name,
-        username=payload.username,
-        email=payload.email,
-        role=to_stored_role(payload.role),
-        is_active=payload.is_active,
-        password_hash=hash_password(payload.password),
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return _user_payload(user)
 
 
 @router.patch("/{user_id}", response_model=UserRead)

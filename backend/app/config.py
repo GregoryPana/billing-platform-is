@@ -10,8 +10,6 @@ class Settings(BaseSettings):
     timezone_offset_hours: int = 4
     n8n_webhook_url: str | None = None
     n8n_approval_webhook_url: str | None = None
-    n8n_signup_webhook_url: str | None = None
-    n8n_signup_approve_webhook_url: str | None = None
     n8n_webhook_verify: bool = True
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"

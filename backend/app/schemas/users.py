@@ -15,15 +15,6 @@ class UserRead(BaseSchema):
     updated_at: datetime
 
 
-class UserCreate(BaseSchema):
-    name: str
-    username: str
-    email: str
-    role: str
-    password: str
-    is_active: bool = True
-
-
 class UserUpdate(BaseSchema):
     name: str | None = None
     username: str | None = None
