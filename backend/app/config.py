@@ -2,7 +2,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=(".env.local", ".env"), env_file_encoding="utf-8")
+    # extra="ignore": production's .env is written unconditionally by
+    # .github/workflows/ci.yml regardless of which settings this app
+    # currently declares (see N8N_SIGNUP_WEBHOOK_URL/N8N_SIGNUP_APPROVE_WEBHOOK_URL,
+    # removed here but still written to .env by that workflow). Without this,
+    # any settings field retired here crashes app startup - including
+    # `alembic upgrade head`, which imports this module - until ci.yml is
+    # separately updated to match, which is exactly the kind of two-repo-file
+    # coordination that's easy to miss.
+    model_config = SettingsConfigDict(env_file=(".env.local", ".env"), env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "Billing Platform API"
     environment: str = "local"
