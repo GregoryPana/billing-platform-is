@@ -36,7 +36,7 @@ export function Dialog({ open, onOpenChange, title, description, className, chil
         ref={panel_ref}
         tabIndex={-1}
         className={cn(
-          "w-full max-w-lg rounded-lg border border-transparent bg-card p-6 shadow-lg dark:border-border",
+          "dialog-panel w-full max-w-lg rounded-lg border border-transparent bg-card p-6 shadow-lg dark:border-border",
           className
         )}
         role="dialog"
