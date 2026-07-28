@@ -189,7 +189,6 @@ Finance can still manually record a `live` approval in its review form, but it i
 Main tables:
 
 - `users`
-- `signup_requests`
 - `approval_request_settings`
 - `billing_cycles`
 - `script_definitions`

@@ -71,11 +71,6 @@ def _apply_schema_updates() -> None:
             connection.execute(text("ALTER TABLE users ALTER COLUMN auth_metadata SET DEFAULT ''"))
             connection.execute(text("ALTER TABLE users ALTER COLUMN auth_metadata SET NOT NULL"))
 
-    # The signup_requests table itself is left in place (inert - local signup
-    # is retired, see docs/entra-id-integration-plan.md) rather than dropped
-    # here; dropping it is a schema migration, done separately with explicit
-    # approval, not as a side effect of this safety-net function.
-
     _deactivate_retired_viewer_role()
 
 

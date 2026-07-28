@@ -81,7 +81,6 @@ The finance review form can still submit `live`, but it is not the main gate use
 ## Main Persistence Entities
 
 - `users`
-- `signup_requests`
 - `approval_request_settings`
 - `billing_cycles`
 - `script_definitions`

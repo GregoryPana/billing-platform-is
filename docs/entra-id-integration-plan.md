@@ -312,13 +312,7 @@ Recommended approach:
 
 ### Signup requests
 
-Treat `signup_requests` as legacy after Entra onboarding becomes the standard path.
-
-Recommended later actions:
-
-- stop creating new signup requests
-- leave historical rows intact
-- remove UI and API after cutover
+Local self-service signup and admin-created local accounts were retired in `feature/entra-only-auth` (PR #13). The `signup_requests` table and its model/schemas/routes/UI are fully removed; the table itself is dropped by `backend/alembic/versions/f3a9c1d7e2b4_drop_signup_requests_table.py`.
 
 ## Deployment And Environment Impact
 

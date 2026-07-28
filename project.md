@@ -195,7 +195,6 @@ The persisted model is straightforward and workflow-oriented.
 ### Main tables
 
 - `users`: application users, roles, active flag, password hash
-- `signup_requests`: pending access requests waiting for admin review
 - `approval_request_settings`: global request email settings and default message
 - `billing_cycles`: the top-level monthly work unit
 - `script_definitions`: generated script commands and parameter sets
