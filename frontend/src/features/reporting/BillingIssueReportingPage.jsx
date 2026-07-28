@@ -21,21 +21,24 @@ function MetricSection({ title, metric, children }) {
           <p>{metric.decision_supported}</p>
         </div>
       </div>
-      <div className="summary-card mb-4">
-        <div>
-          <span className="label">Source</span>
-          <span>{metric.source}</span>
-        </div>
-        <div>
-          <span className="label">Filter scope</span>
-          <span>{metric.filter_scope}</span>
-        </div>
-      </div>
       {metric.is_empty ? (
         <p className="text-sm text-muted-foreground">No data for the current filters.</p>
       ) : (
         children
       )}
+      <details className="panel-details">
+        <summary>Data details</summary>
+        <div className="summary-card">
+          <div>
+            <span className="label">Source</span>
+            <span>{metric.source}</span>
+          </div>
+          <div>
+            <span className="label">Filter scope</span>
+            <span>{metric.filter_scope}</span>
+          </div>
+        </div>
+      </details>
     </section>
   )
 }
