@@ -3,13 +3,19 @@ import { useNavigate, useParams } from "react-router-dom"
 import { Inbox } from "lucide-react"
 
 import { api_fetch } from "../../api"
-import { show_toast, useAppData } from "../../context/AppDataContext"
+import { show_toast, useDataScope, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { Button } from "../../components/ui/button"
+import { Panel, PanelHeader, PanelTitle, PanelDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { cycle_month_pair, format_stage_label } from "../../lib/format"
 
 /* Finance-facing decision queue. Deep-linkable per request via /approvals/:id. */
+const APPROVALS_SCOPE = ["cycles", "approvals"]
+
 export function ApprovalsInboxPage() {
+  useDataScope(APPROVALS_SCOPE)
   const { approval_id } = useParams()
   const navigate = useNavigate()
   const { approvals, pending_approvals, cycles_by_id, reload_all, set_error_message } = useAppData()
@@ -56,34 +62,34 @@ export function ApprovalsInboxPage() {
 
   return (
     <>
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>Pending Requests</h2>
-            <p>Select a request to review the message from billing and record your decision.</p>
+            <PanelTitle>Pending Requests</PanelTitle>
+            <PanelDescription>Select a request to review the message from billing and record your decision.</PanelDescription>
           </div>
-        </div>
+        </PanelHeader>
         {pending_approvals.length === 0 ? (
-          <div className="empty-state">
+          <EmptyState>
             <Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
             No pending approvals. New requests from billing will appear here.
-          </div>
+          </EmptyState>
         ) : (
-          <div className="data-table">
-            <div className="data-row table-head">
+          <DataTable>
+            <DataTableRow head>
               <span>Cycle</span>
               <span>Stage</span>
               <span>Requested</span>
               <span>Action</span>
-            </div>
+            </DataTableRow>
             {pending_approvals.map((approval) => {
               const cycle = cycles_by_id.get(String(approval.billing_cycle_id))
               const is_expanded = String(expanded_id) === String(approval.id)
               const decision = get_decision(approval.id)
               return (
                 <div key={approval.id} className="flex flex-col">
-                  <div
-                    className="data-row cursor-pointer"
+                  <DataTableRow
+                    className="cursor-pointer"
                     onClick={() => set_expanded_id(is_expanded ? null : approval.id)}
                   >
                     <span>{cycle_month_pair(cycle)}</span>
@@ -101,7 +107,7 @@ export function ApprovalsInboxPage() {
                         {is_expanded ? "Close" : "Review"}
                       </Button>
                     </span>
-                  </div>
+                  </DataTableRow>
                   {is_expanded && (
                     <div className="detail-card">
                       <strong>Message from billing</strong>
@@ -155,34 +161,34 @@ export function ApprovalsInboxPage() {
                 </div>
               )
             })}
-          </div>
+          </DataTable>
         )}
-      </section>
+      </Panel>
 
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>Decision History</h2>
-            <p>Completed approvals across all billing cycles.</p>
+            <PanelTitle>Decision History</PanelTitle>
+            <PanelDescription>Completed approvals across all billing cycles.</PanelDescription>
           </div>
-        </div>
-        <div className="data-table">
-          <div className="data-row table-head">
+        </PanelHeader>
+        <DataTable>
+          <DataTableRow head>
             <span>Cycle</span>
             <span>Stage</span>
             <span>Status</span>
             <span>Updated</span>
-          </div>
+          </DataTableRow>
           {history.length === 0 ? (
-            <div className="empty-state">No completed approvals yet.</div>
+            <EmptyState>No completed approvals yet.</EmptyState>
           ) : (
             history.map((approval) => {
               const cycle = cycles_by_id.get(String(approval.billing_cycle_id))
               const is_expanded = String(expanded_id) === String(approval.id)
               return (
                 <div key={approval.id} className="flex flex-col">
-                  <div
-                    className="data-row cursor-pointer"
+                  <DataTableRow
+                    className="cursor-pointer"
                     onClick={() => set_expanded_id(is_expanded ? null : approval.id)}
                   >
                     <span>{cycle_month_pair(cycle)}</span>
@@ -191,7 +197,7 @@ export function ApprovalsInboxPage() {
                       <StatusBadge status={approval.status} />
                     </span>
                     <span>{new Date(approval.updated_at).toLocaleString()}</span>
-                  </div>
+                  </DataTableRow>
                   {is_expanded && (
                     <div className="detail-card">
                       <strong>Details &amp; Comments</strong>
@@ -202,8 +208,8 @@ export function ApprovalsInboxPage() {
               )
             })
           )}
-        </div>
-      </section>
+        </DataTable>
+      </Panel>
     </>
   )
 }

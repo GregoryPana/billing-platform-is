@@ -2,9 +2,12 @@ import { useMemo } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ArrowRight, ClipboardList } from "lucide-react"
 
-import { useAppData } from "../../context/AppDataContext"
+import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { Button } from "../../components/ui/button"
+import { Panel, PanelHeader, PanelTitle, PanelDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { cn } from "../../lib/utils"
 import {
   compute_cycle_steps,
@@ -13,7 +16,10 @@ import {
   format_stage_label,
 } from "../../lib/format"
 
+const OVERVIEW_SCOPE = ["cycles", "scripts", "runs", "approvals", "notifications"]
+
 export function OverviewPage() {
+  useDataScope(OVERVIEW_SCOPE)
   const { role, cycles, scripts, runs, approvals, notifications, pending_approvals, cycles_by_id, scripts_by_id } =
     useAppData()
   const navigate = useNavigate()
@@ -73,23 +79,23 @@ export function OverviewPage() {
       </section>
 
       {!is_finance && (
-        <section className="panel">
-          <div className="panel-header">
+        <Panel>
+          <PanelHeader>
             <div>
-              <h2>Cycles in Progress</h2>
-              <p>Every open cycle with its workflow progress. Continue takes you to the cycle workspace.</p>
+              <PanelTitle>Cycles in Progress</PanelTitle>
+              <PanelDescription>Every open cycle with its workflow progress. Continue takes you to the cycle workspace.</PanelDescription>
             </div>
             {can_operate ? (
               <Button variant="outline" onClick={() => navigate("/cycles")}>
                 All Cycles
               </Button>
             ) : null}
-          </div>
+          </PanelHeader>
           {in_flight.length === 0 ? (
-            <div className="empty-state">
+            <EmptyState>
               <ClipboardList className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
               No cycles in progress. {can_operate ? "Create a cycle under Billing Cycles to start a run." : "Cycles will appear here once created."}
-            </div>
+            </EmptyState>
           ) : (
             <div className="space-y-3">
               {in_flight.map(({ cycle, model }) => (
@@ -130,34 +136,34 @@ export function OverviewPage() {
               ) : null}
             </div>
           )}
-        </section>
+        </Panel>
       )}
 
       <section className="content-grid">
         {!is_finance && (
-          <div className="panel">
-            <div className="panel-header">
+          <Panel>
+            <PanelHeader>
               <div>
-                <h2>Recent Billing Runs</h2>
-                <p>Latest execution status updates across all cycles.</p>
+                <PanelTitle>Recent Billing Runs</PanelTitle>
+                <PanelDescription>Latest execution status updates across all cycles.</PanelDescription>
               </div>
-            </div>
-            <div className="data-table">
-              <div className="data-row table-head">
+            </PanelHeader>
+            <DataTable>
+              <DataTableRow head>
                 <span>Cycle</span>
                 <span>Cycle Type</span>
                 <span>Script</span>
                 <span>Status</span>
                 <span>Updated</span>
-              </div>
+              </DataTableRow>
               {overview_runs.length === 0 ? (
-                <div className="empty-state">No runs recorded yet. Runs appear once scripts are generated and tracked.</div>
+                <EmptyState>No runs recorded yet. Runs appear once scripts are generated and tracked.</EmptyState>
               ) : (
                 overview_runs.map((run) => {
                   const script = scripts_by_id.get(String(run.script_definition_id))
                   const cycle = script ? cycles_by_id.get(String(script.billing_cycle_id)) : null
                   return (
-                    <div className="data-row" key={run.id}>
+                    <DataTableRow key={run.id}>
                       <span>{cycle ? cycle_month_pair(cycle) : "-"}</span>
                       <span>{script?.log_type || "-"}</span>
                       <span className="capitalize">{script?.script_type || "-"}</span>
@@ -169,58 +175,58 @@ export function OverviewPage() {
                           ? new Date(run.run_timestamp).toLocaleString()
                           : new Date(run.created_at).toLocaleString()}
                       </span>
-                    </div>
+                    </DataTableRow>
                   )
                 })
               )}
-            </div>
-          </div>
+            </DataTable>
+          </Panel>
         )}
 
-        <div className="panel">
-          <div className="panel-header">
+        <Panel>
+          <PanelHeader>
             <div>
-              <h2>{is_finance ? "Pending Approvals" : "Approvals"}</h2>
-              <p>
+              <PanelTitle>{is_finance ? "Pending Approvals" : "Approvals"}</PanelTitle>
+              <PanelDescription>
                 {is_finance
                   ? "Requests waiting for your decision."
                   : "Finance checkpoints before advancing the workflow."}
-              </p>
+              </PanelDescription>
             </div>
             {is_finance || role === "system_admin" ? (
               <Button variant="outline" onClick={() => navigate("/approvals")}>
                 Open Inbox
               </Button>
             ) : null}
-          </div>
-          <div className="data-table">
-            <div className="data-row table-head">
+          </PanelHeader>
+          <DataTable>
+            <DataTableRow head>
               <span>Cycle</span>
               <span>Stage</span>
               <span>Status</span>
               <span>Updated</span>
-            </div>
+            </DataTableRow>
             {(is_finance ? pending_approvals : approvals.slice(0, 6)).length === 0 ? (
-              <div className="empty-state">
+              <EmptyState>
                 {is_finance ? "No pending approvals. New requests from billing appear here." : "No approvals recorded yet."}
-              </div>
+              </EmptyState>
             ) : (
               (is_finance ? pending_approvals : approvals.slice(0, 6)).map((approval) => {
                 const cycle = cycles_by_id.get(String(approval.billing_cycle_id))
                 return (
-                  <div className="data-row" key={approval.id}>
+                  <DataTableRow key={approval.id}>
                     <span>{cycle_month_pair(cycle)}</span>
                     <span>{format_stage_label(approval.stage)}</span>
                     <span>
                       <StatusBadge status={approval.status} />
                     </span>
                     <span>{new Date(approval.updated_at).toLocaleString()}</span>
-                  </div>
+                  </DataTableRow>
                 )
               })
             )}
-          </div>
-        </div>
+          </DataTable>
+        </Panel>
       </section>
     </>
   )

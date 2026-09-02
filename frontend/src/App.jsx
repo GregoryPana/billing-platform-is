@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 
@@ -11,10 +11,25 @@ import { OverviewPage } from "./features/overview/OverviewPage"
 import { CyclesListPage } from "./features/cycles/CyclesListPage"
 import { CycleWorkspacePage } from "./features/cycles/CycleWorkspacePage"
 import { ApprovalsInboxPage } from "./features/approvals/ApprovalsInboxPage"
-import { BillingIssueReportingPage } from "./features/reporting/BillingIssueReportingPage"
-import { AdministrationPage } from "./features/admin/AdministrationPage"
-import { HelpPage } from "./features/help/HelpPage"
+import { RouteErrorBoundary } from "./components/layout/RouteErrorBoundary"
 import "./App.css"
+
+const BillingIssueReportingPage = lazy(() =>
+  import("./features/reporting/BillingIssueReportingPage").then((m) => ({ default: m.BillingIssueReportingPage }))
+)
+const AdministrationPage = lazy(() =>
+  import("./features/admin/AdministrationPage").then((m) => ({ default: m.AdministrationPage }))
+)
+const HelpPage = lazy(() => import("./features/help/HelpPage").then((m) => ({ default: m.HelpPage })))
+
+function RouteLoading() {
+  return (
+    <div className="flex min-h-[240px] w-full items-center justify-center p-8" role="status" aria-live="polite">
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+      <span className="sr-only">Loading…</span>
+    </div>
+  )
+}
 
 function RequireRole({ role, allowed, children }) {
   if (!allowed.includes(role)) {
@@ -91,61 +106,65 @@ function App() {
   return (
     <AppDataProvider current_user={current_user} role={role} on_sign_out={handle_sign_out}>
       <HashRouter>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/overview" element={<OverviewPage />} />
-            <Route
-              path="/cycles"
-              element={
-                <RequireRole role={role} allowed={["billing_user", "finance_user", "system_admin"]}>
-                  <CyclesListPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/cycles/:cycle_id"
-              element={
-                <RequireRole role={role} allowed={["billing_user", "finance_user", "system_admin"]}>
-                  <CycleWorkspacePage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/approvals"
-              element={
-                <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
-                  <ApprovalsInboxPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/approvals/:approval_id"
-              element={
-                <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
-                  <ApprovalsInboxPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/reporting"
-              element={
-                <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
-                  <BillingIssueReportingPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/administration"
-              element={
-                <RequireRole role={role} allowed={["billing_user", "system_admin"]}>
-                  <AdministrationPage />
-                </RequireRole>
-              }
-            />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="*" element={<Navigate to="/overview" replace />} />
-          </Route>
-        </Routes>
+        <RouteErrorBoundary>
+          <Suspense fallback={<RouteLoading />}>
+            <Routes>
+              <Route element={<MainLayout />}>
+                <Route path="/overview" element={<OverviewPage />} />
+                <Route
+                  path="/cycles"
+                  element={
+                    <RequireRole role={role} allowed={["billing_user", "finance_user", "system_admin"]}>
+                      <CyclesListPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/cycles/:cycle_id"
+                  element={
+                    <RequireRole role={role} allowed={["billing_user", "finance_user", "system_admin"]}>
+                      <CycleWorkspacePage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/approvals"
+                  element={
+                    <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
+                      <ApprovalsInboxPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/approvals/:approval_id"
+                  element={
+                    <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
+                      <ApprovalsInboxPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/reporting"
+                  element={
+                    <RequireRole role={role} allowed={["finance_user", "system_admin"]}>
+                      <BillingIssueReportingPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/administration"
+                  element={
+                    <RequireRole role={role} allowed={["billing_user", "system_admin"]}>
+                      <AdministrationPage />
+                    </RequireRole>
+                  }
+                />
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="*" element={<Navigate to="/overview" replace />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </RouteErrorBoundary>
       </HashRouter>
     </AppDataProvider>
   )

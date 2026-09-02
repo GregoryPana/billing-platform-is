@@ -6,6 +6,7 @@ import { Dialog } from "../../components/ui/dialog"
 import { Input } from "../../components/ui/input"
 import { Select } from "../../components/ui/select"
 import { Textarea } from "../../components/ui/textarea"
+import { PanelSubheader, PanelSubheaderTitle } from "../../components/ui/panel"
 import { show_toast } from "../../context/AppDataContext"
 import { add_issue_comment, complete_issue, edit_issue, get_issue_activities, reopen_issue } from "./issue-api"
 import { describe_issue_status } from "./issue-status"
@@ -178,9 +179,9 @@ export function IssueActivityDialog({
         </div>
       )}
 
-      <div className="panel-subheader mt-0">
-        <h3>Activity</h3>
-      </div>
+      <PanelSubheader className="mt-0">
+        <PanelSubheaderTitle>Activity</PanelSubheaderTitle>
+      </PanelSubheader>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : activities.length === 0 ? (

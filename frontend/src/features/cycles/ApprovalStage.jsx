@@ -4,6 +4,8 @@ import { api_fetch } from "../../api"
 import { show_toast, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { FinanceIssuePanel } from "../issues/FinanceIssuePanel"
+import { PanelSubheader, PanelSubheaderTitle, PanelSubheaderDescription } from "../../components/ui/panel"
+import { EmptyState } from "../../components/ui/empty-state"
 import { compute_stage_ready, cycle_month_pair, format_stage_label } from "../../lib/format"
 
 /* Approval checkpoint for one cycle+stage. Billing requests here (recipients
@@ -154,17 +156,17 @@ export function ApprovalStage({ cycle, stage }) {
 
       {can_request && (
         <>
-          <div className="panel-subheader">
-            <h3>Request Approval</h3>
-            <p>{readiness_note}</p>
-          </div>
+          <PanelSubheader>
+            <PanelSubheaderTitle>Request Approval</PanelSubheaderTitle>
+            <PanelSubheaderDescription>{readiness_note}</PanelSubheaderDescription>
+          </PanelSubheader>
           <form className="form-grid" onSubmit={handle_request}>
             <div className="full">
               <p className="helper">Finance recipients</p>
               {finance_recipients.length === 0 ? (
-                <div className="empty-state">
+                <EmptyState>
                   No finance recipients configured. Add them under Administration → Settings.
-                </div>
+                </EmptyState>
               ) : (
                 <div className="checkbox-grid recipients-grid">
                   {finance_recipients.map((email) => (
@@ -196,10 +198,10 @@ export function ApprovalStage({ cycle, stage }) {
 
       {can_decide && approval?.status === "pending" && (
         <>
-          <div className="panel-subheader">
-            <h3>Record Decision</h3>
-            <p>Approve to unlock the next stage, or reject with comments for billing to address.</p>
-          </div>
+          <PanelSubheader>
+            <PanelSubheaderTitle>Record Decision</PanelSubheaderTitle>
+            <PanelSubheaderDescription>Approve to unlock the next stage, or reject with comments for billing to address.</PanelSubheaderDescription>
+          </PanelSubheader>
           {move_to_live_blocked && (
             <div className="alert warning">
               Approve Move to Live is disabled while {open_finance_issue_count} Finance review issue

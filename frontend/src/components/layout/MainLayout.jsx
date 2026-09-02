@@ -3,12 +3,17 @@ import { RefreshCcw } from "lucide-react"
 
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
-import { useAppData } from "../../context/AppDataContext"
+import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { cycle_month_pair, format_stage_label } from "../../lib/format"
 import { Sidebar } from "./Sidebar"
 import { nav_items_for_role } from "./nav"
 
+/* MainLayout wraps every route (approval-granted banner needs cycles + approvals
+   regardless of the active page), so these two collections stay effectively global. */
+const LAYOUT_SCOPE = ["cycles", "approvals"]
+
 export function MainLayout() {
+  useDataScope(LAYOUT_SCOPE)
   const {
     role,
     on_sign_out,

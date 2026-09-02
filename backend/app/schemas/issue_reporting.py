@@ -12,7 +12,6 @@ class ReportingFilters(BaseSchema):
 
 class MetricEnvelope(BaseSchema):
     source: str
-    filter_scope: str
     decision_supported: str
     is_empty: bool
     data: Any

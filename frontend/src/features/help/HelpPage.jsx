@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
-import html2pdf from "html2pdf.js"
 
 import { useAppData } from "../../context/AppDataContext"
+import { Panel, PanelHeader, PanelTitle, PanelDescription } from "../../components/ui/panel"
 import { cn } from "../../lib/utils"
 import { format_input_date } from "../../lib/format"
 
@@ -46,6 +46,7 @@ export function HelpPage() {
     const filename = `billing_user_guide_${format_input_date()}.pdf`
     document.body.classList.add("pdf-export")
     try {
+      const { default: html2pdf } = await import("html2pdf.js")
       await html2pdf()
         .set({
           margin: [10, 10, 12, 10],
@@ -62,11 +63,11 @@ export function HelpPage() {
   }
 
   return (
-    <section className="panel doc-panel">
-      <div className="panel-header">
+    <Panel className="doc-panel">
+      <PanelHeader>
         <div>
-          <h2>{active_doc?.label}</h2>
-          <p>{active_doc?.description}</p>
+          <PanelTitle>{active_doc?.label}</PanelTitle>
+          <PanelDescription>{active_doc?.description}</PanelDescription>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Help documents">
@@ -99,10 +100,10 @@ export function HelpPage() {
             </a>
           ) : null}
         </div>
-      </div>
+      </PanelHeader>
       <div className="doc-content markdown" ref={active_id === "user-guide" ? guide_ref : null}>
         <ReactMarkdown>{active_doc?.content || ""}</ReactMarkdown>
       </div>
-    </section>
+    </Panel>
   )
 }

@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom"
 import { ArrowRight } from "lucide-react"
 
 import { api_fetch } from "../../api"
-import { show_toast, useAppData } from "../../context/AppDataContext"
+import { show_toast, useDataScope, useAppData } from "../../context/AppDataContext"
 import { Button } from "../../components/ui/button"
+import { Panel, PanelHeader, PanelTitle, PanelDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { compute_cycle_steps, cycle_month_pair, format_cycle_status, format_month_label } from "../../lib/format"
 
@@ -25,7 +28,10 @@ const next_month_value = (usage_month) => {
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`
 }
 
+const CYCLES_LIST_SCOPE = ["cycles", "scripts", "runs", "approvals"]
+
 export function CyclesListPage() {
+  useDataScope(CYCLES_LIST_SCOPE)
   const { role, cycles, scripts, runs, approvals, reload_all, set_error_message } = useAppData()
   const navigate = useNavigate()
   const can_operate = role === "billing_user" || role === "system_admin"
@@ -52,13 +58,13 @@ export function CyclesListPage() {
   return (
     <>
       {can_operate && (
-        <section className="panel">
-          <div className="panel-header">
+        <Panel>
+          <PanelHeader>
             <div>
-              <h2>Create Cycle</h2>
-              <p>Confirm the month being billed. The billing/log month is derived automatically as the month after.</p>
+              <PanelTitle>Create Cycle</PanelTitle>
+              <PanelDescription>Confirm the month being billed. The billing/log month is derived automatically as the month after.</PanelDescription>
             </div>
-          </div>
+          </PanelHeader>
           <form className="form-grid" onSubmit={handle_cycle_submit}>
             <label>
               Usage month
@@ -84,33 +90,33 @@ export function CyclesListPage() {
               {creating ? "Creating…" : "Create Cycle"}
             </button>
           </form>
-        </section>
+        </Panel>
       )}
 
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>All Cycles</h2>
-            <p>Open a cycle to work it through scripts, runs, approvals, and notifications.</p>
+            <PanelTitle>All Cycles</PanelTitle>
+            <PanelDescription>Open a cycle to work it through scripts, runs, approvals, and notifications.</PanelDescription>
           </div>
-        </div>
-        <div className="data-table">
-          <div className="data-row table-head">
+        </PanelHeader>
+        <DataTable>
+          <DataTableRow head>
             <span>Usage → Billing</span>
             <span>Phase</span>
             <span>Progress</span>
             <span>Created</span>
-          </div>
+          </DataTableRow>
           {cycles.length === 0 ? (
-            <div className="empty-state">
+            <EmptyState>
               No billing cycles yet. {can_operate ? "Create the first one above." : "Cycles appear here once created."}
-            </div>
+            </EmptyState>
           ) : (
             cycles.map((cycle) => {
               const model = compute_cycle_steps(cycle, scripts, runs, approvals)
               return (
-                <div
-                  className="data-row cursor-pointer"
+                <DataTableRow
+                  className="cursor-pointer"
                   key={cycle.id}
                   role="link"
                   tabIndex={0}
@@ -141,12 +147,12 @@ export function CyclesListPage() {
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </span>
-                </div>
+                </DataTableRow>
               )
             })
           )}
-        </div>
-      </section>
+        </DataTable>
+      </Panel>
     </>
   )
 }

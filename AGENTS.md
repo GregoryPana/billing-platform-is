@@ -51,3 +51,8 @@ Before claiming completion, report:
 After meaningful work, append a compact entry to `.opencode/hermes-pending-updates.md`, then ask Gregory whether to generate the consolidated Hermes Update Pack. Only produce the full pack when he says yes or runs `/hermes-handoff`; skip the queue only for production deployment, auth/schema, destructive, or security events.
 
 Use canonical project name: **Billing Collaboration Platform**.
+
+
+## Project flow mapping
+
+Before substantial redesign, migration, architecture change, cross-cutting implementation, audit, handover, or deployment planning, read `docs/agent-skills/project-flow-mapping/SKILL.md`. Use it to map the applicable user, administrator, system, data, state, integration, failure/recovery, operational, delivery, and manual flows from repository evidence. Do not require a full remap for a small, bounded change when a current flow map already covers the affected area; update only the impacted slice. Start read-only and do not convert discovered gaps into implementation scope without owner approval.

@@ -29,17 +29,19 @@ This system does not execute billing commands itself. It generates, exports, and
 
 ## Roles
 
-- `billing`: create cycles, generate scripts, track runs, request approvals, manage request settings, generate notifications
-- `finance`: review and approve or reject requests
-- `admin`: manage users and signup requests, plus broader platform visibility
-- `viewer`: read-only access to selected screens
+The backend recognizes exactly three effective roles (`backend/app/services/auth_service.py:16-29`, `normalize_role` at line 41 rejects anything else with 403 Unknown role):
+
+- `billing_user` (stored as `billing`): create cycles, generate scripts, track runs, request approvals, manage request settings, generate notifications
+- `finance_user` (stored as `finance`): review and approve or reject requests
+- `system_admin` (stored as `admin`): manage users, plus broader platform visibility
+
+There is no `viewer` role. Legacy `viewer` accounts are explicitly deactivated on startup (`backend/app/db/init_db.py:80`), and `viewer` is not in the accepted role map.
 
 ## Current Feature Set
 
 ### Frontend
 
-- login with username or email plus password
-- signup request flow for new users
+- Entra ID sign-in as the primary auth path, with local username/email + password login as a break-glass fallback (no self-service signup)
 - role-based navigation
 - overview dashboard with cycle progress tracker
 - billing cycle creation
@@ -50,18 +52,18 @@ This system does not execute billing commands itself. It generates, exports, and
 - request settings for approval recipients and default message
 - notification command generation and download
 - embedded documentation and billing process reference
-- admin user management and signup request review
+- admin user management
 
 ### Backend
 
-- JWT authentication
+- Entra ID token validation as the primary auth path, with local JWT auth as a break-glass fallback (see `docs/entra-id-integration-plan.md`)
 - role-protected REST endpoints under `/api`
 - Postgres persistence with SQLAlchemy models
 - live-generation gate requiring approved test stage
 - notification gate requiring approved post-live stage
 - grouped and full script exports written to disk
 - audit event storage for key workflow actions
-- n8n webhook integration for approval and signup notifications
+- n8n webhook integration for approval notifications
 
 ## Architecture
 
@@ -70,7 +72,7 @@ This system does not execute billing commands itself. It generates, exports, and
 - frontend: React 19 + Vite
 - backend: FastAPI + SQLAlchemy
 - database: PostgreSQL 16
-- auth: local JWT-based authentication
+- auth: Microsoft Entra ID (primary) with a local JWT break-glass fallback account
 - deployment: GitHub Actions + self-hosted runner + systemd
 
 ### Repository layout
@@ -103,8 +105,8 @@ This system does not execute billing commands itself. It generates, exports, and
 
 ### Important implementation notes
 
-- the frontend is currently a single large app centered in `frontend/src/App.jsx`
-- the backend creates tables on startup; there is no migration framework yet
+- `frontend/src/App.jsx` is a 154-line routing shell (react-router-dom `HashRouter`/`Routes` plus a `RequireRole` guard); feature logic lives in `frontend/src/features/*` page components, not in `App.jsx`
+- schema changes are managed with Alembic; `backend/alembic/versions/` currently has 4 migrations with exactly one head
 - CORS is currently configured only for `http://localhost:5173`
 - export files are written relative to the backend working directory, which means runtime exports end up under `backend/backend/exports/` when the backend is started from `backend/`
 
@@ -116,10 +118,6 @@ All application endpoints are mounted under `/api`.
 
 - `POST /auth/login`
 - `GET /auth/me`
-- `POST /auth/signup`
-- `GET /auth/requests`
-- `POST /auth/requests/{request_id}/approve`
-- `POST /auth/requests/{request_id}/reject`
 
 ### Cycles
 
@@ -272,14 +270,11 @@ That default does not match the README used previously, so set `VITE_API_URL` ex
 
 ## Default Seed Users
 
-Created automatically when the user table is empty:
+Only one local account is seeded automatically, when the user table is empty (`backend/app/db/init_db.py:84-109`):
 
-- `billing_user / ChangeMe123!`
-- `finance_user / ChangeMe123!`
-- `admin / AdminChange2026!`
-- `viewer / ChangeMe123!`
+- `admin / AdminChange2026!` — a single break-glass local admin account, kept for when Entra ID itself is unavailable or misconfigured. It is not exposed via any signup/self-service path.
 
-Change these outside local development.
+All routine access is expected to go through Entra ID (see `docs/entra-id-integration-plan.md`). Rotate the break-glass password after first use if it's ever needed.
 
 ## Deployment
 
@@ -322,11 +317,9 @@ The docs and workflow imply an Nginx reverse proxy in front of the app, with pat
 
 ## Current Known Gaps
 
-- no automated backend or frontend test suite yet
-- no migration framework yet
+- backend has an automated test suite (`backend/tests/`, 11 files, ~108 test functions); frontend still has no automated test suite
 - audit logging is partial, not exhaustive
 - notification generation stores backend command text rather than executing or delivering notifications
-- frontend logic is concentrated in one large file and could be decomposed later
 
 ## Documentation
 

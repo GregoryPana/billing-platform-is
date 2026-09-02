@@ -14,6 +14,17 @@ export function useAppData() {
   return context
 }
 
+/* Pages declare the collections they read via `useDataScope`. AppDataProvider
+   ref-counts active subscriptions and only fetches/polls what at least one
+   mounted consumer currently needs, instead of every collection on every tick.
+   Pass a stable (module-level or memoized) array — it is used as an effect dep. */
+export function useDataScope(collections) {
+  const { register_scope } = useAppData()
+  useEffect(() => {
+    return register_scope(collections)
+  }, [register_scope, collections])
+}
+
 export const show_toast = (message, tone = "info") => {
   if (tone === "success") {
     toast.success(message)
@@ -22,6 +33,16 @@ export const show_toast = (message, tone = "info") => {
   } else {
     toast.info(message)
   }
+}
+
+const COLLECTION_ENDPOINTS = {
+  cycles: "/cycles/",
+  scripts: "/scripts/",
+  runs: "/runs/",
+  approvals: "/approvals/",
+  notifications: "/notifications/",
+  audit_logs: "/audit/",
+  users: "/users/",
 }
 
 export function AppDataProvider({ current_user, role, on_sign_out, children }) {
@@ -46,41 +67,87 @@ export function AppDataProvider({ current_user, role, on_sign_out, children }) {
 
   const is_operator = role === "billing_user" || role === "system_admin"
 
-  const reload_all = useCallback(async () => {
+  const setters = useMemo(
+    () => ({
+      cycles: set_cycles,
+      scripts: set_scripts,
+      runs: set_runs,
+      approvals: set_approvals,
+      notifications: set_notifications,
+      audit_logs: set_audit_logs,
+      users: set_users,
+    }),
+    []
+  )
+
+  const scope_counts = useRef({
+    cycles: 0,
+    scripts: 0,
+    runs: 0,
+    approvals: 0,
+    notifications: 0,
+    audit_logs: 0,
+    users: 0,
+  })
+  const mounted_once = useRef(false)
+
+  const fetch_collection = useCallback(
+    async (key) => {
+      if (key === "users" && role !== "system_admin") {
+        return
+      }
+      setters[key](await api_fetch(COLLECTION_ENDPOINTS[key]))
+    },
+    [role, setters]
+  )
+
+  const reload_active = useCallback(async () => {
     try {
       set_error_message("")
-      const [cycles_data, scripts_data, runs_data, approvals_data, notifications_data, audit_data] = await Promise.all([
-        api_fetch("/cycles/"),
-        api_fetch("/scripts/"),
-        api_fetch("/runs/"),
-        api_fetch("/approvals/"),
-        api_fetch("/notifications/"),
-        api_fetch("/audit/"),
-      ])
-      set_cycles(cycles_data)
-      set_scripts(scripts_data)
-      set_runs(runs_data)
-      set_approvals(approvals_data)
-      set_notifications(notifications_data)
-      set_audit_logs(audit_data)
-
-      if (role === "system_admin") {
-        set_users(await api_fetch("/users/"))
-      } else {
-        set_users([])
-      }
+      const active_keys = Object.keys(scope_counts.current).filter((key) => scope_counts.current[key] > 0)
+      await Promise.all(active_keys.map(fetch_collection))
     } catch (error) {
       set_error_message(error.message)
     } finally {
       set_initial_loading(false)
     }
-  }, [role])
+  }, [fetch_collection])
+
+  /* Ref-counted subscription: a collection is fetched/polled only while at
+     least one mounted consumer has registered it. Registrations that happen
+     during the initial mount are picked up by the provider's own mount effect
+     below (it runs last, after every descendant's mount effect); registrations
+     from later route navigation fetch their newly-needed collections immediately
+     instead of waiting for the next poll tick. */
+  const register_scope = useCallback(
+    (collections) => {
+      const newly_added = []
+      collections.forEach((key) => {
+        scope_counts.current[key] = (scope_counts.current[key] || 0) + 1
+        if (scope_counts.current[key] === 1) {
+          newly_added.push(key)
+        }
+      })
+      if (mounted_once.current && newly_added.length > 0) {
+        Promise.all(newly_added.map(fetch_collection)).catch((error) => set_error_message(error.message))
+      }
+      return () => {
+        collections.forEach((key) => {
+          scope_counts.current[key] = Math.max(0, (scope_counts.current[key] || 0) - 1)
+        })
+      }
+    },
+    [fetch_collection]
+  )
+
+  const reload_all = reload_active
 
   useEffect(() => {
-    reload_all()
-    const interval = setInterval(reload_all, 30000)
+    mounted_once.current = true
+    reload_active()
+    const interval = setInterval(reload_active, 30000)
     return () => clearInterval(interval)
-  }, [reload_all])
+  }, [reload_active])
 
   useEffect(() => {
     if (!is_operator) {
@@ -173,6 +240,7 @@ export function AppDataProvider({ current_user, role, on_sign_out, children }) {
     set_error_message,
     initial_loading,
     reload_all,
+    register_scope,
     approval_notifications,
     request_settings,
     set_request_settings,

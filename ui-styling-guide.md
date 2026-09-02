@@ -1,5 +1,7 @@
 # UI Styling & Layout Guide
 
+> **Superseded by `DESIGN_SYSTEM.md`.** This document is not currently followed by this codebase; see `DESIGN_SYSTEM.md` and `docs/DESIGN_SYSTEM_ADDENDUM.md` for the current mandatory stack and this repo's deviations from it.
+
 ## Overview
 
 This document defines a clean, modern user interface styling system focused on clarity, consistency, and usability.  
