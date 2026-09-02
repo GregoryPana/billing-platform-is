@@ -117,16 +117,15 @@ def get_current_actor(
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1].strip()
-    local_error: HTTPException | None = None
-    try:
-        return _resolve_local_actor(token, db)
-    except HTTPException as exc:
-        local_error = exc
 
-    if settings.entra_enabled:
+    # AUTH_MODE is a hard either/or, not a try-local-then-fall-back-to-Entra
+    # chain: in Entra mode, local JWTs must never be attempted or accepted
+    # (a stale/forged local token must not grant access just because Entra
+    # validation wasn't reached), and in local mode Entra tokens are never
+    # attempted so incomplete/absent Entra config can't affect local auth.
+    if settings.is_entra_auth_mode:
         return _resolve_entra_actor(token, db)
-
-    raise local_error or HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return _resolve_local_actor(token, db)
 
 
 def require_role(allowed_roles: set[str]):

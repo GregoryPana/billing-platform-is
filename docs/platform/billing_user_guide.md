@@ -80,7 +80,7 @@ This guide explains the complete billing process from start to finish. It shows 
 
 **Where:** Go to **Script Generation** 📜 in the sidebar.
 
-![Step 3: Select Billing Cycle, Set Parameters and Script Type](/billing/user-guide/script-generation.png)
+![Step 3: Select Billing Cycle, Set Parameters and Script Type](/billing/user-guide/scripts-generation.png)
 
 **What to do:**
 - Select the cycle you just created

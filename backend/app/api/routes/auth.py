@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse, UserAuthRead
@@ -26,6 +27,14 @@ def _auth_user_payload(user: User, auth_source: str = "local") -> UserAuthRead:
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    if settings.is_entra_auth_mode:
+        # Fail closed without checking any local username/password or
+        # issuing a local token - this path must not exist as a usable
+        # credential-checking surface when AUTH_MODE=entra.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Local login is not available. Sign in with Microsoft Entra ID.",
+        )
     user = db.scalar(
         select(User).where(or_(User.username == payload.username_or_email, User.email == payload.username_or_email))
     )

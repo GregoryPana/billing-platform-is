@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test:auth": "node tests/entra-auth-mode.mjs",
+    "test:route-error": "node tests/route-error-boundary.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

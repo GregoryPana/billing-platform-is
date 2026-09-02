@@ -107,6 +107,30 @@ None. Every check that was run — 107 backend tests, both Alembic checks, both 
 every role/route/responsive/keyboard check attempted — passed. No application code was changed
 this session.
 
+## Package 12A independent final-gate addendum — 2026-09-02
+
+- Fresh disposable PostgreSQL 16 test run: **34 auth tests passed**, 0 failed; 3 dependency/deprecation warnings.
+- Full backend suite: **110 passed**, 0 failed; 3 dependency/deprecation warnings.
+- Frontend lint: 0 errors; one known TanStack/React Compiler compatibility warning.
+- Frontend production build: pass; main entry ~777.78 kB raw / 222.55 kB gzip after Package 10 splitting.
+- Package 9 Audit sorting/pagination browser evidence: pass. Populated Issue Reporting sort/pagination remains a bounded coverage exception; its empty state and shared table primitive were verified.
+- Package 10 eager/lazy route and PDF chunk behavior: pass on desktop/mobile; forced lazy-chunk failure path not fault-injected.
+- Restored `backend/.env.local` remained unchanged after recovery verification; Package 9 scratch scripts were removed.
+- Technical decision: Packages 0–3 and 5–10 accepted. Package 4 Finance/Billing pilot, vocabulary confirmation, routine-use evidence, Entra/deployment decisions and business acceptance remain external gates.
+- Full handover: `docs/rg01-handoffs/package-12a-latest.md`.
+
+## Package 12B synthetic rehearsal and quality backlog — 2026-09-02
+
+- Fresh disposable PostgreSQL 16 test run: **120 passed** (includes new `test_rg01_package12_rehearsal.py`), 0 failed; 3 dependency/deprecation warnings.
+- Frontend lint: 0 errors; one known TanStack/React Compiler compatibility warning.
+- Frontend production build: pass; main entry ~777.78 kB raw / 222.55 kB gzip.
+- Entra-auth-mode browser tests (6 scenarios): **all 6 passed** (Entra-only immediate redirect, existing session, missing config fail-closed, local mode unaffected, interaction-required auto-redirect, invalid auth mode fail-closed).
+- RouteErrorBoundary failure surface verified: error boundary surface and Reload button visible.
+- Broken Help image reference repaired (`script-generation.png` → `scripts-generation.png`).
+- Deterministic Entra-auth-mode and RouteErrorBoundary tests added to frontend test suite (`npm run test:auth`, `npm run test:route-error`).
+- Technical decision: Packages 0–3, 5–10, 12A, 12B technically accepted. Package 4 Finance/Billing pilot, vocabulary confirmation, routine-use evidence, Entra/deployment decisions and business acceptance remain external gates.
+- Full handover: `docs/rg01-handoffs/package-12b-latest.md`.
+
 ## Package 11 independent final-gate addendum — 2026-09-02
 
 - Fresh disposable PostgreSQL 16 test run: **107 passed**, 0 failed; 3 dependency/deprecation warnings.

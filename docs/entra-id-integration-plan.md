@@ -205,7 +205,8 @@ Add settings such as:
 - `ENTRA_CLIENT_ID`
 - `ENTRA_API_AUDIENCE`
 - `ENTRA_AUTHORITY`
-- `ENTRA_ENABLED`
+- `AUTH_MODE` (superseded `ENTRA_ENABLED` in Package 12A — see the
+  "Implementation status (2026-09-02, Package 12A)" section below)
 - `ENTRA_FINANCE_GROUP_ID`
 - `ENTRA_BILLING_GROUP_ID`
 - `ENTRA_SYSTEM_ADMIN_GROUP_ID`
@@ -485,10 +486,19 @@ After each production deployment, verify:
 
 ### Rollback strategy
 
+**Superseded by Package 12A (2026-09-02):** `ENTRA_ENABLED`/`VITE_ENTRA_ENABLED`
+no longer exist as settings. Since Package 12A, production is a hard
+either/or on `AUTH_MODE` (backend) / `VITE_AUTH_MODE` (frontend) — see the
+"Implementation status (2026-09-02, Package 12A)" section below. A rollback
+from Entra mode now means setting `AUTH_MODE=local` and
+`VITE_AUTH_MODE=local` and redeploying; this is an auth-mode change and, per
+`AGENTS.md`/`CLAUDE.md`, requires Gregory's explicit approval before it is
+performed against production, the same as the original cutover did.
+
 If Entra rollout causes production issues:
 
-1. turn `VITE_ENTRA_ENABLED=false`
-2. turn `ENTRA_ENABLED=false`
+1. set `AUTH_MODE=local` in the backend production config
+2. set `VITE_AUTH_MODE=local` in the frontend production config
 3. redeploy
 4. continue operating with local auth while investigating
 
@@ -605,3 +615,71 @@ secrets) — see below.
 5. Once 1–4 are done, the actual phased rollout (Phase A–D) is a
    deploy-and-observe exercise against production, which is explicitly out of
    scope to perform without Gregory's direct, in-the-moment approval at each step.
+
+## Implementation status (2026-09-02, RG-01 Package 12A)
+
+Package 12A replaced the Phase 1 dual-auth design above (`ENTRA_ENABLED`
+boolean, backend tries local JWT first and falls back to Entra) with a
+single explicit authentication-mode contract, ahead of a production Entra
+cutover. This section records what changed so a future session doesn't have
+to re-derive it; the Phase A–D narrative and the original "Implementation
+status (2026-07-22/24)" sections above are left as historical record of the
+design that preceded this cutover.
+
+- **`AUTH_MODE` / `VITE_AUTH_MODE` contract:** `backend/app/config.py` adds
+  `Settings.auth_mode` (`"local"` default, or `"entra"`) with an
+  `is_entra_auth_mode` property; `ENTRA_ENABLED` no longer exists as a
+  setting. `frontend/src/entra.js` mirrors this with `VITE_AUTH_MODE` →
+  `auth_mode` / `is_entra_auth_mode`; `VITE_ENTRA_ENABLED` no longer exists.
+  The mode is a hard either/or, not an additive flag: in `entra` mode local
+  auth is entirely unreachable, and in `local` mode Entra is entirely
+  unreachable — there is no fallback chain in either direction.
+- **Backend fail-closed behavior:** `get_current_actor()` in
+  `backend/app/services/auth_service.py` now branches once on
+  `settings.is_entra_auth_mode` — Entra mode validates only Entra bearer
+  tokens (`_resolve_entra_actor`), local mode validates only local JWTs
+  (`_resolve_local_actor`); a stale/forged local JWT is never even attempted
+  in Entra mode. `POST /api/auth/login`
+  (`backend/app/api/routes/auth.py`) returns `404` in Entra mode without
+  checking any username/password or issuing a token. Incomplete Entra
+  configuration (missing tenant/client ID) still fails closed with the
+  existing `500` "not configured" errors from `entra_auth_service.py` —
+  reached directly now instead of through a fallback path.
+- **Frontend fail-closed behavior:** `frontend/src/App.jsx` branches on
+  `is_entra_auth_mode` at bootstrap. In Entra mode it calls
+  `complete_entra_redirect()` (wraps `handleRedirectPromise`), and if there
+  is no usable account/token it calls `sign_in_with_entra()` immediately —
+  the local `LoginPage` is never rendered in this mode. A
+  `sessionStorage` guard (`billing_entra_redirect_guard`) prevents an
+  infinite redirect loop: if a redirect round-trip completes without
+  producing a usable session, a fail-closed `EntraSignInError` retry surface
+  is shown instead of redirecting again automatically. Missing public Entra
+  config (`entra_config_error` in `entra.js`) shows the same error surface
+  with no retry option and no local fields. `LoginPage.jsx` dropped its
+  conditional "Sign In With Microsoft" button — in this mode contract, Entra
+  is exclusively an App.jsx-level bootstrap concern, and `LoginPage` only
+  renders at all in explicit local mode.
+- **Deployment:** `.github/workflows/ci.yml`'s `deploy` job now writes
+  `AUTH_MODE=entra` / `VITE_AUTH_MODE=entra` unconditionally (no
+  `${{ secrets.BILLING_ENTRA_ENABLED || false }}` fallback that could
+  silently produce a local-login production build), and a new "Validate
+  required Entra settings are present" step runs after the env files are
+  written and before `npm run build`/`alembic upgrade head`/service restart —
+  it fails the deploy if `BILLING_ENTRA_TENANT_ID`, `BILLING_ENTRA_CLIENT_ID`,
+  `BILLING_ENTRA_API_SCOPE`, or `BILLING_ENTRA_REDIRECT_URI` are unset,
+  checking presence only and never printing values. The `test` job's
+  backend-tests step now sets `AUTH_MODE: local` explicitly (was previously
+  implicit via the default) so CI's isolation from Entra mode is visible in
+  the workflow file itself. Host, routes, `/opt/billing`, `billing-api`,
+  runner labels, and existing Entra secret names are unchanged.
+- **Tests:** `backend/tests/test_entra_dual_auth.py` was rewritten for the
+  either/or contract (local-login-in-local-mode, local-JWT-rejected-in-
+  entra-mode, entra-only-in-entra-mode, config-incomplete-fails-closed,
+  role-gating still applies) in place of the old fallback-chain assertions.
+  See `docs/rg01-handoffs/package-12a-latest.md` for the actual run results.
+- **Not done in Package 12A (tracked for 12B):** no real Entra network call,
+  real credentials, or GitHub secrets change was made or is safe to make
+  from this worktree; the actual production cutover (verifying the real
+  `BILLING_ENTRA_*` secrets are set, deploying, and running the Phase B/C
+  live verification checklist above) remains a Gregory-approved, in-the-
+  moment production action, not something this package performs.

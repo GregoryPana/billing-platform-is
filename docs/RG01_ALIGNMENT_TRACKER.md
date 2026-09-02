@@ -47,6 +47,8 @@ Initial provider snapshot at 2026-09-01 12:15–12:18 (+04):
 | 9 | Maintainability | TanStack Audit/Reporting data tables | completed | Session 2026-09-02 (recovery verification of already-implemented code), see `docs/rg01-handoffs/package-9-latest.md` |
 | 10 | Maintainability | Route/help/PDF code splitting and bundle reduction | completed | Session 2026-09-02, see `docs/rg01-handoffs/package-10-latest.md` |
 | 11 | Final gate | Regression, design-quality and scope/KPI reconciliation pass | completed with external gates | Hermes independent acceptance 2026-09-02; see `docs/rg01-handoffs/package-11-latest.md` |
+| 12A | Pilot readiness | Production Entra-only immediate sign-in; no local fallback; fail-closed config; role integrity | completed | `docs/rg01-handoffs/package-12a-latest.md` |
+| 12B | Pilot readiness | Synthetic full-flow rehearsal; Help image fix; route error boundary; auth-mode browser tests; Entra test seam | completed | `docs/rg01-handoffs/package-12b-latest.md` |
 
 ## Session log
 

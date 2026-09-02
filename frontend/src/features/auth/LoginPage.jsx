@@ -2,7 +2,6 @@ import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 
 import { api_fetch, set_auth_token } from "../../api"
-import { entra_enabled, sign_in_with_entra } from "../../entra"
 import { is_valid_email } from "../../lib/format"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
@@ -50,17 +49,6 @@ export function LoginPage({ on_authenticated }) {
           <h2 className="text-xl font-semibold tracking-tight">Sign in</h2>
           <p className="text-[13px] text-muted-foreground">Enter your email or username and password to continue.</p>
         </div>
-
-        {entra_enabled ? (
-          <div className="grid gap-3">
-            <Button onClick={() => sign_in_with_entra().catch((error) => set_error_message(error.message))}>
-              Sign In With Microsoft
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Recommended for production access. Local sign-in is reserved for emergency access.
-            </p>
-          </div>
-        ) : null}
 
         {error_message && (
           <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs font-medium text-destructive">
