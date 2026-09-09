@@ -101,6 +101,8 @@ def _resolve_local_actor(token: str, db: Session) -> CurrentActor:
 def _resolve_entra_actor(token: str, db: Session) -> CurrentActor:
     identity = validate_entra_token(token)
     user = upsert_entra_user(db, identity)
+    if user.is_active is not True:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
     return CurrentActor(
         id=str(user.id),
         role=identity.role,

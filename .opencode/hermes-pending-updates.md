@@ -1,5 +1,11 @@
 # Hermes Pending Updates
 
+## 2026-09-09 — RG-01 Package 12 validation and authentication hardening
+- branch/commit: `feature/rg01-package-12-entra-only`; changes captured in this commit and not pushed, merged, deployed, migrated, or rolled out
+- files: `frontend/tests/route-error-boundary-test.jsx` exports the synthetic test component for the React Fast Refresh lint rule; `backend/app/config.py` rejects local auth when `ENVIRONMENT=production`; Entra actor resolution rejects inactive users; Entra user synchronization no longer reactivates an existing disabled user; focused regression tests cover each behavior
+- verification: frontend `npm run lint`, `npm run test:route-error`, `npm run test:auth`, and `npm run build` pass; the authentication harness also returned nonzero under an intentional temporary negative control; focused backend auth suites pass 49/49 and the full backend suite passes 130/130; an isolated follow-up reviewer returned `APPROVE` with no findings on the six auth-hardening code/test files; `git diff --check` passes
+- flags: Package 12 local implementation and review are complete; production rollout remains blocked on remote deployment preflight, staging Entra rehearsal, named Finance/Billing acceptance, rollback evidence, deployment authorization, and required external environment/secrets
+
 ## 2026-09-01 — RG-01 Package 0: documentation rebaseline (docs-only, no code changes)
 - branch/commit: `feature/cycle-usage-month-derivation` @ `8b9a5c2` (uncommitted docs changes on top, not committed/pushed)
 - files: `README.md`, `architecture/blueprint.md`, `project.md` (corrected stale roles/auth/App.jsx/migration/test/API-URL claims against live code), `ui-styling-guide.md` (added a one-line superseded-by-`DESIGN_SYSTEM.md` header only, body untouched), new `docs/DESIGN_SYSTEM_ADDENDUM.md` (local Appendix A + mandatory-stack deviation rationale), `docs/RG01_ALIGNMENT_TRACKER.md` (Package 0 marked completed)

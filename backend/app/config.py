@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +47,12 @@ class Settings(BaseSettings):
         if normalized not in VALID_AUTH_MODES:
             raise ValueError(f"AUTH_MODE must be one of {sorted(VALID_AUTH_MODES)}, got {value!r}")
         return normalized
+
+    @model_validator(mode="after")
+    def _require_entra_in_production(self):
+        if (self.environment or "").strip().lower() == "production" and self.auth_mode != "entra":
+            raise ValueError("AUTH_MODE must be 'entra' when ENVIRONMENT is production")
+        return self
 
     entra_tenant_id: str | None = None
     entra_client_id: str | None = None

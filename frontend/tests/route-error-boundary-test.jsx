@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { RouteErrorBoundary } from '../src/components/layout/RouteErrorBoundary'
 import '../src/App.css'
 
-function FailingRoute() {
+export function FailingRoute() {
   throw new Error('Synthetic lazy-route failure')
 }
 

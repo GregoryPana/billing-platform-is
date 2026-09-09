@@ -1,3 +1,7 @@
+from sqlalchemy import select
+
+from app.db.session import SessionLocal
+from app.models.user import User
 from app.services import auth_service
 from app.services.entra_auth_service import EntraIdentity
 
@@ -102,6 +106,30 @@ def test_second_entra_login_reuses_same_user_row(client, monkeypatch):
     assert first_response.status_code == 200
     assert second_response.status_code == 200
     assert first_response.json()["id"] == second_response.json()["id"]
+
+
+def test_deactivated_entra_user_remains_inactive_and_is_denied(client, monkeypatch):
+    monkeypatch.setattr(auth_service.settings, "auth_mode", "entra")
+    monkeypatch.setattr(auth_service, "validate_entra_token", lambda token: _fake_entra_identity())
+    headers = {"Authorization": "Bearer entra-style-opaque-token"}
+
+    first_response = client.get("/api/auth/me", headers=headers)
+    assert first_response.status_code == 200
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.external_subject == "entra-subject-me"))
+        assert user is not None
+        setattr(user, "is_active", False)
+        db.commit()
+
+    second_response = client.get("/api/auth/me", headers=headers)
+    assert second_response.status_code == 401
+    assert second_response.json()["detail"] == "Inactive user"
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.external_subject == "entra-subject-me"))
+        assert user is not None
+        assert user.is_active is False
 
 
 def test_entra_actor_with_disallowed_role_gets_403_on_role_gated_route(client, monkeypatch):
