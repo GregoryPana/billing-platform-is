@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus } from "../../lib/icons"
 
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { PanelSubheader, PanelSubheaderTitle, PanelSubheaderDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { useAppData } from "../../context/AppDataContext"
 import { IssueActivityDialog } from "./IssueActivityDialog"
 import { IssueFormDialog } from "./IssueFormDialog"
@@ -64,14 +67,14 @@ export function FinanceIssuePanel({ cycle, test_approved, on_open_count_change }
 
   return (
     <div className="mb-8">
-      <div className="panel-subheader flex flex-wrap items-start justify-between gap-4">
+      <PanelSubheader className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3>Finance Review Issues</h3>
-          <p>
+          <PanelSubheaderTitle>Finance Review Issues</PanelSubheaderTitle>
+          <PanelSubheaderDescription>
             {can_manage
               ? "Every open issue blocks Move to Live. Complete each finding to unlock approval."
               : "Finance reviews the test bills and confirms completion here. Finance controls movement to Live."}
-          </p>
+          </PanelSubheaderDescription>
         </div>
         {can_manage && (
           <Button type="button" size="sm" onClick={() => set_form_open(true)}>
@@ -79,7 +82,7 @@ export function FinanceIssuePanel({ cycle, test_approved, on_open_count_change }
             Log Finance Review Issue
           </Button>
         )}
-      </div>
+      </PanelSubheader>
 
       <div className="summary-card mb-4">
         <div>
@@ -99,27 +102,28 @@ export function FinanceIssuePanel({ cycle, test_approved, on_open_count_change }
       {error ? <div className="alert error">{error}</div> : null}
 
       {loading ? (
-        <div className="empty-state">Loading Finance review issues…</div>
+        <EmptyState>Loading Finance review issues…</EmptyState>
       ) : issues.length === 0 ? (
-        <div className="empty-state">
+        <EmptyState>
           No Finance review issues logged for this cycle yet.
           {can_manage ? " Approval can proceed once test runs are ready." : ""}
-        </div>
+        </EmptyState>
       ) : (
-        <div className="data-table mb-2">
-          <div className="data-row table-head">
+        <DataTable className="mb-2">
+          <DataTableRow head>
             <span>Title</span>
             <span>Classification</span>
             <span>Status</span>
             <span>Updated</span>
-          </div>
+          </DataTableRow>
           {issues.map((issue) => {
             const status = describe_issue_status(issue)
             return (
-              <button
+              <DataTableRow
+                as="button"
                 key={issue.id}
                 type="button"
-                className="data-row w-full cursor-pointer bg-transparent text-left"
+                className="w-full cursor-pointer bg-transparent text-left"
                 onClick={() => set_active_issue(issue)}
               >
                 <span className="stacked-cell font-medium text-foreground">{issue.title}</span>
@@ -129,10 +133,10 @@ export function FinanceIssuePanel({ cycle, test_approved, on_open_count_change }
                   {status.note ? <span className="text-xs text-muted-foreground">{status.note}</span> : null}
                 </span>
                 <span>{new Date(issue.updated_at).toLocaleString()}</span>
-              </button>
+              </DataTableRow>
             )
           })}
-        </div>
+        </DataTable>
       )}
 
       <IssueFormDialog

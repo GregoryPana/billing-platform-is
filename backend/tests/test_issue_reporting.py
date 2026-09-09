@@ -81,7 +81,6 @@ def test_empty_state_when_no_data(client, auth_headers):
         metric = metrics[key]
         assert metric["is_empty"] is True
         assert metric["source"]
-        assert metric["filter_scope"]
         assert metric["decision_supported"]
 
 

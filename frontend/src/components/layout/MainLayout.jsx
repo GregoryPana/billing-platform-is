@@ -1,14 +1,19 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { RefreshCcw } from "lucide-react"
+import { RefreshCcw } from "../../lib/icons"
 
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"
-import { useAppData } from "../../context/AppDataContext"
+import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { cycle_month_pair, format_stage_label } from "../../lib/format"
 import { Sidebar } from "./Sidebar"
 import { nav_items_for_role } from "./nav"
 
+/* MainLayout wraps every route (approval-granted banner needs cycles + approvals
+   regardless of the active page), so these two collections stay effectively global. */
+const LAYOUT_SCOPE = ["cycles", "approvals"]
+
 export function MainLayout() {
+  useDataScope(LAYOUT_SCOPE)
   const {
     role,
     on_sign_out,
@@ -37,7 +42,7 @@ export function MainLayout() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10"
               value={active_item?.path || "/overview"}
               onChange={(event) => navigate(event.target.value)}
             >

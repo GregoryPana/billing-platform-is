@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus } from "../../lib/icons"
 
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
+import { PanelSubheader, PanelSubheaderTitle, PanelSubheaderDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { useAppData } from "../../context/AppDataContext"
 import { IssueActivityDialog } from "./IssueActivityDialog"
 import { IssueFormDialog } from "./IssueFormDialog"
@@ -60,14 +63,14 @@ export function PostLiveObservationPanel({ cycle }) {
 
   return (
     <div className="mb-8">
-      <div className="panel-subheader flex flex-wrap items-start justify-between gap-4">
+      <PanelSubheader className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h3>Post-live Observations</h3>
-          <p>
+          <PanelSubheaderTitle>Post-live Observations</PanelSubheaderTitle>
+          <PanelSubheaderDescription>
             {can_manage
               ? "Finance-only learning captured after Live. These never block notifications or cycle completion."
               : "Finance-only observations recorded after Live, kept for trend history."}
-          </p>
+          </PanelSubheaderDescription>
         </div>
         {can_manage && (
           <Button type="button" size="sm" onClick={() => set_form_open(true)}>
@@ -75,7 +78,7 @@ export function PostLiveObservationPanel({ cycle }) {
             Log Post-live Observation
           </Button>
         )}
-      </div>
+      </PanelSubheader>
 
       <div className="summary-card mb-4">
         <div>
@@ -95,27 +98,28 @@ export function PostLiveObservationPanel({ cycle }) {
       {error ? <div className="alert error">{error}</div> : null}
 
       {loading ? (
-        <div className="empty-state">Loading post-live observations…</div>
+        <EmptyState>Loading post-live observations…</EmptyState>
       ) : issues.length === 0 ? (
-        <div className="empty-state">
+        <EmptyState>
           No post-live observations logged for this cycle yet.
           {can_manage ? " Logging one never blocks notifications or completion." : ""}
-        </div>
+        </EmptyState>
       ) : (
-        <div className="data-table mb-2">
-          <div className="data-row table-head">
+        <DataTable className="mb-2">
+          <DataTableRow head>
             <span>Title</span>
             <span>Classification</span>
             <span>Status</span>
             <span>Updated</span>
-          </div>
+          </DataTableRow>
           {issues.map((issue) => {
             const status = describe_issue_status(issue)
             return (
-              <button
+              <DataTableRow
+                as="button"
                 key={issue.id}
                 type="button"
-                className="data-row w-full cursor-pointer bg-transparent text-left"
+                className="w-full cursor-pointer bg-transparent text-left"
                 onClick={() => set_active_issue(issue)}
               >
                 <span className="stacked-cell font-medium text-foreground">{issue.title}</span>
@@ -125,10 +129,10 @@ export function PostLiveObservationPanel({ cycle }) {
                   {status.note ? <span className="text-xs text-muted-foreground">{status.note}</span> : null}
                 </span>
                 <span>{new Date(issue.updated_at).toLocaleString()}</span>
-              </button>
+              </DataTableRow>
             )
           })}
-        </div>
+        </DataTable>
       )}
 
       <IssueFormDialog

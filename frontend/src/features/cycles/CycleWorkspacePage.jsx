@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { ArrowLeft, Lock } from "lucide-react"
+import { ArrowLeft, Lock } from "../../lib/icons"
 
-import { useAppData } from "../../context/AppDataContext"
+import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { CycleProgressTracker } from "../../components/billing/CycleProgressTracker"
+import { Panel, PanelHeader, PanelTitle, PanelDescription } from "../../components/ui/panel"
+import { InfoTip } from "../../components/ui/info-tip"
 import { cn } from "../../lib/utils"
 import { compute_stage_ready, cycle_month_pair, format_cycle_status, format_stage_label } from "../../lib/format"
 import { ScriptsRunsStage } from "./ScriptsRunsStage"
@@ -19,7 +21,10 @@ const stage_descriptions = {
   notifications: "Generate the email and SMS notification commands. Unlocked by post-live approval.",
 }
 
+const CYCLE_WORKSPACE_SCOPE = ["cycles", "scripts", "runs", "approvals", "notifications"]
+
 export function CycleWorkspacePage() {
+  useDataScope(CYCLE_WORKSPACE_SCOPE)
   const { cycle_id } = useParams()
   const { cycles_by_id, scripts, runs, approvals, runs_by_script_id, approvals_by_cycle_stage } = useAppData()
 
@@ -71,18 +76,18 @@ export function CycleWorkspacePage() {
 
   if (!cycle) {
     return (
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>Cycle Not Found</h2>
-            <p>This cycle may have been removed, or the data is still loading.</p>
+            <PanelTitle>Cycle Not Found</PanelTitle>
+            <PanelDescription>This cycle may have been removed, or the data is still loading.</PanelDescription>
           </div>
-        </div>
+        </PanelHeader>
         <Link className="secondary-button" to="/cycles">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Billing Cycles
         </Link>
-      </section>
+      </Panel>
     )
   }
 
@@ -103,38 +108,40 @@ export function CycleWorkspacePage() {
 
       <CycleProgressTracker cycle={cycle} scripts={scripts} runs={runs} approvals={approvals} />
 
-      <div className="mb-6 flex flex-wrap gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Cycle stages">
+      <div className="mb-6 flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Cycle stages">
         {stages.map((stage) => (
-          <button
-            key={stage.id}
-            role="tab"
-            aria-selected={active_stage === stage.id}
-            type="button"
-            disabled={stage.locked}
-            title={stage.locked ? stage.locked_reason : undefined}
-            className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-md border border-transparent px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              active_stage === stage.id
-                ? "bg-background text-foreground shadow-sm dark:border-border"
-                : stage.locked
-                ? "cursor-not-allowed text-muted-foreground opacity-60"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            onClick={() => !stage.locked && set_active_stage(stage.id)}
-          >
-            {stage.locked && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
-            {stage.label}
-          </button>
+          <span key={stage.id} className="inline-flex items-center gap-1">
+            <button
+              role="tab"
+              aria-selected={active_stage === stage.id}
+              type="button"
+              disabled={stage.locked}
+              title={stage.locked ? stage.locked_reason : undefined}
+              className={cn(
+                "inline-flex h-11 items-center gap-1.5 rounded-md border border-transparent px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10",
+                active_stage === stage.id
+                  ? "bg-background text-foreground shadow-sm dark:border-border"
+                  : stage.locked
+                  ? "cursor-not-allowed text-muted-foreground opacity-60"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => !stage.locked && set_active_stage(stage.id)}
+            >
+              {stage.locked && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
+              {stage.label}
+            </button>
+            <InfoTip label={`${stage.label} info`}>{stage_descriptions[stage.id]}</InfoTip>
+          </span>
         ))}
       </div>
 
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>{stages.find((stage) => stage.id === active_stage)?.label}</h2>
-            <p>{stage_descriptions[active_stage]}</p>
+            <PanelTitle>{stages.find((stage) => stage.id === active_stage)?.label}</PanelTitle>
+            <PanelDescription>{stage_descriptions[active_stage]}</PanelDescription>
           </div>
-        </div>
+        </PanelHeader>
 
         {active_stage === "details" && (
           <div className="summary-card">
@@ -177,7 +184,7 @@ export function CycleWorkspacePage() {
         {active_stage === "post-live-approval" && <ApprovalStage cycle={cycle} stage="post_live" />}
 
         {active_stage === "notifications" && <NotificationsStage cycle={cycle} blocked={!post_live_approved} />}
-      </section>
+      </Panel>
     </>
   )
 }

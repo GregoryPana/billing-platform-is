@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This project is a billing operations workflow platform for managing monthly billing runs across billing, finance, admin, and viewer roles.
+This project is a billing operations workflow platform for managing monthly billing runs across billing, finance, and admin roles.
 
 Its core purpose is to:
 
@@ -34,7 +34,9 @@ The application does not execute the billing commands itself. It generates, expo
 
 ## Main User Roles
 
-### Billing
+The backend accepts exactly three effective roles (`backend/app/services/auth_service.py:16-29`); `normalize_role` (line 41) rejects any other value with 403 Unknown role. There is no `viewer` role — legacy `viewer` accounts are explicitly deactivated at startup (`backend/app/db/init_db.py:80`).
+
+### Billing (`billing_user`, stored as `billing`)
 
 - create billing cycles
 - generate scripts for test and live environments
@@ -44,35 +46,27 @@ The application does not execute the billing commands itself. It generates, expo
 - manage approval request settings
 - generate notification commands after post-live approval
 
-### Finance
+### Finance (`finance_user`, stored as `finance`)
 
 - review pending approval requests
 - approve or reject billing stages
 - monitor cycle progress and approval history
 
-### Admin
+### Admin (`system_admin`, stored as `admin`)
 
 - all billing-style access
 - manage users directly
-- review signup requests
-- approve or reject account access requests
 - view audit logs
-
-### Viewer
-
-- read-only visibility into overview, runs, approvals, request settings, and documentation
 
 ## Frontend Design
 
-The frontend is a single-page React application centered almost entirely in `frontend/src/App.jsx`.
+The frontend is a React application whose root, `frontend/src/App.jsx`, is a 154-line routing shell — not the container for feature logic. It bootstraps auth (Entra or local), then renders `react-router-dom`'s `HashRouter`/`Routes` with a `RequireRole` guard per route. Feature logic lives in `frontend/src/features/*` page components (e.g. `features/cycles`, `features/approvals`, `features/reporting`, `features/admin`).
 
 ### Frontend characteristics
 
-- no client-side router is used
-- navigation is controlled by a local `active_view` state
-- state is managed with `useState`, `useMemo`, `useEffect`, and `useCallback`
-- data is reloaded from the API on login and then polled every 30 seconds
-- role-based navigation hides screens that are not available to the current user
+- `react-router-dom` `HashRouter` drives navigation, with routes gated by role via `RequireRole`
+- feature state is managed within each feature's page components, not centrally in `App.jsx`
+- role-based routing redirects users away from screens not available to their role
 - markdown documentation is embedded directly into the UI
 
 ### Main screens
@@ -87,7 +81,7 @@ The frontend is a single-page React application centered almost entirely in `fro
 - `Notifications`: generate and download backend notification commands
 - `Audit Log`: show recorded actions and derived outcomes
 - `Documentation`: render the billing process documentation from markdown/PDF
-- `Admin`: user management and signup request review
+- `Admin`: user management
 
 ### Frontend UX design choices
 
@@ -95,7 +89,7 @@ The frontend is a single-page React application centered almost entirely in `fro
 - workflow visibility: cycle progress tracker appears in overview and run tracking
 - role-sensitive experience: finance sees a simplified approval-focused interface
 - document-heavy experience: operational guides are part of the product, not separate artifacts
-- mostly monolithic implementation: the app is feature-rich, but most of the UI logic lives in one file
+- feature-scoped implementation: `App.jsx` is a thin routing shell; UI logic lives in per-feature page components under `frontend/src/features/`
 
 ## Backend Design
 
@@ -112,7 +106,7 @@ The backend is a FastAPI application under `backend/app`.
 
 ### API domains
 
-- `auth`: login, current user, signup request submission, signup request approval/rejection
+- `auth`: login, current user (Entra ID primary, local break-glass fallback; no signup flow)
 - `cycles`: create and list billing cycles, update cycle status
 - `scripts`: generate commands, list scripts, export grouped scripts, export all scripts, download export files
 - `runs`: create and update script run records
@@ -125,10 +119,10 @@ The backend is a FastAPI application under `backend/app`.
 
 #### `auth_service.py`
 
-- hashes and verifies passwords with `passlib`
-- creates JWT access tokens
-- resolves the current user from a bearer token
-- enforces role-based access
+- hashes and verifies passwords with `passlib` (for the local break-glass account)
+- creates JWT access tokens for local login
+- resolves the current actor from a bearer token, trying local token validation first and falling back to Entra ID (`entra_auth_service.py`) when `settings.entra_enabled`
+- enforces role-based access across exactly three roles: `system_admin`, `billing_user`, `finance_user`
 
 #### `workflow_service.py`
 
@@ -195,7 +189,6 @@ The persisted model is straightforward and workflow-oriented.
 ### Main tables
 
 - `users`: application users, roles, active flag, password hash
-- `signup_requests`: pending access requests waiting for admin review
 - `approval_request_settings`: global request email settings and default message
 - `billing_cycles`: the top-level monthly work unit
 - `script_definitions`: generated script commands and parameter sets
@@ -277,20 +270,17 @@ There is CI and deployment automation, but there is no real automated test suite
 
 ## Architectural Limitations
 
-- the frontend is heavily concentrated in one very large `App.jsx`, which increases maintenance cost
-- there is no migration framework; schema changes are handled with startup-time patching and `create_all`
 - audit logging is present but not truly complete across every action
 - command defaults are partly duplicated between frontend and backend
 - CORS configuration is narrow and environment-specific
 - notification generation is command-based only, not a true delivery engine
-- there are no automated backend or frontend tests beyond smoke/build checks
+- backend has an automated test suite (`backend/tests/`, 11 files, ~108 `def test_` functions); frontend still has no automated test suite beyond build/lint checks
 
 ## Important Mismatches Between Documentation And Implementation
 
-### API URL mismatch
+### API URL default
 
-- `README.md` says the frontend defaults to `http://localhost:8000/api`
-- `frontend/src/api.js` actually defaults to `http://localhost:8001/api`
+- `frontend/src/api.js:1,3` defaults to `http://localhost:8001/api` when `VITE_API_URL` is unset; `README.md` states this correctly as of this rebaseline
 - the production systemd service runs backend Uvicorn on port `8010`
 
 ### Approval model mismatch
@@ -310,11 +300,11 @@ There is CI and deployment automation, but there is no real automated test suite
 - docs imply complete auditability
 - the implementation audits many workflow actions, but not all auth and admin actions
 
-### Testing and CI wording mismatch
+### Testing and CI status
 
-- README says tests and CI/CD are not set up
 - a GitHub Actions CI/deploy workflow is present
-- what is actually missing is comprehensive automated test coverage
+- backend has an automated test suite (`backend/tests/`, 11 files, ~108 `def test_` functions)
+- frontend still has no automated test suite beyond build/lint checks
 
 ## Overall Assessment
 
@@ -331,9 +321,8 @@ The product is strongest where it turns a manual operational process into a stru
 
 The codebase already implements the essential business workflow end to end. Its biggest technical debt is not missing functionality, but consolidation and polish:
 
-- the frontend needs decomposition
-- the backend would benefit from migrations and deeper tests
-- docs should be updated to match actual behavior
+- the frontend would benefit from an automated test suite
+- docs should be kept current with actual behavior
 
 ## Short Functional Summary
 

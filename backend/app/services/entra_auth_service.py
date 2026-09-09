@@ -222,7 +222,6 @@ def upsert_entra_user(db: Session, identity: EntraIdentity) -> User:
         user.username = identity.email
         user.email = identity.email
         user.role = identity.role
-        user.is_active = True
         user.external_provider = "entra_id"
         user.external_subject = identity.subject
         user.last_seen_role = identity.role

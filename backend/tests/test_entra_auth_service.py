@@ -311,6 +311,25 @@ def test_upsert_entra_user_updates_existing_row_by_subject(db_session):
     assert second.last_seen_groups == ["group-admin"]
 
 
+def test_upsert_entra_user_preserves_existing_inactive_state(db_session):
+    identity = svc.EntraIdentity(
+        subject="entra-subject-inactive",
+        name="Inactive User",
+        email="inactive@example.com",
+        role="billing_user",
+        groups=["group-billing"],
+        claims={"preferred_username": "inactive@example.com", "roles": ["billing_user"]},
+    )
+    user = svc.upsert_entra_user(db_session, identity)
+    assert user.is_active is True
+
+    setattr(user, "is_active", False)
+    db_session.commit()
+
+    refreshed = svc.upsert_entra_user(db_session, identity)
+    assert refreshed.is_active is False
+
+
 def test_upsert_entra_user_matches_existing_local_user_by_email(db_session):
     from app.models.user import User
     from app.services.auth_service import hash_password

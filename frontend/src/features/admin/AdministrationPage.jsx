@@ -1,9 +1,17 @@
 import { useMemo, useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { createColumnHelper } from "@tanstack/react-table"
 
 import { api_fetch } from "../../api"
-import { show_toast, useAppData } from "../../context/AppDataContext"
+import { show_toast, useDataScope, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { ConfirmDialog } from "../../components/ui/confirm-dialog"
+import { Panel, PanelHeader, PanelTitle, PanelDescription, PanelSubheader, PanelSubheaderTitle, PanelSubheaderDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { SortableTable } from "../../components/ui/sortable-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { cn } from "../../lib/utils"
 import {
   format_audit_action_label,
@@ -13,13 +21,21 @@ import {
   safe_parse_metadata,
 } from "../../lib/format"
 
-const empty_user_form = {
-  name: "",
-  username: "",
-  email: "",
-  password: "",
-  is_active: true,
-}
+/* Mirrors backend/app/schemas/users.py UserUpdate - all fields are optional
+   server-side, so client requiredness here only matches what the existing
+   `required` inputs already enforced (name/username/email non-empty). Email
+   format reuses lib/format.js's is_valid_email pattern for consistency. */
+const user_edit_schema = z.object({
+  name: z.string().trim().min(1, "Full name is required."),
+  username: z.string().trim().min(1, "Username is required."),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required.")
+    .refine((value) => is_valid_email(value), "Enter a valid email address."),
+  status: z.enum(["active", "inactive"]),
+  password: z.string(),
+})
 
 export function AdministrationPage() {
   const { role } = useAppData()
@@ -46,7 +62,7 @@ export function AdministrationPage() {
               aria-selected={active_tab === tab.id}
               type="button"
               className={cn(
-                "inline-flex h-9 items-center rounded-md border border-transparent px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex h-11 items-center rounded-md border border-transparent px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10",
                 active_tab === tab.id
                   ? "bg-background text-foreground shadow-sm dark:border-border"
                   : "text-muted-foreground hover:text-foreground"
@@ -100,16 +116,16 @@ function SettingsTab() {
   }
 
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <Panel>
+      <PanelHeader>
         <div>
-          <h2>Approval Request Settings</h2>
-          <p>
+          <PanelTitle>Approval Request Settings</PanelTitle>
+          <PanelDescription>
             The finance recipient directory and default message used when requesting approvals. Which recipients
             receive a given request is chosen when you send it, inside the cycle workspace.
-          </p>
+          </PanelDescription>
         </div>
-      </div>
+      </PanelHeader>
       <form className="form-grid" autoComplete="off" onSubmit={(event) => event.preventDefault()}>
         <div className="full">
           <p className="helper">Finance recipient directory</p>
@@ -127,7 +143,7 @@ function SettingsTab() {
           </div>
           {recipient_error ? <div className="alert warning">{recipient_error}</div> : null}
           {finance_recipients.length === 0 ? (
-            <div className="empty-state">No recipients yet. Add at least one finance email to enable approval requests.</div>
+            <EmptyState>No recipients yet. Add at least one finance email to enable approval requests.</EmptyState>
           ) : (
             <div className="checkbox-grid recipients-grid">
               {finance_recipients.map((email) => (
@@ -161,32 +177,17 @@ function SettingsTab() {
         </label>
         {request_settings_status ? <div className="alert info full">{request_settings_status}</div> : null}
       </form>
-    </section>
+    </Panel>
   )
 }
 
+const USERS_SCOPE = ["users"]
+
 function UsersTab() {
+  useDataScope(USERS_SCOPE)
   const { users, reload_all, set_error_message } = useAppData()
   const [edit_user, set_edit_user] = useState(null)
-  const [edit_form, set_edit_form] = useState(empty_user_form)
   const [delete_target, set_delete_target] = useState(null)
-
-  const handle_update = async (event) => {
-    event.preventDefault()
-    if (!edit_user) {
-      return
-    }
-    try {
-      await api_fetch(`/users/${edit_user.id}`, { method: "PATCH", body: JSON.stringify(edit_form) })
-      set_edit_user(null)
-      set_edit_form(empty_user_form)
-      show_toast("User updated.", "success")
-      await reload_all()
-    } catch (error) {
-      set_error_message(error.message)
-      show_toast(error.message || "Could not update the user.", "error")
-    }
-  }
 
   const handle_delete = async () => {
     const user = delete_target
@@ -201,69 +202,29 @@ function UsersTab() {
     }
   }
 
-  const user_fields = (form, set_form) => (
-    <>
-      <label>
-        Full name
-        <input value={form.name} onChange={(event) => set_form((p) => ({ ...p, name: event.target.value }))} required />
-      </label>
-      <label>
-        Username
-        <input value={form.username} onChange={(event) => set_form((p) => ({ ...p, username: event.target.value }))} required />
-      </label>
-      <label>
-        Email
-        <input
-          type="email"
-          value={form.email}
-          onChange={(event) => set_form((p) => ({ ...p, email: event.target.value }))}
-          required
-        />
-      </label>
-      <label>
-        Status
-        <select
-          value={form.is_active ? "active" : "inactive"}
-          onChange={(event) => set_form((p) => ({ ...p, is_active: event.target.value === "active" }))}
-        >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
-      <label>
-        Reset password
-        <input
-          type="password"
-          value={form.password}
-          onChange={(event) => set_form((p) => ({ ...p, password: event.target.value }))}
-        />
-      </label>
-    </>
-  )
-
   return (
     <>
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>Manage Users</h2>
-            <p>
+            <PanelTitle>Manage Users</PanelTitle>
+            <PanelDescription>
               Role/access is assigned in Microsoft Entra, not here - editing or deactivating a row below does not
               itself grant or revoke access. This list exists for visibility and local-account cleanup only.
-            </p>
+            </PanelDescription>
           </div>
-        </div>
-        <div className="data-table">
-          <div className="data-row table-head admin">
+        </PanelHeader>
+        <DataTable>
+          <DataTableRow variant="admin" head>
             <span>Name</span>
             <span>Username</span>
             <span>Email</span>
             <span>Role</span>
             <span>Status</span>
             <span>Action</span>
-          </div>
+          </DataTableRow>
           {users.map((user) => (
-            <div className="data-row admin" key={user.id}>
+            <DataTableRow variant="admin" key={user.id}>
               <span>{user.name}</span>
               <span>{user.username}</span>
               <span>{user.email}</span>
@@ -275,16 +236,7 @@ function UsersTab() {
                 <button
                   className="secondary-button"
                   type="button"
-                  onClick={() => {
-                    set_edit_user(user)
-                    set_edit_form({
-                      name: user.name,
-                      username: user.username,
-                      email: user.email,
-                      password: "",
-                      is_active: user.is_active,
-                    })
-                  }}
+                  onClick={() => set_edit_user(user)}
                 >
                   Edit
                 </button>
@@ -296,37 +248,29 @@ function UsersTab() {
                   Delete User
                 </button>
               </div>
-            </div>
+            </DataTableRow>
           ))}
-        </div>
+        </DataTable>
 
         {edit_user ? (
           <>
-            <div className="panel-subheader">
-              <h3>Edit User — {edit_user.name}</h3>
-              <p>Leave the password blank to keep the current one.</p>
-            </div>
-            <form className="form-grid" onSubmit={handle_update}>
-              {user_fields(edit_form, set_edit_form)}
-              <div className="form-actions">
-                <button className="primary-button" type="submit">
-                  Save Changes
-                </button>
-                <button
-                  className="ghost-button"
-                  type="button"
-                  onClick={() => {
-                    set_edit_user(null)
-                    set_edit_form(empty_user_form)
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            <PanelSubheader>
+              <PanelSubheaderTitle>Edit User — {edit_user.name}</PanelSubheaderTitle>
+              <PanelSubheaderDescription>Leave the password blank to keep the current one.</PanelSubheaderDescription>
+            </PanelSubheader>
+            <UserEditForm
+              key={edit_user.id}
+              user={edit_user}
+              set_error_message={set_error_message}
+              on_cancel={() => set_edit_user(null)}
+              on_saved={async () => {
+                set_edit_user(null)
+                await reload_all()
+              }}
+            />
           </>
         ) : null}
-      </section>
+      </Panel>
 
       <ConfirmDialog
         open={Boolean(delete_target)}
@@ -340,43 +284,177 @@ function UsersTab() {
   )
 }
 
+function UserEditForm({ user, set_error_message, on_cancel, on_saved }) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(user_edit_schema),
+    mode: "onBlur",
+    defaultValues: {
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      status: user.is_active ? "active" : "inactive",
+      password: "",
+    },
+  })
+
+  const on_valid = async (data) => {
+    try {
+      const payload = {
+        name: data.name,
+        username: data.username,
+        email: data.email,
+        is_active: data.status === "active",
+        password: data.password,
+      }
+      await api_fetch(`/users/${user.id}`, { method: "PATCH", body: JSON.stringify(payload) })
+      show_toast("User updated.", "success")
+      await on_saved()
+    } catch (error) {
+      set_error_message(error.message)
+      show_toast(error.message || "Could not update the user.", "error")
+    }
+  }
+
+  const on_invalid = () => {
+    const first_error_key = Object.keys(errors)[0]
+    const target = document.querySelector(
+      first_error_key ? `[name="${first_error_key}"]` : "#user-edit-error-summary"
+    )
+    target?.scrollIntoView({ behavior: "smooth", block: "center" })
+    target?.focus?.()
+  }
+
+  return (
+    <form className="form-grid" onSubmit={handleSubmit(on_valid, on_invalid)} noValidate>
+      {Object.keys(errors).length > 0 && (
+        <div id="user-edit-error-summary" className="alert warning full" role="alert" tabIndex={-1}>
+          <p>Fix the following before saving:</p>
+          <ul className="list-disc pl-5">
+            {Object.values(errors).map((error, index) => (
+              <li key={index}>{error.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <label>
+        Full name
+        <input {...register("name")} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "name-error" : undefined} />
+        {errors.name && (
+          <span id="name-error" className="text-destructive text-sm" role="alert">
+            {errors.name.message}
+          </span>
+        )}
+      </label>
+      <label>
+        Username
+        <input
+          {...register("username")}
+          aria-invalid={Boolean(errors.username)}
+          aria-describedby={errors.username ? "username-error" : undefined}
+        />
+        {errors.username && (
+          <span id="username-error" className="text-destructive text-sm" role="alert">
+            {errors.username.message}
+          </span>
+        )}
+      </label>
+      <label>
+        Email
+        <input
+          type="email"
+          {...register("email")}
+          aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "email-error" : undefined}
+        />
+        {errors.email && (
+          <span id="email-error" className="text-destructive text-sm" role="alert">
+            {errors.email.message}
+          </span>
+        )}
+      </label>
+      <label>
+        Status
+        <select {...register("status")}>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+      <label>
+        Reset password
+        <input type="password" {...register("password")} />
+      </label>
+      <div className="form-actions">
+        <button className="primary-button" type="submit" disabled={isSubmitting}>
+          Save Changes
+        </button>
+        <button className="ghost-button" type="button" onClick={on_cancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}
+
+const AUDIT_SCOPE = ["audit_logs"]
+
+const audit_column_helper = createColumnHelper()
+
+const audit_columns = [
+  audit_column_helper.accessor(
+    (entry) => format_audit_action_label(entry.action, entry.actor_type),
+    {
+      id: "action",
+      header: "Action",
+      cell: (info) => <span className="audit-action">{info.getValue()}</span>,
+    }
+  ),
+  audit_column_helper.accessor(
+    (entry) => {
+      const metadata = safe_parse_metadata(entry.metadata_json || entry.metadata)
+      return entry.entity_type || metadata.entity_type || "-"
+    },
+    { id: "entity", header: "Entity" }
+  ),
+  audit_column_helper.accessor(
+    (entry) => format_audit_result(entry, safe_parse_metadata(entry.metadata_json || entry.metadata)),
+    {
+      id: "result",
+      header: "Result",
+      cell: (info) => <StatusBadge status={info.getValue()} />,
+    }
+  ),
+  audit_column_helper.accessor((entry) => (entry.created_at ? new Date(entry.created_at) : null), {
+    id: "timestamp",
+    header: "Timestamp",
+    cell: (info) => {
+      const value = info.getValue()
+      return value ? value.toLocaleString() : "-"
+    },
+    sortingFn: "datetime",
+  }),
+]
+
 function AuditTab() {
+  useDataScope(AUDIT_SCOPE)
   const { audit_logs } = useAppData()
 
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <Panel>
+      <PanelHeader>
         <div>
-          <h2>Audit Log</h2>
-          <p>Every action recorded for traceability.</p>
+          <PanelTitle>Audit Log</PanelTitle>
+          <PanelDescription>Every action recorded for traceability.</PanelDescription>
         </div>
-      </div>
-      <div className="data-table">
-        <div className="data-row table-head">
-          <span>Action</span>
-          <span>Entity</span>
-          <span>Result</span>
-          <span>Timestamp</span>
-        </div>
-        {audit_logs.length === 0 ? (
-          <div className="empty-state">No audit entries recorded yet.</div>
-        ) : (
-          audit_logs.map((entry) => {
-            const metadata = safe_parse_metadata(entry.metadata_json || entry.metadata)
-            const result = format_audit_result(entry, metadata)
-            return (
-              <div className="data-row" key={entry.id}>
-                <span className="audit-action">{format_audit_action_label(entry.action, entry.actor_type)}</span>
-                <span>{entry.entity_type || metadata.entity_type || "-"}</span>
-                <span>
-                  <StatusBadge status={result} />
-                </span>
-                <span>{entry.created_at ? new Date(entry.created_at).toLocaleString() : "-"}</span>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </section>
+      </PanelHeader>
+      <SortableTable
+        columns={audit_columns}
+        data={audit_logs}
+        empty_message="No audit entries recorded yet."
+      />
+    </Panel>
   )
 }

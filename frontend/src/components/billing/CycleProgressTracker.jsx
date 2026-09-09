@@ -1,4 +1,4 @@
-import { Play, Shield } from "lucide-react"
+import { Play, Shield } from "../../lib/icons"
 
 import { cn } from "../../lib/utils"
 import { compute_cycle_steps, cycle_month_pair } from "../../lib/format"
@@ -49,7 +49,7 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
             className={cn(
-              "h-full rounded-full transition-all duration-300 ease-in-out",
+              "h-full rounded-full transition-[width,background-color] duration-300 ease-in-out",
               progress_bar_tone === "danger"
                 ? "bg-destructive"
                 : progress_bar_tone === "success"
@@ -65,7 +65,7 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
         <div className="absolute left-8 right-8 top-[2.2rem] hidden h-px bg-border md:block" />
         <div
           className={cn(
-            "absolute left-8 top-[2.2rem] hidden h-px transition-all duration-300 md:block",
+            "absolute left-8 top-[2.2rem] hidden h-px transition-[width,background-color] duration-300 md:block",
             progress_bar_tone === "danger"
               ? "bg-destructive"
               : progress_bar_tone === "success"
@@ -83,13 +83,13 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
               <div key={i} className="relative z-10 flex flex-col items-center gap-4">
                 <div
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-md border bg-card text-sm font-semibold transition-colors duration-200",
+                    "flex h-11 w-11 items-center justify-center rounded-md border bg-card text-sm font-semibold transition-colors duration-200 lg:h-10 lg:w-10",
                     step.rejected
                       ? "border-destructive/50 text-destructive"
                       : step.done
                       ? "border-primary bg-primary text-primary-foreground"
                       : is_current
-                      ? "border-warning bg-warning/15 text-warning-foreground"
+                      ? "border-warning bg-warning/15 text-warning-soft-foreground"
                       : "border-border text-muted-foreground"
                   )}
                 >

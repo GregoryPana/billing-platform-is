@@ -1,7 +1,7 @@
 import { useState } from "react"
+import { Eye, EyeOff } from "../../lib/icons"
 
 import { api_fetch, set_auth_token } from "../../api"
-import { entra_enabled, sign_in_with_entra } from "../../entra"
 import { is_valid_email } from "../../lib/format"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
@@ -39,24 +39,16 @@ export function LoginPage({ on_authenticated }) {
       <div className="flex w-full max-w-[440px] flex-col gap-8 rounded-lg border border-transparent bg-card p-8 shadow-sm dark:border-border">
         <div className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">Billing Platform</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Automated billing operations and approvals</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Coordinates the monthly billing cycle and prepares commands and approvals — billing execution stays in
+            Cerillion.
+          </p>
         </div>
 
         <div className="space-y-1 text-center">
-          <h2 className="text-xl font-semibold tracking-tight">Sign in to account</h2>
-          <p className="text-[13px] text-muted-foreground">Enter your core credentials to continue.</p>
+          <h2 className="text-xl font-semibold tracking-tight">Sign in</h2>
+          <p className="text-[13px] text-muted-foreground">Enter your email or username and password to continue.</p>
         </div>
-
-        {entra_enabled ? (
-          <div className="grid gap-3">
-            <Button onClick={() => sign_in_with_entra().catch((error) => set_error_message(error.message))}>
-              Sign In With Microsoft
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Recommended for production access. Local sign-in is reserved for emergency access.
-            </p>
-          </div>
-        ) : null}
 
         {error_message && (
           <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs font-medium text-destructive">
@@ -82,8 +74,14 @@ export function LoginPage({ on_authenticated }) {
               <button
                 type="button"
                 onClick={() => set_show_login_password(!show_login_password)}
-                className="text-xs font-medium text-foreground hover:underline"
+                aria-pressed={show_login_password}
+                className="inline-flex items-center gap-1 text-xs font-medium text-foreground hover:underline"
               >
+                {show_login_password ? (
+                  <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
                 {show_login_password ? "Hide" : "Show"}
               </button>
             </div>
@@ -99,7 +97,7 @@ export function LoginPage({ on_authenticated }) {
         </form>
 
         <div className="flex flex-col gap-4 border-t pt-8 text-center">
-          <span className="pointer-events-none text-xs text-muted-foreground opacity-70">Authorized personnel only</span>
+          <span className="pointer-events-none text-xs text-muted-foreground">Authorized personnel only</span>
         </div>
       </div>
     </div>

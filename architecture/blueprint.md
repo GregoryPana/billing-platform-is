@@ -6,11 +6,11 @@ Provide a shared web workflow for billing operations so billing and finance team
 
 ## Implemented Scope
 
-- React frontend for billing, finance, admin, and viewer roles
-- FastAPI backend with JWT auth and role checks
+- React frontend for billing, finance, and admin roles
+- FastAPI backend with Entra ID as the primary auth path, a local break-glass fallback, and role checks
 - Postgres persistence for cycles, scripts, runs, approvals, notifications, users, and audit logs
 - export of generated billing commands to server-side files
-- n8n webhook integration for approval and signup notifications
+- n8n webhook integration for approval notifications
 - command generation for billing and notification steps executed outside the app
 
 ## Product Boundaries
@@ -28,10 +28,13 @@ It is responsible for:
 
 ## Roles
 
-- `admin`: manage users and signup requests, plus wider system visibility
-- `billing`: create cycles, generate scripts, track runs, request approvals, generate notifications
-- `finance`: review and approve or reject requests
-- `viewer`: read-only access to selected operational views
+The backend accepts exactly three effective roles (`backend/app/services/auth_service.py:16-29`); any other value is rejected by `normalize_role` with 403 Unknown role:
+
+- `system_admin` (stored as `admin`): manage users, plus wider system visibility
+- `billing_user` (stored as `billing`): create cycles, generate scripts, track runs, request approvals, generate notifications
+- `finance_user` (stored as `finance`): review and approve or reject requests
+
+There is no `viewer` role. Legacy `viewer` accounts are explicitly deactivated at startup (`backend/app/db/init_db.py:80`).
 
 ## Current Workflow
 
@@ -69,7 +72,7 @@ The finance review form can still submit `live`, but it is not the main gate use
 
 ## Main Backend Modules
 
-- `auth`: login, current user, signup requests, signup approval/rejection
+- `auth`: login, current user (Entra ID primary, local break-glass fallback; no signup flow)
 - `cycles`: create, list, update cycle status
 - `scripts`: generate, list, export, download
 - `runs`: create and update run records
@@ -81,7 +84,6 @@ The finance review form can still submit `live`, but it is not the main gate use
 ## Main Persistence Entities
 
 - `users`
-- `signup_requests`
 - `approval_request_settings`
 - `billing_cycles`
 - `script_definitions`
@@ -93,18 +95,11 @@ The finance review form can still submit `live`, but it is not the main gate use
 
 ## Technical Constraints
 
-- backend schema is created on startup; migrations are not yet implemented
+- schema changes are managed with Alembic (`backend/alembic/versions/`, 4 migrations, exactly one head)
 - CORS is currently limited to local frontend development origin
 - export directory is relative to the backend working directory
-- the frontend is mostly implemented in a single `App.jsx`
+- `frontend/src/App.jsx` is a 154-line routing shell (react-router-dom); feature logic lives in `frontend/src/features/*` page components
 
-## Next Logical Evolution
+## Entra ID Integration Status
 
-The current architecture is a strong fit for adding enterprise authentication later.
-
-If Microsoft Entra ID replaces local authentication, likely follow-on changes would include:
-
-- removing local signup and admin approval flows
-- replacing JWT/password login with Entra-backed identity tokens or delegated auth
-- mapping Entra identities or groups to app roles
-- simplifying or removing local user administration screens
+Microsoft Entra ID is now the primary authentication path (see `docs/entra-id-integration-plan.md` for the integration plan). `backend/app/services/auth_service.py:get_current_actor` tries local token validation first, then falls back to Entra when `settings.entra_enabled`. The local signup and admin-approval flow has been removed; only one local break-glass admin account remains, seeded at startup and not exposed via any signup path.

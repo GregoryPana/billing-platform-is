@@ -4,6 +4,9 @@ import { api_fetch } from "../../api"
 import { show_toast, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
 import { PostLiveObservationPanel } from "../issues/PostLiveObservationPanel"
+import { PanelSubheader, PanelSubheaderTitle, PanelSubheaderDescription } from "../../components/ui/panel"
+import { DataTable, DataTableRow } from "../../components/ui/data-table"
+import { EmptyState } from "../../components/ui/empty-state"
 import { cycle_month_pair, download_text_file, format_input_date } from "../../lib/format"
 
 export function NotificationsStage({ cycle, blocked }) {
@@ -112,22 +115,22 @@ export function NotificationsStage({ cycle, blocked }) {
         </div>
       ) : null}
 
-      <div className="panel-subheader">
-        <h3>Notification History</h3>
-        <p>Commands generated for this cycle.</p>
-      </div>
-      <div className="data-table">
-        <div className="data-row table-head">
+      <PanelSubheader>
+        <PanelSubheaderTitle>Notification History</PanelSubheaderTitle>
+        <PanelSubheaderDescription>Commands generated for this cycle.</PanelSubheaderDescription>
+      </PanelSubheader>
+      <DataTable>
+        <DataTableRow head>
           <span>Command</span>
           <span>Status</span>
           <span>Created</span>
           <span />
-        </div>
+        </DataTableRow>
         {cycle_notifications.length === 0 ? (
-          <div className="empty-state">No notification commands generated for this cycle yet.</div>
+          <EmptyState>No notification commands generated for this cycle yet.</EmptyState>
         ) : (
           cycle_notifications.map((notification) => (
-            <div className="data-row" key={notification.id}>
+            <DataTableRow key={notification.id}>
               <span>
                 <pre className="command-block mono">{notification.message}</pre>
               </span>
@@ -136,10 +139,10 @@ export function NotificationsStage({ cycle, blocked }) {
               </span>
               <span>{notification.created_at ? new Date(notification.created_at).toLocaleString() : "-"}</span>
               <span />
-            </div>
+            </DataTableRow>
           ))
         )}
-      </div>
+      </DataTable>
     </>
   )
 }

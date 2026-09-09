@@ -21,7 +21,7 @@ This document supersedes and consolidates: `DESIGN_SYSTEM_MAP.md`, `FRONTEND_UI_
 - Part 11 — Accessibility and responsiveness
 - Part 12 — Redesign and framework-conversion playbook (incl. Streamlit → React)
 - Part 13 — Acceptance checklist (self-verify before finishing)
-- Appendix A — Current platform inventory and known inconsistencies (repo-specific)
+- Appendix A — Billing platform implementation inventory (repo-specific)
 
 ---
 
@@ -71,19 +71,28 @@ Consequences of this intent, applied everywhere:
 - Nothing decorative that doesn't support a decision: no hero illustrations, no emoji as UI affordances, no non-functional cards, no "vibe" KPIs.
 - Text explains before it demands: screens, cards, and inputs carry short plain-English descriptions so a first-time user never needs external instructions for routine tasks.
 
+## 1.5 Professional SaaS benchmark extraction
+
+The visual direction is operational SaaS, not a direct copy of any one product. Use the benchmark roster deliberately:
+
+- **Extract:** Linear's disciplined spacing and keyboard-efficient navigation; Stripe Dashboard's financial legibility and progressive disclosure; Datadog's dense monitoring hierarchy; Ramp's clear spend status and role-aware actions; Retool's compact admin patterns.
+- **Adapt:** translate those patterns through CWS semantic tokens, billing terminology, role boundaries, approval states, and accessibility requirements.
+- **Reject:** consumer-growth decoration, playful gradients, oversized marketing layouts, unexplained icon-only actions, card-on-card composition, and any pattern that hides accountability or workflow state.
+- Record benchmark findings as `Extract / Adapt / Reject`; a vague "inspired by" note is not evidence.
+
 ---
 
 # Part 2 — Mandatory Stack
 
 ```jsonc
 {
-  "framework": "React 18+ (function components + hooks only)",
+  "framework": "React 19+ (function components + hooks only)",
   "buildTool": "Vite",
   "language": "TypeScript preferred; JavaScript acceptable for small apps — never mix .jsx/.tsx duplicates of the same file",
   "styling": "Tailwind CSS 3+ with the token config in §3.1 (no inline hex colors, no CSS-in-JS)",
   "components": "shadcn/ui pattern — components copied into src/components/ui/, styled exclusively with the semantic tokens",
   "variants": "class-variance-authority (cva) + clsx + tailwind-merge via a cn() helper in src/lib/utils",
-  "icons": "lucide-react (exclusively — no emoji, no other icon sets, no inline SVG icons)",
+  "icons": "@tabler/icons-react (exclusively — no emoji, decorative sparkles/stars, other icon sets, or inline SVG icons)",
   "charts": "recharts (exclusively — no hand-rolled CSS charts, no chart.js/d3 unless recharts genuinely cannot do it)",
   "toasts": "sonner (<Toaster position=\"top-right\" richColors closeButton />)",
   "motion": "framer-motion for mount/unmount and state feedback; GSAP only for page-entrance stagger sequences",
@@ -330,10 +339,11 @@ Fixed rhythm:
 
 ## 3.8 Iconography
 
-- `lucide-react` only. Sizes: `h-4 w-4` inline with text/buttons, `h-5 w-5` standalone, `h-6 w-6` section markers, `h-8 w-8` empty states. `stroke-width` default 2.
+- `@tabler/icons-react` only. Sizes: `h-4 w-4` inline with text/buttons, `h-5 w-5` standalone, `h-6 w-6` section markers, `h-8 w-8` empty states. Use the library's default outline treatment consistently.
 - Icons inherit text color (`currentColor`); use `text-muted-foreground` for secondary icons.
 - Every icon-only button gets an `aria-label`; every decorative icon next to a label gets `aria-hidden="true"`.
 - No emoji anywhere in the UI chrome (buttons, nav, headings). Emoji may appear only in user-generated content.
+- Do not use sparkle, star-burst, or magic-wand symbols as generic polish or AI decoration. A narrow, documented non-AI meaning is the only exception.
 
 ---
 
@@ -678,7 +688,7 @@ Every screen must ship with:
 - `aria-label` on icon-only buttons; `role="radiogroup"` + `aria-label` on option-pill groups; `role="status"` on toasts; `role="tooltip"` + `aria-describedby` on info-tips; `aria-selected` on tabs.
 - No color-only information (§3.4).
 - `prefers-reduced-motion` respected (§8.4).
-- Touch targets ≥ 40px on mobile; option pills and nav items ≥ 42px tall.
+- Touch targets are at least 44px through mobile and tablet widths; dense desktop controls may reduce to 40px at the `lg` breakpoint and above.
 - Responsive checkpoints to verify by hand: 375px, 768px, 1024px, 1440px — no clipping, no overlap, no horizontal page scroll, same content priority order.
 
 ---
@@ -776,38 +786,22 @@ Conversion rules:
 
 ---
 
-# Appendix A — Current Platform Inventory and Known Inconsistencies (repo-specific, as of 2026-07-07)
+# Appendix A — Billing Platform Implementation Inventory (repo-specific, as of 2026-09-09)
 
-This appendix records what exists in *this* repository and where it diverges from the canon above. Use it as the alignment backlog when touching these apps. New apps must not inherit any of these divergences.
+This appendix records the implementation that exists in this Billing repository. It is descriptive only; Parts 1–13 remain the design canon.
 
-## A.1 Inventory
+## A.1 Current implementation
 
-| App                           | Path                             | Stack state                                                  | Token system                                                                                                | Notes                                                                                     |
-| ----------------------------- | -------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Admin Dashboard (production)  | `frontend/dashboard`           | JS, monolithic 3.3k-line`App.jsx`, 2.1k-line `index.css` | **Legacy**: hand-rolled light tokens overridden by dark `glass-theme.css` via `!important`        | sonner ✔, recharts ✔ + hand-rolled conic-gradient pies ✖, GSAP+framer ✔, info-tips ✔ |
-| Dashboard Blueprint (rebuild) | `frontend/dashboard-blueprint` | JS, feature-foldered, tanstack table, RHF+zod                | **Canonical shadcn HSL** (light+dark)                                                                 | Closest to this document; hand-rolled toast stack ✖ (should be sonner)                   |
-| B2B Survey                    | `frontend/survey`              | TS                                                           | Canonical shadcn HSL (light+dark)                                                                           | Hand-rolled toast stack ✖; duplicate`.jsx`/`.tsx` ui files ✖                        |
-| Mystery Shopper Survey        | `frontend/mystery-shopper`     | JS, dual auth modes                                          | shadcn HSL**light only — no `.dark` block** ✖                                                     | router v7 (others v6) ✖; option-pill pattern ✔ (canonical origin)                       |
-| Installation Survey           | `frontend/installation-survey` | Mixed JS/TS duplicates ✖                                    | shadcn HSL, best-commented,**but different primary** (`211 85% 59%` #4F8DE4 vs `211 100% 36%`) ✖ | Skeleton/Label ✔, tailwindcss-animate ✔                                                 |
-| Unified Frontend              | `frontend-unified`             | Abandoned; build broken (esbuild mismatch); axios; no tokens | none                                                                                                        | Treat as archive — do not extend                                                         |
+- **Application:** one React 19 and Vite frontend under `frontend/`.
+- **Routes and features:** route-owned pages under `frontend/src/features/`, shared shell components under `frontend/src/components/layout/`, billing workflow components under `frontend/src/components/billing/`, and reusable controls under `frontend/src/components/ui/`.
+- **Theme system:** semantic light/dark tokens, synchronous pre-paint initialization, persisted preference, system-theme fallback, and a user-accessible theme switch.
+- **Product icons:** Tabler icons routed through `frontend/src/lib/icons.js`; decorative sparkle and starburst iconography is prohibited.
+- **Forms and data:** React Hook Form with Zod validation and TanStack Table where tabular behavior requires it.
+- **Quality gates:** `npm run test:design-conformance`, lint, build, theme initialization/review/storage checks, route-error checks, and synthetic authentication checks. There is no repository CI workflow yet, so these gates must be run during integration until CI is introduced.
 
-Shared legacy files: `frontend/glass-theme.css` + `frontend/shared-ui.css` (imported by dashboard and frontend-unified only).
+## A.2 Known follow-up outside UX-1
 
-## A.2 Inconsistencies observed (highest impact first) — status after the 2026-07-07 alignment sweep
-
-A consistency sweep was applied on 2026-07-07 (user decisions: deep CWS blue standard; production dashboard gets targeted fixes only, keeping its dark glass identity; dependency alignment deferred).
-
-1. **Two competing token systems.** ⚠ PARTIALLY RESOLVED (by decision). The production dashboard keeps `glass-theme.css` for its visual identity, but its Tailwind config now maps the canonical semantic classes (`bg-primary`, `border-input`, …) to a `--cx-*` token bridge in `index.css` (prefixed because the legacy theme uses `--border`/`--card`/`--muted` as rgba/hex values). Full migration remains the dashboard-blueprint app's role.
-2. **Brand primary drift.** ✅ RESOLVED. Standard everywhere: `211 100% 36%` light / `213 74% 53%` dark. installation-survey retokenized.
-3. **Semantic token corruption in glass theme.** ✅ RESOLVED. `--success-bg/--success-fg` in `glass-theme.css` are now green (`rgba(16,185,129,0.24)` / `#a7f3d0`).
-4. **Dark mode coverage.** ✅ RESOLVED. survey and mystery-shopper now carry canonical `.dark` blocks; all four shadcn apps have identical light+dark token sets.
-5. **Toast fragmentation.** ✅ RESOLVED. sonner (`<Toaster position="top-right" richColors closeButton />`) in dashboard, survey, and dashboard-blueprint; hand-rolled stacks removed (`pushToast` now delegates to sonner). mystery/installation use inline banners for persistent conditions, per §7.2.
-6. **Non-tokenized shadcn components.** ✅ RESOLVED. dashboard and mystery-shopper `components/ui/*` now use semantic token classes; survey's shadowing legacy `.jsx` copies deleted so the token-based `.tsx` versions resolve. (Dashboard keeps its `h-9` button sizes deliberately for visual parity — do not "fix" without a coordinated pass.)
-7. **Two spacing systems loaded at once in dashboard.** ✅ RESOLVED. Golden-ratio `--space-1..6` definitions removed from `dashboard/src/index.css`; usages remapped to the nearest 8px-scale tokens from `shared-ui.css` (8→8, 13→12, 21→20, 34→32, 55→48, 89→80).
-8. **Duplicate file variants.** ✅ RESOLVED. Deleted: survey `button/input/select/textarea/radio-group/tabs.jsx` + `lib/utils.js` (`.tsx`/`.ts` remain); installation `App.tsx` + `auth.ts` (dead — `App.jsx`/`auth.js` are the live, feature-complete versions); mystery unused `separator.jsx`/`tabs.jsx`.
-9. **Dependency drift.** ⏸ DEFERRED (user decision). react-router v6 vs v7; recharts v2 vs v3; framer-motion v11 vs v12; lucide versions. Align in a coordinated maintenance pass with per-app testing.
-10. **Hand-rolled charts.** ⏳ OPEN. Dashboard NPS pies are CSS conic gradients. → recharts donut per §6.2 (blueprint already does this) — part of the eventual full dashboard migration.
-11. **Tabs active-state styling.** ⏳ OPEN in dashboard (glass gradient kept for identity); shadcn apps follow §4.6.
-12. **Tooltip/guidance coverage is uneven.** ⏳ OPEN. Derived metrics in survey apps should gain info-tips per §9.1.
-13. **frontend-unified.** ⏳ OPEN (untouched by design). Archive it; never extend.
-14. **Accent token.** ✅ RESOLVED (found during sweep). survey/mystery/blueprint had a saturated cyan `--accent` (`188 100% 39%`), making ghost/outline hovers bright cyan. All apps now use the canonical light-tint hover accent (`214 100% 96%` light / `217 33% 17%` dark).
+1. Package 12 authentication hardening must integrate before UX-1.
+2. The combined release candidate still requires regression testing, staging Entra validation, rollback evidence, operational approval, and Finance/Billing acceptance.
+3. Dependency-audit remediation is a separate compatibility-tested maintenance item; it must not be auto-fixed without impact analysis.
+4. Local and synthetic authentication evidence does not prove staging or production Entra behavior.

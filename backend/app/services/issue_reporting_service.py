@@ -72,8 +72,7 @@ def _test_review_issues_by_cycle(db: Session, cycles_in_scope: dict, cycle_ids: 
                     }
                 )
     return {
-        "source": "billing_issues (context=finance_test_review), grouped by billing_cycle_id",
-        "filter_scope": "billing_cycle_id, and/or billing_month between start_month and end_month",
+        "source": "Counts open and completed Finance test-review issues, per billing cycle.",
         "decision_supported": "Track Finance test-review workload per cycle/month to plan review capacity",
         "is_empty": len(rows) == 0,
         "data": rows,
@@ -97,10 +96,9 @@ def _classification_breakdown(db: Session, cycle_ids: list) -> dict:
         rows = [{"classification": name, "count": count} for name, count in counts]
     return {
         "source": (
-            "billing_issues joined to billing_issue_classifications, filtered to completed issues with "
-            "completion_outcome=resolved (finance_test_review and post_live_observation contexts only)"
+            "Counts confirmed (resolved) issues by defect classification, excluding any withdrawn as "
+            "raised-in-error."
         ),
-        "filter_scope": "billing_cycle_id, and/or billing_month between start_month and end_month",
         "decision_supported": "Identify the most common confirmed defect classes to prioritise root-cause fixes",
         "is_empty": len(rows) == 0,
         "data": rows,
@@ -120,8 +118,7 @@ def _test_review_vs_post_live(db: Session, cycle_ids: list) -> dict:
         ).all()
         rows = [{"context": context, "count": count} for context, count in counts]
     return {
-        "source": "billing_issues, grouped by context (finance_test_review vs post_live_observation)",
-        "filter_scope": "billing_cycle_id, and/or billing_month between start_month and end_month",
+        "source": "Compares how many issues were caught during test-review versus discovered after go-live.",
         "decision_supported": "See whether quality issues are caught pre-live or slip to post-live observations",
         "is_empty": len(rows) == 0,
         "data": rows,
@@ -157,11 +154,7 @@ def _completion_turnaround(db: Session, cycle_ids: list) -> dict:
         data = {"average_hours": None, "median_hours": None, "sample_size": 0}
 
     return {
-        "source": (
-            "billing_issues completed_at minus created_at, for completed finance_test_review and "
-            "post_live_observation issues"
-        ),
-        "filter_scope": "billing_cycle_id, and/or billing_month between start_month and end_month",
+        "source": "Average and median time from an issue being raised to Finance marking it complete.",
         "decision_supported": "Measure Finance review turnaround time to set or monitor an SLA",
         "is_empty": sample_size == 0,
         "data": data,
@@ -194,8 +187,10 @@ def _cycles_blocked_by_open_issue(db: Session, cycles_in_scope: dict, cycle_ids:
                     }
                 )
     return {
-        "source": "audit_logs (action=move_to_live_blocked), recorded each time the server-side approval gate rejects a request",
-        "filter_scope": "billing_cycle_id, and/or billing_month between start_month and end_month",
+        "source": (
+            "Counts how many times a cycle's Test-stage approval was blocked because a Finance issue "
+            "was still open."
+        ),
         "decision_supported": "Identify how often Test approval is delayed by open Finance issues, a process bottleneck signal",
         "is_empty": len(rows) == 0,
         "data": rows,
@@ -232,8 +227,10 @@ def _raised_in_error(db: Session, cycle_ids: list) -> dict:
         )
     percentage = round((raised_in_error_count / completed_count) * 100, 1) if completed_count else None
     return {
-        "source": "billing_issues with completion_outcome=raised_in_error, out of all completed finance issues",
-        "filter_scope": "billing_cycle_id, and/or billing_month between start_month and end_month",
+        "source": (
+            "Share of completed issues that were later withdrawn as raised-in-error, out of all "
+            "completed issues."
+        ),
         "decision_supported": (
             "Audit-quality measure of how often issues are raised then withdrawn as errors; deliberately "
             "excluded from headline KPI totals, not a revenue-impact figure"

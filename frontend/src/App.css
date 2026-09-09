@@ -26,12 +26,15 @@
     --secondary-foreground: 212 80% 24%;
 
     /* Semantic — fixed meanings */
-    --destructive: 0 63% 47%;
+    --destructive: 0 63% 45%;
     --destructive-foreground: 210 40% 98%;
-    --success: 152 67% 37%;
+    --success: 152 67% 27%;
     --success-foreground: 210 40% 98%;
     --warning: 48 100% 47%;
     --warning-foreground: 222 47% 11%;
+    --warning-soft-foreground: 222 47% 11%;
+    --info: 199 89% 31%;
+    --info-foreground: 210 40% 98%;
 
     --accent: 214 100% 96%;
     --accent-foreground: 212 80% 24%;
@@ -61,12 +64,15 @@
     --secondary: 214 61% 23%;
     --secondary-foreground: 210 40% 96%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 67%;
+    --destructive-foreground: 222 47% 11%;
     --success: 152 67% 42%;
-    --success-foreground: 210 40% 98%;
+    --success-foreground: 222 47% 11%;
     --warning: 48 100% 53%;
     --warning-foreground: 222 47% 11%;
+    --warning-soft-foreground: 48 100% 53%;
+    --info: 199 89% 58%;
+    --info-foreground: 222 47% 11%;
 
     --accent: 217 33% 17%;
     --accent-foreground: 210 40% 96%;
@@ -115,27 +121,6 @@
 /* Bridge classes — token-styled to match the shadcn variants in components/ui.
    Migrate JSX to the components over time; these must stay visually identical. */
 @layer components {
-  .panel {
-    @apply mb-6 rounded-lg border border-transparent bg-card p-6 text-card-foreground shadow-sm dark:border-border;
-  }
-  .panel-header {
-    @apply mb-6 flex flex-wrap items-start justify-between gap-4;
-  }
-  .panel-header h2 {
-    @apply text-xl font-semibold tracking-tight text-foreground;
-  }
-  .panel-header p {
-    @apply mt-1 text-sm text-muted-foreground;
-  }
-  .panel-subheader {
-    @apply mb-4 mt-8;
-  }
-  .panel-subheader h3 {
-    @apply text-base font-medium text-foreground;
-  }
-  .panel-subheader p {
-    @apply mt-1 text-xs text-muted-foreground;
-  }
   .section-divider {
     @apply my-8 h-px w-full bg-border;
   }
@@ -166,29 +151,6 @@
   }
   .content-grid {
     @apply grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)];
-  }
-
-  /* Named data-table, not table: Tailwind's own `table` utility (display:table)
-     shares the class name and wins the cascade from the later utilities layer,
-     collapsing this to shrink-to-fit table sizing instead of the intended grid rows. */
-  .data-table {
-    @apply overflow-hidden rounded-md border border-border bg-card;
-  }
-  .data-row {
-    @apply grid grid-cols-[1.5fr_1fr_1fr_1fr] items-center gap-x-4 border-b border-border px-4 py-4 text-sm transition-colors last:border-b-0;
-  }
-  .data-row:not(.table-head):hover {
-    @apply bg-muted/50;
-  }
-  .table-head {
-    @apply bg-muted/50 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground;
-  }
-  .data-row.runs {
-    @apply gap-x-3;
-    grid-template-columns: 1.2fr 1fr 1fr 1fr 1.4fr;
-  }
-  .data-row.admin {
-    grid-template-columns: 1fr 1fr 1.4fr 0.9fr 1fr 1.2fr;
   }
 
   .select-inline {
@@ -241,10 +203,13 @@
     @apply border-success/40 bg-success/15 text-success;
   }
   .pill.warning {
-    @apply border-warning/50 bg-warning/15 text-warning-foreground;
+    @apply border-warning/50 bg-warning/15 text-warning-soft-foreground;
   }
   .pill.danger {
     @apply border-destructive/40 bg-destructive/15 text-destructive;
+  }
+  .pill.info {
+    @apply border-info/40 bg-info/15 text-info;
   }
   .pill.neutral {
     @apply border-border bg-muted text-muted-foreground;
@@ -403,17 +368,16 @@
     @apply mb-6 rounded-md border border-border bg-card px-3.5 py-3 text-sm text-foreground;
   }
   .alert.info {
-    @apply border-primary/30 bg-primary/5;
+    @apply border-info/40 bg-info/10 text-info;
+  }
+  .alert.success {
+    @apply border-success/40 bg-success/10 text-success;
   }
   .alert.warning {
-    @apply border-warning/50 bg-warning/10 text-warning-foreground;
+    @apply border-warning/50 bg-warning/10 text-warning-soft-foreground;
   }
   .alert.error {
     @apply border-destructive/50 bg-destructive/10 text-destructive;
-  }
-
-  .empty-state {
-    @apply px-4 py-16 text-center text-sm text-muted-foreground;
   }
 
   .detail-card {
@@ -442,13 +406,6 @@
     @apply my-4 flex flex-wrap items-end justify-between gap-4 rounded-md bg-muted p-4;
   }
 
-  .panel-details {
-    @apply mt-4;
-  }
-  .panel-details summary {
-    @apply mb-3 cursor-pointer text-sm font-medium text-foreground;
-  }
-
   .stacked-cell {
     @apply flex min-w-0 flex-col gap-1;
   }
@@ -461,24 +418,11 @@
 }
 
 @media (max-width: 900px) {
-  .panel {
-    padding: 1rem;
-  }
   .form-grid {
     grid-template-columns: 1fr;
   }
   .parameter-grid {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
-  }
-  .data-row {
-    grid-template-columns: 1.2fr 1fr 1fr 1fr;
-    column-gap: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
-    font-size: 13px;
-  }
-  .data-row.admin {
-    grid-template-columns: 1fr 1fr 1.2fr;
   }
 }
 
@@ -488,7 +432,7 @@
   overflow: hidden;
 }
 
-.doc-panel .panel-header {
+.doc-panel [data-slot="panel-header"] {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -653,7 +597,7 @@
 }
 
 @media (max-width: 900px) {
-  .doc-panel .panel-header {
+  .doc-panel [data-slot="panel-header"] {
     padding: 1.1rem 1rem;
     gap: 0.75rem;
     flex-direction: column;

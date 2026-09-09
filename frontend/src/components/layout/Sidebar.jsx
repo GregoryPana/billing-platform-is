@@ -1,21 +1,14 @@
-import { useEffect, useState } from "react"
 import { NavLink } from "react-router-dom"
-import { LogOut, Moon, Sun } from "lucide-react"
+import { LogOut, Moon, Sun } from "../../lib/icons"
 
 import { cn } from "../../lib/utils"
 import { useAppData } from "../../context/AppDataContext"
+import { useTheme } from "../../lib/theme"
 import { nav_items_for_role } from "./nav"
-
-const THEME_KEY = "billing_theme"
 
 export function Sidebar() {
   const { current_user, role, on_sign_out } = useAppData()
-  const [theme, set_theme] = useState(() => localStorage.getItem(THEME_KEY) || "light")
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    localStorage.setItem(THEME_KEY, theme)
-  }, [theme])
+  const [theme, set_theme] = useTheme()
 
   return (
     <aside className="hidden h-screen w-64 min-w-[16rem] flex-col self-start border-r bg-card p-6 md:sticky md:top-0 md:flex">
@@ -53,7 +46,7 @@ export function Sidebar() {
             <p className="truncate text-xs text-muted-foreground">{current_user?.email || role}</p>
           </div>
           <button
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10 lg:w-10"
             type="button"
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             onClick={() => set_theme(theme === "dark" ? "light" : "dark")}
@@ -62,7 +55,7 @@ export function Sidebar() {
           </button>
         </div>
         <button
-          className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-px"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-px lg:h-10"
           type="button"
           onClick={on_sign_out}
         >

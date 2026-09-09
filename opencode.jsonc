@@ -17,6 +17,16 @@
       "./.opencode/skills"
     ]
   },
+  "permission": {
+    "external_directory": {
+      "/mnt/c/Users/gpanagary/central-agent-skills/**": "allow",
+      "/home/gpanagary/.hermes/skills/**": "allow"
+    },
+    "edit": {
+      "/mnt/c/Users/gpanagary/central-agent-skills/**": "deny",
+      "/home/gpanagary/.hermes/skills/**": "deny"
+    }
+  },
   "command": {
     "project-change": {
       "description": "Run a governed Billing Collaboration Platform change and end with a Hermes Update Pack.",

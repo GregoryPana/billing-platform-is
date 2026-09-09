@@ -1,42 +1,79 @@
 import { useCallback, useEffect, useState } from "react"
+import { createColumnHelper } from "@tanstack/react-table"
 
-import { useAppData } from "../../context/AppDataContext"
+import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { cycle_month_pair } from "../../lib/format"
 import { get_issue_reporting_summary } from "./reporting-api"
+import {
+  Panel,
+  PanelHeader,
+  PanelTitle,
+  PanelDescription,
+  PanelDetails,
+  PanelDetailsSummary,
+} from "../../components/ui/panel"
+import { SortableTable } from "../../components/ui/sortable-table"
 
 const CONTEXT_LABELS = {
   finance_test_review: "Test-review",
   post_live_observation: "Post-live observation",
 }
 
+const cycle_column_helper = createColumnHelper()
+
+const cycle_issue_columns = [
+  cycle_column_helper.accessor("usage_month", { id: "usage_month", header: "Cycle" }),
+  cycle_column_helper.accessor("billing_month", { id: "billing_month", header: "Billing month" }),
+  cycle_column_helper.accessor("count", { id: "count", header: "Open + completed issues" }),
+]
+
+const classification_column_helper = createColumnHelper()
+
+const classification_columns = [
+  classification_column_helper.accessor("classification", { id: "classification", header: "Classification" }),
+  classification_column_helper.accessor("count", { id: "count", header: "Resolved count" }),
+]
+
+const context_column_helper = createColumnHelper()
+
+const context_columns = [
+  context_column_helper.accessor((row) => CONTEXT_LABELS[row.context] || row.context, {
+    id: "context",
+    header: "Context",
+  }),
+  context_column_helper.accessor("count", { id: "count", header: "Count" }),
+]
+
+const blocked_column_helper = createColumnHelper()
+
+const blocked_cycle_columns = [
+  blocked_column_helper.accessor("usage_month", { id: "usage_month", header: "Cycle" }),
+  blocked_column_helper.accessor("billing_month", { id: "billing_month", header: "Billing month" }),
+  blocked_column_helper.accessor("blocked_count", { id: "blocked_count", header: "Blocked approval attempts" }),
+]
+
 function MetricSection({ title, metric, children }) {
   if (!metric) {
     return null
   }
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <Panel>
+      <PanelHeader>
         <div>
-          <h2>{title}</h2>
-          <p>{metric.decision_supported}</p>
+          <PanelTitle>{title}</PanelTitle>
+          <PanelDescription>{metric.decision_supported}</PanelDescription>
         </div>
-      </div>
-      <div className="summary-card mb-4">
-        <div>
-          <span className="label">Source</span>
-          <span>{metric.source}</span>
-        </div>
-        <div>
-          <span className="label">Filter scope</span>
-          <span>{metric.filter_scope}</span>
-        </div>
-      </div>
+      </PanelHeader>
       {metric.is_empty ? (
         <p className="text-sm text-muted-foreground">No data for the current filters.</p>
       ) : (
         children
       )}
-    </section>
+      <PanelDetails>
+        <PanelDetailsSummary>How this is calculated</PanelDetailsSummary>
+        <p className="text-sm text-muted-foreground">{metric.source}</p>
+      </PanelDetails>
+    </Panel>
   )
 }
 
@@ -44,7 +81,10 @@ function MetricSection({ title, metric, children }) {
    docs/plans/2026-07-21-revenue-protection-issue-control.md). Deliberately
    shows only counts, classifications, and turnaround time - no revenue-at-risk
    or financial values are calculated here per the plan's non-negotiable scope. */
+const REPORTING_SCOPE = ["cycles"]
+
 export function BillingIssueReportingPage() {
+  useDataScope(REPORTING_SCOPE)
   const { cycles } = useAppData()
 
   const [billing_cycle_id, set_billing_cycle_id] = useState("")
@@ -79,13 +119,13 @@ export function BillingIssueReportingPage() {
 
   return (
     <>
-      <section className="panel">
-        <div className="panel-header">
+      <Panel>
+        <PanelHeader>
           <div>
-            <h2>Filters</h2>
-            <p>Scope every metric below to a single cycle and/or a billing-month range.</p>
+            <PanelTitle>Filters</PanelTitle>
+            <PanelDescription>Scope every metric below to a single cycle and/or a billing-month range.</PanelDescription>
           </div>
-        </div>
+        </PanelHeader>
         <div className="form-grid">
           <label>
             Billing cycle
@@ -110,7 +150,7 @@ export function BillingIssueReportingPage() {
             <input type="month" value={end_month} onChange={(event) => set_end_month(event.target.value)} />
           </label>
         </div>
-      </section>
+      </Panel>
 
       {error ? <div className="alert error">{error}</div> : null}
       {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
@@ -118,53 +158,30 @@ export function BillingIssueReportingPage() {
       {metrics && (
         <>
           <MetricSection title="Finance test-review issues per cycle" metric={metrics.test_review_issues_by_cycle}>
-            <div className="data-table">
-              <div className="data-row table-head">
-                <span>Cycle</span>
-                <span>Billing month</span>
-                <span>Open + completed issues</span>
-              </div>
-              {metrics.test_review_issues_by_cycle.data.map((row) => (
-                <div className="data-row" key={row.billing_cycle_id}>
-                  <span>{row.usage_month}</span>
-                  <span>{row.billing_month}</span>
-                  <span>{row.count}</span>
-                </div>
-              ))}
-            </div>
+            <SortableTable
+              columns={cycle_issue_columns}
+              data={metrics.test_review_issues_by_cycle.data}
+              empty_message="No data for the current filters."
+            />
           </MetricSection>
 
           <MetricSection
             title="Approved classifications (excludes raised-in-error)"
             metric={metrics.classification_breakdown}
           >
-            <div className="data-table">
-              <div className="data-row table-head">
-                <span>Classification</span>
-                <span>Resolved count</span>
-              </div>
-              {metrics.classification_breakdown.data.map((row) => (
-                <div className="data-row" key={row.classification}>
-                  <span>{row.classification}</span>
-                  <span>{row.count}</span>
-                </div>
-              ))}
-            </div>
+            <SortableTable
+              columns={classification_columns}
+              data={metrics.classification_breakdown.data}
+              empty_message="No data for the current filters."
+            />
           </MetricSection>
 
           <MetricSection title="Test-review vs post-live observations" metric={metrics.test_review_vs_post_live}>
-            <div className="data-table">
-              <div className="data-row table-head">
-                <span>Context</span>
-                <span>Count</span>
-              </div>
-              {metrics.test_review_vs_post_live.data.map((row) => (
-                <div className="data-row" key={row.context}>
-                  <span>{CONTEXT_LABELS[row.context] || row.context}</span>
-                  <span>{row.count}</span>
-                </div>
-              ))}
-            </div>
+            <SortableTable
+              columns={context_columns}
+              data={metrics.test_review_vs_post_live.data}
+              empty_message="No data for the current filters."
+            />
           </MetricSection>
 
           <MetricSection title="Time to Finance completion" metric={metrics.completion_turnaround}>
@@ -188,20 +205,11 @@ export function BillingIssueReportingPage() {
             title="Cycles blocked by an open issue"
             metric={metrics.cycles_blocked_by_open_issue}
           >
-            <div className="data-table">
-              <div className="data-row table-head">
-                <span>Cycle</span>
-                <span>Billing month</span>
-                <span>Blocked approval attempts</span>
-              </div>
-              {metrics.cycles_blocked_by_open_issue.data.map((row) => (
-                <div className="data-row" key={row.billing_cycle_id}>
-                  <span>{row.usage_month}</span>
-                  <span>{row.billing_month}</span>
-                  <span>{row.blocked_count}</span>
-                </div>
-              ))}
-            </div>
+            <SortableTable
+              columns={blocked_cycle_columns}
+              data={metrics.cycles_blocked_by_open_issue.data}
+              empty_message="No data for the current filters."
+            />
           </MetricSection>
 
           <MetricSection title="Raised-in-error (audit-quality measure)" metric={metrics.raised_in_error}>
