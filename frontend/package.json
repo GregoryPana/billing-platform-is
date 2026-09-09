@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "test:auth": "node tests/entra-auth-mode.mjs",
     "test:route-error": "node tests/route-error-boundary.mjs",
+    "test:ux1-theme-review": "node tests/ux1-theme-review.mjs",
+    "test:ux1-theme-init": "node tests/ux1-theme-init.mjs",
+    "test:ux1-theme-storage": "node tests/ux1-theme-storage.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

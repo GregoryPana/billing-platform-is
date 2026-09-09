@@ -89,7 +89,7 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
                       : step.done
                       ? "border-primary bg-primary text-primary-foreground"
                       : is_current
-                      ? "border-warning bg-warning/15 text-warning-foreground"
+                      ? "border-warning bg-warning/15 text-warning-soft-foreground"
                       : "border-border text-muted-foreground"
                   )}
                 >

@@ -6,6 +6,12 @@
 - verification: frontend `npm run lint`, `npm run test:route-error`, `npm run test:auth`, and `npm run build` pass; the authentication harness also returned nonzero under an intentional temporary negative control; focused backend auth suites pass 49/49 and the full backend suite passes 130/130; an isolated follow-up reviewer returned `APPROVE` with no findings on the six auth-hardening code/test files; `git diff --check` passes
 - flags: Package 12 local implementation and review are complete; production rollout remains blocked on remote deployment preflight, staging Entra rehearsal, named Finance/Billing acceptance, rollback evidence, deployment authorization, and required external environment/secrets
 
+## 2026-09-09 — RG-01 UX-1 verification completion
+- branch/commit: `feature/rg01-ux-1-semantic-themes`; changes captured in this commit and not pushed, merged, or deployed
+- files: completed the semantic theme implementation, theme review page, dedicated persistence/storage-failure browser harness and package scripts; corrected UX-1 evidence and the implemented-state entries in `docs/DESIGN_SYSTEM_ADDENDUM.md`; exported the synthetic route-error test component to clear the repository-wide Fast Refresh lint error
+- verification: `npm run lint` passes with zero errors and one existing TanStack compatibility warning; `npm run build`, `npm run test:ux1-theme-init`, `npm run test:ux1-theme-review`, `npm run test:ux1-theme-storage`, `npm run test:route-error`, and `npm run test:auth` pass; a temporary negative-control mutation proved `test:auth` returns nonzero when a scenario fails and was removed afterward; storage testing confirms both persisted reload and in-memory operation when browser storage is blocked; `git diff --check` passes
+- flags: UX-1 local implementation and evidence are complete; UX-0 design-direction approval remains outstanding, and Package 12 authentication hardening must be integrated first rather than duplicated here
+
 ## 2026-09-01 — RG-01 Package 0: documentation rebaseline (docs-only, no code changes)
 - branch/commit: `feature/cycle-usage-month-derivation` @ `8b9a5c2` (uncommitted docs changes on top, not committed/pushed)
 - files: `README.md`, `architecture/blueprint.md`, `project.md` (corrected stale roles/auth/App.jsx/migration/test/API-URL claims against live code), `ui-styling-guide.md` (added a one-line superseded-by-`DESIGN_SYSTEM.md` header only, body untouched), new `docs/DESIGN_SYSTEM_ADDENDUM.md` (local Appendix A + mandatory-stack deviation rationale), `docs/RG01_ALIGNMENT_TRACKER.md` (Package 0 marked completed)
@@ -163,6 +169,12 @@ Consolidated into a Hermes Update Pack on 2026-07-21 10:30 (7 entries above). Ta
 - verification: rebaselined Packages 0/1/2 as landed. `npm run lint`/`npm run build` (frontend) pass. Frontend-only Vite dev server verified the sign-in screen at 375/768/1024/1440px (console/network/keyboard all pass). `pytest -q`, `alembic heads`/`current`, and the full 3-role×route matrix could NOT be run — this isolated automated session had no human to approve Bash prompts, so Docker, `python3`/`alembic`, and `kill` were all blocked. No live backend, no role sign-in, no route coverage.
 - flags: no auth/security/data impact (nothing executed against a real DB) | no deployment impact | new risk: a throwaway `vite --port 5811` dev server (pid 92885/92886) was left running because `kill` was blocked — needs manual `kill 92885 92886`
 - Package pointer not advanced. Next safe action: re-run Package 3 from a session that can actually approve `python3`/`alembic`/`docker`/`kill`.
+
+## 2026-09-04 — RG-01 UX-1: semantic theme foundation (isolated worktree `billing-rg01-ux1`)
+- branch/commit: `feature/rg01-ux-1-semantic-themes` (rooted at `06631b6`, uncommitted, not pushed)
+- files: `frontend/src/App.css` and `tailwind.config.js` (complete light/dark semantic roles, including `info` and context-specific warning text); shared pre-paint theme resolution in `frontend/src/lib/theme.js` and `frontend/index.html`; sidebar integration; semantic badge/progress styling; development-only theme-review route and harness; deterministic theme-init and theme-review tests; UX-1 evidence record
+- verification: build, auth regression, route-error, theme-init, theme-review, targeted ESLint and `git diff --check` pass. Theme review covers light/dark at 375/768/1024/1440px, WCAG contrast, focus visibility, reduced motion, document/local overflow, theme distinction, console/network errors and cleanup. Full repository lint still reports two pre-existing findings outside this UX-1 diff.
+- flags: the independent review's pre-paint initialization, OS fallback, semantic contrast, warning-mode override, viewport-matrix, overflow and cleanup findings were remediated and retested | no backend/auth/API/data/schema/deployment/lockfile changes | no UX-2 work | no commit/push/merge/deploy performed
 
 ## 2026-09-02 — RG-01 Package 10: route/help/PDF code splitting (bundle reduction, no product-behavior change)
 - branch/commit: feature/cycle-usage-month-derivation (uncommitted, not pushed)

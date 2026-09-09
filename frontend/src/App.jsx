@@ -30,6 +30,9 @@ const AdministrationPage = lazy(() =>
   import("./features/admin/AdministrationPage").then((m) => ({ default: m.AdministrationPage }))
 )
 const HelpPage = lazy(() => import("./features/help/HelpPage").then((m) => ({ default: m.HelpPage })))
+const ThemeReviewPage = import.meta.env.DEV
+  ? lazy(() => import("./features/dev/ThemeReviewPage").then((m) => ({ default: m.ThemeReviewPage })))
+  : null
 
 function RouteLoading() {
   return (
@@ -256,6 +259,7 @@ function App() {
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="*" element={<Navigate to="/overview" replace />} />
               </Route>
+              {import.meta.env.DEV ? <Route path="/dev/theme-review" element={<ThemeReviewPage />} /> : null}
             </Routes>
           </Suspense>
         </RouteErrorBoundary>

@@ -5,6 +5,31 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Billing Platform</title>
+    <script>
+      /* Pre-paint theme bootstrap. Must stay a plain synchronous inline
+         script (not type="module") so it runs before first paint, before
+         any bundle fetch. Mirrors src/lib/theme.js's resolve_initial_theme —
+         keep both in sync; frontend/tests/ux1-theme-init.mjs asserts parity. */
+      (function () {
+        try {
+          var KEY = "billing_theme"
+          var stored = window.localStorage.getItem(KEY)
+          var theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+          var root = document.documentElement
+          if (theme === "dark") {
+            root.classList.add("dark")
+          }
+          root.style.colorScheme = theme
+        } catch (error) {
+          /* localStorage/matchMedia can throw in locked-down contexts; fall back to light, no-op. */
+        }
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">

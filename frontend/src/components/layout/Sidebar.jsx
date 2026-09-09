@@ -1,21 +1,14 @@
-import { useEffect, useState } from "react"
 import { NavLink } from "react-router-dom"
 import { LogOut, Moon, Sun } from "lucide-react"
 
 import { cn } from "../../lib/utils"
 import { useAppData } from "../../context/AppDataContext"
+import { useTheme } from "../../lib/theme"
 import { nav_items_for_role } from "./nav"
-
-const THEME_KEY = "billing_theme"
 
 export function Sidebar() {
   const { current_user, role, on_sign_out } = useAppData()
-  const [theme, set_theme] = useState(() => localStorage.getItem(THEME_KEY) || "light")
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    localStorage.setItem(THEME_KEY, theme)
-  }, [theme])
+  const [theme, set_theme] = useTheme()
 
   return (
     <aside className="hidden h-screen w-64 min-w-[16rem] flex-col self-start border-r bg-card p-6 md:sticky md:top-0 md:flex">
