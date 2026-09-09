@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus } from "../../lib/icons"
 
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"

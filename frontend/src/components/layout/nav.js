@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, CheckCircle, LayoutDashboard, RefreshCcw, Shield } from "lucide-react"
+import { BarChart3, BookOpen, CheckCircle, LayoutDashboard, RefreshCcw, Shield } from "../../lib/icons"
 
 /* Navigation grouped by user intent: operate (Overview, Cycles), decide
    (Approvals Inbox), administer (Administration), help. Roles gate entries. */

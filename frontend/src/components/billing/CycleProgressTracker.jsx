@@ -1,4 +1,4 @@
-import { Play, Shield } from "lucide-react"
+import { Play, Shield } from "../../lib/icons"
 
 import { cn } from "../../lib/utils"
 import { compute_cycle_steps, cycle_month_pair } from "../../lib/format"
@@ -49,7 +49,7 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
             className={cn(
-              "h-full rounded-full transition-all duration-300 ease-in-out",
+              "h-full rounded-full transition-[width,background-color] duration-300 ease-in-out",
               progress_bar_tone === "danger"
                 ? "bg-destructive"
                 : progress_bar_tone === "success"
@@ -65,7 +65,7 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
         <div className="absolute left-8 right-8 top-[2.2rem] hidden h-px bg-border md:block" />
         <div
           className={cn(
-            "absolute left-8 top-[2.2rem] hidden h-px transition-all duration-300 md:block",
+            "absolute left-8 top-[2.2rem] hidden h-px transition-[width,background-color] duration-300 md:block",
             progress_bar_tone === "danger"
               ? "bg-destructive"
               : progress_bar_tone === "success"

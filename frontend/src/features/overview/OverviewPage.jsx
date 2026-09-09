@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { ArrowRight, ClipboardList } from "lucide-react"
+import { ArrowRight, ClipboardList } from "../../lib/icons"
 
 import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { StatusBadge } from "../../components/billing/StatusBadge"
@@ -111,7 +111,7 @@ export function OverviewPage() {
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-background">
                       <div
                         className={cn(
-                          "h-full rounded-full transition-all",
+                          "h-full rounded-full transition-[width,background-color]",
                           model.has_rejection ? "bg-destructive" : model.progress === 100 ? "bg-success" : "bg-warning"
                         )}
                         style={{ width: `${model.progress}%` }}

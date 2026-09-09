@@ -1,4 +1,4 @@
-import { Loader2, Moon, Sun } from "lucide-react"
+import { Loader2, Moon, Sun } from "../../lib/icons"
 
 import { Button } from "../../components/ui/button"
 import { Badge } from "../../components/ui/badge"

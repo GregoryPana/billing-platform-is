@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "./lib/icons"
 
 import { api_fetch, get_auth_token, set_auth_token } from "./api"
 import {

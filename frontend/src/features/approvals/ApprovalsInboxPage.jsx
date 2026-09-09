@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { Inbox } from "lucide-react"
+import { Inbox } from "../../lib/icons"
 
 import { api_fetch } from "../../api"
 import { show_toast, useDataScope, useAppData } from "../../context/AppDataContext"

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from "../../lib/icons"
 
 import { api_fetch, set_auth_token } from "../../api"
 import { is_valid_email } from "../../lib/format"

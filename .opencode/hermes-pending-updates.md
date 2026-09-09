@@ -1,5 +1,12 @@
 # Hermes Pending Updates
 
+## 2026-09-09 — UX-1 approval and refreshed design-skill alignment
+- decision: Gregory explicitly approved the established professional operational-SaaS visual direction and authorised work to proceed; the UX-0 preference gate is closed
+- files: aligned `DESIGN_SYSTEM.md`, `docs/AGENT_DESIGN_SKILLS.md`, the design-system addendum, UX-1 evidence, frontend icon imports and dependency metadata with the refreshed Hermes design skills; added the repository-local design-conformance scanner
+- implementation: migrated Lucide to tree-shakeable Tabler icon imports, removed generic transitions from the touched progress surfaces, documented selected-state/accent, empty-state, dense-layout and benchmark-extraction rules
+- verification: design-conformance scan passes; lint passes with zero errors and the existing TanStack compatibility warning; production build passes; UX-1 initialization, responsive light/dark review, persisted/blocked-storage handling, route-error and synthetic auth-mode harnesses pass; responsive review covers 375/768/1024/1440 with no overflow, console errors or failed requests and a measured minimum semantic contrast of 4.55:1; `git diff --check` passes
+- flags: follow-up committed locally; not pushed, merged or deployed; Package 12 still integrates first; `npm audit` currently reports 19 dependency findings (2 low, 4 moderate, 12 high, 1 critical), which require a separate dependency-remediation workstream rather than an unreviewed broad audit fix
+
 ## 2026-09-09 — RG-01 Package 12 validation and authentication hardening
 - branch/commit: `feature/rg01-package-12-entra-only`; changes captured in this commit and not pushed, merged, deployed, migrated, or rolled out
 - files: `frontend/tests/route-error-boundary-test.jsx` exports the synthetic test component for the React Fast Refresh lint rule; `backend/app/config.py` rejects local auth when `ENVIRONMENT=production`; Entra actor resolution rejects inactive users; Entra user synchronization no longer reactivates an existing disabled user; focused regression tests cover each behavior
@@ -10,7 +17,7 @@
 - branch/commit: `feature/rg01-ux-1-semantic-themes`; changes captured in this commit and not pushed, merged, or deployed
 - files: completed the semantic theme implementation, theme review page, dedicated persistence/storage-failure browser harness and package scripts; corrected UX-1 evidence and the implemented-state entries in `docs/DESIGN_SYSTEM_ADDENDUM.md`; exported the synthetic route-error test component to clear the repository-wide Fast Refresh lint error
 - verification: `npm run lint` passes with zero errors and one existing TanStack compatibility warning; `npm run build`, `npm run test:ux1-theme-init`, `npm run test:ux1-theme-review`, `npm run test:ux1-theme-storage`, `npm run test:route-error`, and `npm run test:auth` pass; a temporary negative-control mutation proved `test:auth` returns nonzero when a scenario fails and was removed afterward; storage testing confirms both persisted reload and in-memory operation when browser storage is blocked; `git diff --check` passes
-- flags: UX-1 local implementation and evidence are complete; UX-0 design-direction approval remains outstanding, and Package 12 authentication hardening must be integrated first rather than duplicated here
+- flags: UX-1 local implementation and evidence are complete; UX-0 design-direction approval was subsequently recorded on 2026-09-09, and Package 12 authentication hardening must be integrated first rather than duplicated here
 
 ## 2026-09-01 — RG-01 Package 0: documentation rebaseline (docs-only, no code changes)
 - branch/commit: `feature/cycle-usage-month-derivation` @ `8b9a5c2` (uncommitted docs changes on top, not committed/pushed)

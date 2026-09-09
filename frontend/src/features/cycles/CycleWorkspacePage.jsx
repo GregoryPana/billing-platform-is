@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { ArrowLeft, Lock } from "lucide-react"
+import { ArrowLeft, Lock } from "../../lib/icons"
 
 import { useDataScope, useAppData } from "../../context/AppDataContext"
 import { CycleProgressTracker } from "../../components/billing/CycleProgressTracker"

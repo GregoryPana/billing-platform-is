@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
-import { RefreshCcw } from "lucide-react"
+import { RefreshCcw } from "../../lib/icons"
 
 import { Button } from "../ui/button"
 import { Skeleton } from "../ui/skeleton"

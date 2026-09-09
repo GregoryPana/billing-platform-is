@@ -31,8 +31,8 @@ The `recharts`/`framer-motion` classification is inferred from the absence of an
 | Auth SDK | `@azure/msal-browser` ^4.26.0 | Entra ID is the primary auth path; see `docs/entra-id-integration-plan.md`. |
 | PDF export | `html2pdf.js` ^0.14.0 | |
 | Markdown | `react-markdown` ^10.1.0 | |
-| Icons | `lucide-react` | |
-| Testing | `@playwright/test` (devDependency) present; no unit/component test runner configured | No frontend automated test suite currently runs beyond lint/build; see `README.md` Current Known Gaps. |
+| Icons | `@tabler/icons-react` | Project-wide design conformance standard. |
+| Testing | `@playwright/test` plus focused Node/Playwright harnesses and a deterministic design-conformance scanner | UX-1 theme initialization, rendering, persistence, storage failure, route failure and authentication-mode harnesses are available through `frontend/package.json`. |
 | Build tooling | Vite ^7.2.4, ESLint ^9.39.1 | |
 
-This table reflects `frontend/package.json` as read at the time of this addendum. Re-verify against the live file before relying on it for planning — dependency state changes as Packages 8–9 progress.
+This table reflects `frontend/package.json` as verified during the UX-1 design-skill alignment review on 2026-09-09. Re-verify against the live file before relying on it for later planning.

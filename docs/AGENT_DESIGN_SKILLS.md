@@ -27,6 +27,16 @@ Design route
 
 Optional: **Emil Kowalski Motion Polish** for drawers, dialogs, toasts, interruption/reversal and restrained state motion; visual-style exploration, GSAP, and mobile-specific skills only when justified.
 
+## Project design constraints
+
+- Use semantic theme tokens; do not add one-off light/dark colour branches inside components.
+- Use `@tabler/icons-react` exclusively. Do not introduce Lucide, inline SVG replacements, emoji in product chrome, or decorative sparkle/star-burst iconography.
+- Use lateral accent rails for semantic status only, never as the active, selected, or current navigation treatment.
+- Avoid generic `transition-all`; transition only the properties that change.
+- Treat empty states as deliberate workflow states with plain language and a next action when one exists.
+- Keep dense operational pages quiet: one clear hierarchy, compact filters and tables, and no decorative card nesting.
+- For benchmark research, record `Extract / Adapt / Reject` rather than citing a product as generic inspiration.
+
 ## Agent-agnostic source resolution
 
 Central roots:
@@ -51,6 +61,7 @@ If a named central or Hermes source is inaccessible, apply the embedded project 
 Before claiming frontend/UI work complete:
 
 - run applicable lint, typecheck, tests, and build;
+- run `cd frontend && npm run test:design-conformance`;
 - inspect changed routes/components in a browser;
 - check console and failed network requests;
 - check responsive behavior and relevant workflow states;

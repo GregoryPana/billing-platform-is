@@ -71,6 +71,15 @@ Consequences of this intent, applied everywhere:
 - Nothing decorative that doesn't support a decision: no hero illustrations, no emoji as UI affordances, no non-functional cards, no "vibe" KPIs.
 - Text explains before it demands: screens, cards, and inputs carry short plain-English descriptions so a first-time user never needs external instructions for routine tasks.
 
+## 1.5 Professional SaaS benchmark extraction
+
+The visual direction is operational SaaS, not a direct copy of any one product. Use the benchmark roster deliberately:
+
+- **Extract:** Linear's disciplined spacing and keyboard-efficient navigation; Stripe Dashboard's financial legibility and progressive disclosure; Datadog's dense monitoring hierarchy; Ramp's clear spend status and role-aware actions; Retool's compact admin patterns.
+- **Adapt:** translate those patterns through CWS semantic tokens, billing terminology, role boundaries, approval states, and accessibility requirements.
+- **Reject:** consumer-growth decoration, playful gradients, oversized marketing layouts, unexplained icon-only actions, card-on-card composition, and any pattern that hides accountability or workflow state.
+- Record benchmark findings as `Extract / Adapt / Reject`; a vague "inspired by" note is not evidence.
+
 ---
 
 # Part 2 — Mandatory Stack
@@ -83,7 +92,7 @@ Consequences of this intent, applied everywhere:
   "styling": "Tailwind CSS 3+ with the token config in §3.1 (no inline hex colors, no CSS-in-JS)",
   "components": "shadcn/ui pattern — components copied into src/components/ui/, styled exclusively with the semantic tokens",
   "variants": "class-variance-authority (cva) + clsx + tailwind-merge via a cn() helper in src/lib/utils",
-  "icons": "lucide-react (exclusively — no emoji, no other icon sets, no inline SVG icons)",
+  "icons": "@tabler/icons-react (exclusively — no emoji, decorative sparkles/stars, other icon sets, or inline SVG icons)",
   "charts": "recharts (exclusively — no hand-rolled CSS charts, no chart.js/d3 unless recharts genuinely cannot do it)",
   "toasts": "sonner (<Toaster position=\"top-right\" richColors closeButton />)",
   "motion": "framer-motion for mount/unmount and state feedback; GSAP only for page-entrance stagger sequences",
@@ -330,10 +339,11 @@ Fixed rhythm:
 
 ## 3.8 Iconography
 
-- `lucide-react` only. Sizes: `h-4 w-4` inline with text/buttons, `h-5 w-5` standalone, `h-6 w-6` section markers, `h-8 w-8` empty states. `stroke-width` default 2.
+- `@tabler/icons-react` only. Sizes: `h-4 w-4` inline with text/buttons, `h-5 w-5` standalone, `h-6 w-6` section markers, `h-8 w-8` empty states. Use the library's default outline treatment consistently.
 - Icons inherit text color (`currentColor`); use `text-muted-foreground` for secondary icons.
 - Every icon-only button gets an `aria-label`; every decorative icon next to a label gets `aria-hidden="true"`.
 - No emoji anywhere in the UI chrome (buttons, nav, headings). Emoji may appear only in user-generated content.
+- Do not use sparkle, star-burst, or magic-wand symbols as generic polish or AI decoration. A narrow, documented non-AI meaning is the only exception.
 
 ---
 

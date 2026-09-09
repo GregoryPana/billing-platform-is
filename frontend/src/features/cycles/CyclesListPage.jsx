@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight } from "../../lib/icons"
 
 import { api_fetch } from "../../api"
 import { show_toast, useDataScope, useAppData } from "../../context/AppDataContext"

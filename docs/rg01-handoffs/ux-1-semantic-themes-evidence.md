@@ -54,8 +54,22 @@ The candidate already provided `:root`/`.dark` variables, a semantic Tailwind ma
 - `frontend/tests/ux1-theme-storage.mjs`
   - verifies that a user-selected theme survives a full reload;
   - verifies the in-memory toggle still works when browser storage reads and writes are blocked.
-- `frontend/package.json`
-  - adds three focused test scripts; no dependency or lockfile changes.
+- `frontend/package.json`, `frontend/package-lock.json`, and `frontend/src/lib/icons.js`
+  - add the focused test scripts and the deterministic design-conformance gate;
+  - replace the superseded Lucide dependency with the approved Tabler icon system through a tree-shakeable local icon facade.
+
+## Design-skill refresh and approval — 2026-09-09
+
+- Gregory explicitly approved the established professional operational-SaaS direction and authorised UX work to proceed.
+- The refreshed `design-skill-stack`, `cws-saas-product-ui`, `interface-polish-engineering`, and `frontend-design-quality-gate` guidance was compared with `DESIGN_SYSTEM.md`, `docs/AGENT_DESIGN_SKILLS.md`, the implemented UX-1 tokens, and current frontend dependencies.
+- The semantic theme architecture, IBM Plex Sans typography, restrained operational hierarchy, accessible states, responsive review surface, and status-only semantic colour model remain aligned; they did not need redesign.
+- Concrete refresh changes applied:
+  - migrated the product icon system from Lucide to Tabler;
+  - prohibited decorative sparkle/star-burst iconography and lateral accent rails for selected states;
+  - replaced broad `transition-all` usage in the touched progress surfaces with property-specific transitions;
+  - added explicit empty-state, dense-layout, and `Extract / Adapt / Reject` benchmark rules;
+  - added a repository-local design-conformance scanner and package command.
+- Initial direct-barrel Tabler imports caused slow development transformation. A local icon facade now imports only the required icon modules; the focused responsive theme review subsequently passed at all four widths.
 
 ## Semantic token reference
 
@@ -99,4 +113,4 @@ The focused browser test calculates WCAG relative luminance from the rendered CS
 
 ## Scope and release state
 
-No backend, authentication behavior, API contract, workflow rule, schema, dependency version, lockfile, CI, deployment or infrastructure file changed. No commit, push, merge or deployment was performed. UX-1 remains an uncommitted candidate pending Gregory's integration decision; UX-2 has not started.
+No backend, authentication behavior, API contract, workflow rule, schema, CI, deployment or infrastructure file changed. The frontend icon dependency and lockfile changed as documented above. UX-1 implementation commit `eb6a0fc` exists locally; the design-skill alignment is a separate follow-up local commit. No push, merge, deployment, migration, production authentication change, or Entra cutover was performed. Package 12 must still integrate before UX-1; UX-2 has not started.

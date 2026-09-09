@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom"
-import { LogOut, Moon, Sun } from "lucide-react"
+import { LogOut, Moon, Sun } from "../../lib/icons"
 
 import { cn } from "../../lib/utils"
 import { useAppData } from "../../context/AppDataContext"
