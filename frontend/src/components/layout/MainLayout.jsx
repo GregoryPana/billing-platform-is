@@ -42,7 +42,7 @@ export function MainLayout() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10"
               value={active_item?.path || "/overview"}
               onChange={(event) => navigate(event.target.value)}
             >

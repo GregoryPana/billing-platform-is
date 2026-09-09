@@ -11,23 +11,32 @@
          any bundle fetch. Mirrors src/lib/theme.js's resolve_initial_theme —
          keep both in sync; frontend/tests/ux1-theme-init.mjs asserts parity. */
       (function () {
+        var KEY = "billing_theme"
+        var stored = null
         try {
-          var KEY = "billing_theme"
-          var stored = window.localStorage.getItem(KEY)
-          var theme =
-            stored === "light" || stored === "dark"
-              ? stored
-              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-                ? "dark"
-                : "light"
-          var root = document.documentElement
-          if (theme === "dark") {
-            root.classList.add("dark")
-          }
-          root.style.colorScheme = theme
+          stored = window.localStorage.getItem(KEY)
         } catch (error) {
-          /* localStorage/matchMedia can throw in locked-down contexts; fall back to light, no-op. */
+          /* Storage can be unavailable in locked-down contexts. */
         }
+        var prefersDark = false
+        try {
+          prefersDark = Boolean(
+            window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+          )
+        } catch (error) {
+          /* If media queries are unavailable, use the light fallback. */
+        }
+        var theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : prefersDark
+              ? "dark"
+              : "light"
+        var root = document.documentElement
+        if (theme === "dark") {
+          root.classList.add("dark")
+        }
+        root.style.colorScheme = theme
       })()
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

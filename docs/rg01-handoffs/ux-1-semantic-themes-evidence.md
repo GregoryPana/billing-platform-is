@@ -6,7 +6,7 @@
 
 ## Authority and design route
 
-- UX-1 requirements: `/mnt/c/Users/gpanagary/.gemini/antigravity/scratch/billing/docs/RG01_UI_UX_DESIGN_SYSTEM_ALIGNMENT_PLAN.md`. The approved plan is currently an uncommitted primary-worktree document and therefore is not present in this candidate-based implementation worktree.
+- UX-1 requirements: `docs/RG01_UI_UX_DESIGN_SYSTEM_ALIGNMENT_PLAN.md`, synchronized into this worktree with the approved UX-0 direction, UX-1 local implementation state and remaining integration/acceptance gates.
 - Product authority: `DESIGN_SYSTEM.md` and `docs/DESIGN_SYSTEM_ADDENDUM.md`.
 - Repository workflow: `AGENTS.md`, `OPENCODE.md`, `.opencode/skills/cws-billing-platform-change/SKILL.md`, `docs/AGENT_DESIGN_SKILLS.md`, and `docs/agent-skills/project-flow-mapping/SKILL.md`.
 - Design route supplied by Hermes: `cws-saas-product-ui`, existing shadcn-compatible primitives, restrained CSS motion, `interface-polish-engineering`, and the frontend design-quality gate.
@@ -60,7 +60,7 @@ The candidate already provided `:root`/`.dark` variables, a semantic Tailwind ma
 
 ## Design-skill refresh and approval — 2026-09-09
 
-- Gregory explicitly approved the established professional operational-SaaS direction and authorised UX work to proceed.
+- Gregory explicitly approved the established professional operational-SaaS direction; this closes the UX-0 direction-choice gate only.
 - The refreshed `design-skill-stack`, `cws-saas-product-ui`, `interface-polish-engineering`, and `frontend-design-quality-gate` guidance was compared with `DESIGN_SYSTEM.md`, `docs/AGENT_DESIGN_SKILLS.md`, the implemented UX-1 tokens, and current frontend dependencies.
 - The semantic theme architecture, IBM Plex Sans typography, restrained operational hierarchy, accessible states, responsive review surface, and status-only semantic colour model remain aligned; they did not need redesign.
 - Concrete refresh changes applied:
@@ -93,7 +93,7 @@ The focused browser test calculates WCAG relative luminance from the rendered CS
 - Focused changed-file ESLint: pass with zero errors and zero warnings.
 - Full `npm run lint`: passes with zero errors; one existing TanStack compatibility warning remains in `src/components/ui/sortable-table.jsx`.
 - `npm run build`: pass. Only existing large-chunk warnings remain; the development review page does not produce a production chunk.
-- `npm run test:ux1-theme-init`: pass for saved light/dark, system light/dark and pre-React no-flash checks.
+- `npm run test:ux1-theme-init`: pass for saved light/dark, system light/dark, blocked-storage/system-dark fallback and pre-React no-flash checks.
 - `npm run test:ux1-theme-review`: pass at 375, 768, 1024 and 1440 pixels in both themes; distinct theme backgrounds, populated specimens, minimum semantic normal-text contrast 4.55:1, no document or element-level overflow, no console errors, no failed requests, focus ring detected, and reduced-motion duration verified at `1e-05s`.
 - `npm run test:ux1-theme-storage`: pass for persisted dark-theme reload and in-memory fallback when storage is unavailable.
 - `npm run test:route-error`: pass.
@@ -113,4 +113,4 @@ The focused browser test calculates WCAG relative luminance from the rendered CS
 
 ## Scope and release state
 
-No backend, authentication behavior, API contract, workflow rule, schema, CI, deployment or infrastructure file changed. The frontend icon dependency and lockfile changed as documented above. UX-1 implementation commit `eb6a0fc` exists locally; the design-skill alignment is a separate follow-up local commit. No push, merge, deployment, migration, production authentication change, or Entra cutover was performed. Package 12 must still integrate before UX-1; UX-2 has not started.
+No backend, authentication behavior, API contract, workflow rule, schema, CI, deployment or infrastructure file changed. The frontend icon dependency and lockfile changed as documented above. UX-1 implementation commit `eb6a0fc` exists locally; the design-skill alignment is a separate follow-up local commit. Gregory's 2026-09-09 approval covers the UX-0 design direction only; it is not UX-1 integration approval, Finance/Billing acceptance, staging approval, deployment approval or production-release authorization. No push, merge, deployment, migration, production authentication change, or Entra cutover was performed. Package 12 must still integrate before UX-1; UX-2 has not started.

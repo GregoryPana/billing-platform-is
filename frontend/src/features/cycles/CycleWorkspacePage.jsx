@@ -118,7 +118,7 @@ export function CycleWorkspacePage() {
               disabled={stage.locked}
               title={stage.locked ? stage.locked_reason : undefined}
               className={cn(
-                "inline-flex h-9 items-center gap-1.5 rounded-md border border-transparent px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex h-11 items-center gap-1.5 rounded-md border border-transparent px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10",
                 active_stage === stage.id
                   ? "bg-background text-foreground shadow-sm dark:border-border"
                   : stage.locked

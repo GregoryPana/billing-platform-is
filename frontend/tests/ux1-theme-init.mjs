@@ -56,12 +56,18 @@ function checkInlineBootstrapParity() {
     { stored: null, prefersDark: true, expected: 'dark' },
     { stored: null, prefersDark: false, expected: 'light' },
     { stored: 'garbage', prefersDark: true, expected: 'dark' },
+    { stored: null, storageThrows: true, prefersDark: true, expected: 'dark' },
   ]
 
   const results = scenarios.map(scenario => {
     const store = { billing_theme: scenario.stored }
     const fakeWindow = {
-      localStorage: { getItem: key => (key in store ? store[key] : null) },
+      localStorage: {
+        getItem: key => {
+          if (scenario.storageThrows) throw new Error('Synthetic storage read failure')
+          return key in store ? store[key] : null
+        },
+      },
       matchMedia: () => ({ matches: scenario.prefersDark }),
     }
 
@@ -105,6 +111,13 @@ async function main() {
       { name: 'saved_light', stored: 'light', prefersDark: true, expectDark: false },
       { name: 'system_dark_fallback', stored: null, prefersDark: true, expectDark: true },
       { name: 'system_light_fallback', stored: null, prefersDark: false, expectDark: false },
+      {
+        name: 'blocked_storage_system_dark_fallback',
+        stored: null,
+        storageThrows: true,
+        prefersDark: true,
+        expectDark: true,
+      },
     ]
 
     for (const scenario of scenarios) {
@@ -115,13 +128,17 @@ async function main() {
       await context.route('**/src/main.jsx*', route => route.abort())
       const page = await context.newPage()
 
-      await page.addInitScript(stored => {
-        if (stored) {
+      await page.addInitScript(({ stored, storageThrows }) => {
+        if (storageThrows) {
+          Storage.prototype.getItem = function getItem() {
+            throw new Error('Synthetic storage read failure')
+          }
+        } else if (stored) {
           window.localStorage.setItem('billing_theme', stored)
         } else {
           window.localStorage.removeItem('billing_theme')
         }
-      }, scenario.stored)
+      }, scenario)
 
       const consoleErrors = []
       page.on('pageerror', error => consoleErrors.push(String(error)))

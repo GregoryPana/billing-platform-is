@@ -62,7 +62,7 @@ export function AdministrationPage() {
               aria-selected={active_tab === tab.id}
               type="button"
               className={cn(
-                "inline-flex h-9 items-center rounded-md border border-transparent px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex h-11 items-center rounded-md border border-transparent px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-10",
                 active_tab === tab.id
                   ? "bg-background text-foreground shadow-sm dark:border-border"
                   : "text-muted-foreground hover:text-foreground"

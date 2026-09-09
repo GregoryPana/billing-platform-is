@@ -83,7 +83,7 @@ export function CycleProgressTracker({ cycle, scripts = [], runs = [], approvals
               <div key={i} className="relative z-10 flex flex-col items-center gap-4">
                 <div
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-md border bg-card text-sm font-semibold transition-colors duration-200",
+                    "flex h-11 w-11 items-center justify-center rounded-md border bg-card text-sm font-semibold transition-colors duration-200 lg:h-10 lg:w-10",
                     step.rejected
                       ? "border-destructive/50 text-destructive"
                       : step.done

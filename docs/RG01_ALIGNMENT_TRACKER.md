@@ -49,6 +49,8 @@ Initial provider snapshot at 2026-09-01 12:15–12:18 (+04):
 | 11 | Final gate | Regression, design-quality and scope/KPI reconciliation pass | completed with external gates | Hermes independent acceptance 2026-09-02; see `docs/rg01-handoffs/package-11-latest.md` |
 | 12A | Pilot readiness | Production Entra-only immediate sign-in; no local fallback; fail-closed config; role integrity | completed | `docs/rg01-handoffs/package-12a-latest.md` |
 | 12B | Pilot readiness | Synthetic full-flow rehearsal; Help image fix; route error boundary; auth-mode browser tests; Entra test seam | completed | `docs/rg01-handoffs/package-12b-latest.md` |
+| UX-0 | Design alignment | Evolutionary RG-01 direction: retain the shell/workflow; calm operational SaaS layout; restrained blue accent; persistent sidebar; utility header; route-owned titles; compact spacing/status cues; semantic themes; controlled light-blue canvas in light mode | design direction approved | Gregory approval on 2026-09-09 covers direction only; integration, business acceptance, staging, deployment and production release remain pending |
+| UX-1 | Design alignment | Semantic light/dark theme foundation and refreshed design-rule alignment | implemented and validated locally | Commits `eb6a0fcda0e1c1dd16ce9fab6f50fbd41846a3c9` and `f2119b9`; Package 12 must integrate first; combined regression and acceptance remain pending |
 
 ## Session log
 
@@ -71,7 +73,7 @@ Append one entry per attempted isolated session:
 
 ## Current next action
 
-Claude-capable Packages 0–3 and 5–10 are complete, and Package 11 independent technical acceptance is complete. The next gate is Package 4: a controlled real Finance/Billing pilot, classification-vocabulary confirmation, routine-use evidence and business acceptance. Do not claim RG-01 formal completion, production deployment or handover until those external gates are evidenced.
+Integrate Package 12 commit `30bd469` before UX-1, then create and regress a combined release candidate. Staging Entra validation, rollback evidence, operational approval, the controlled Finance/Billing pilot, classification-vocabulary confirmation, routine-use evidence, business acceptance, deployment authorization and production verification remain external gates. Do not claim RG-01 formal completion, production deployment or handover until those gates are evidenced.
 
 ### Automated launch — Package 0
 - Started: 2026-09-01T16:23:57+04:00
@@ -133,7 +135,7 @@ Claude-capable Packages 0–3 and 5–10 are complete, and Package 11 independen
 - Package status: completed
 - Files touched by this session: `frontend/src/features/auth/LoginPage.jsx`, `docs/RG01_ALIGNMENT_TRACKER.md`, `docs/rg01-handoffs/package-2-latest.md`
 - Change summary: rewrote sign-in subtitle to state the documented platform boundary (coordinates the cycle, prepares commands/approvals, does not execute Cerillion billing) per `docs/FINANCE_ISSUE_CONTROL_DESIGN.md` §10 and `.opencode/skills/cws-billing-platform-change/SKILL.md`; tightened "Sign in to account"/"Enter your core credentials to continue." headline block; added Eye/EyeOff lucide icon + `aria-pressed` to the password Show/Hide toggle (text label unchanged, still keyboard-reachable); removed `opacity-70` from the footer "Authorized personnel only" span after measuring its contrast failed AA.
-- Touch-target (open decision, not resolved): current `h-10` (~40px) inputs/buttons match this project's shared design-system token (`DESIGN_SYSTEM.md` §4.3 Input, §4.1 Button `size: default`) and meet the documented accessibility baseline "Touch targets ≥ 40px on mobile" (§11) — at the floor, not below it. Left unchanged per instruction. Gregory to decide: accept 40px as house standard, or raise the shared token to 44px project-wide as a separate follow-up package (would affect every button/input in the app).
+- Touch-target decision at Package 2: the then-current `h-10` (~40px) shared controls met the documented baseline and were intentionally left unchanged. **Resolved 2026-09-09:** refreshed guidance now sets 44px through mobile/tablet widths, with 40px retained only for dense desktop controls at `lg` and above; shared controls and direct tab/navigation consumers were aligned and revalidated.
 - Contrast measurement: footer text `text-muted-foreground` (`hsl(215 16% 35%)`) on `bg-card` (white) computed at **7.35:1** at full opacity — passes AA. With the pre-existing `opacity-70` modifier it composited to **3.52:1**, below the 4.5:1 AA threshold for normal (`text-xs`) text. Removed `opacity-70`; no other CSS/token changed.
 - Checks run: `cd frontend && npm run lint` — pass (no errors). `cd frontend && npm run build` — pass (`vite build` succeeded in ~1m45s; pre-existing >500kB chunk-size warning, unrelated to this change).
 - Visual verification: disposable `vite --port 5799 --strictPort` dev server + Playwright screenshots at 1440x1000 and 390x844, both in default and password-shown states. No clipping/overlap at either breakpoint; subtitle/headline wrap cleanly; toggle icon+label swap correctly (Eye/Show ↔ EyeOff/Hide); footer text visibly darker/more legible. Dev server killed and all scratch files (`shot.mjs`, PNGs, temporary `package.json` "shot" script) removed after verification.

@@ -1,7 +1,13 @@
 # Hermes Pending Updates
 
-## 2026-09-09 — UX-1 approval and refreshed design-skill alignment
-- decision: Gregory explicitly approved the established professional operational-SaaS visual direction and authorised work to proceed; the UX-0 preference gate is closed
+## 2026-09-09 — Independent review remediation
+- review: independent review passes of `f2119b9` identified six concrete gaps: approval-scope wording in two records, an unrelated repository inventory, inconsistent React-version statements, sub-44px mobile/tablet controls, and blocked-storage dark-system pre-paint initialization
+- fixes: narrowed approval wording; synchronized the UX plan/tracker; replaced the stale inventory and corrected its React version; established 44px mobile/tablet and 40px dense-desktop control sizing; preserved system-dark pre-paint initialization when storage reads fail; added a pre-mount regression scenario
+- verification: design conformance, lint, production build, theme initialization, responsive theme review, theme storage, route-error and six synthetic authentication scenarios pass; minimum tested contrast remains 4.55:1; no tested overflow, console errors or failed requests
+- delivery: local feature branch only; no push, merge, deployment, migration, staging cutover, production authentication change or business acceptance
+
+## 2026-09-09 — UX-1 implementation and refreshed design-skill alignment
+- decision: Gregory explicitly approved the established professional operational-SaaS visual direction and authorised design work to proceed; this closes the UX-0 direction-choice gate only, not UX-1 integration, business acceptance, staging approval, deployment, or production release
 - files: aligned `DESIGN_SYSTEM.md`, `docs/AGENT_DESIGN_SKILLS.md`, the design-system addendum, UX-1 evidence, frontend icon imports and dependency metadata with the refreshed Hermes design skills; added the repository-local design-conformance scanner
 - implementation: migrated Lucide to tree-shakeable Tabler icon imports, removed generic transitions from the touched progress surfaces, documented selected-state/accent, empty-state, dense-layout and benchmark-extraction rules
 - verification: design-conformance scan passes; lint passes with zero errors and the existing TanStack compatibility warning; production build passes; UX-1 initialization, responsive light/dark review, persisted/blocked-storage handling, route-error and synthetic auth-mode harnesses pass; responsive review covers 375/768/1024/1440 with no overflow, console errors or failed requests and a measured minimum semantic contrast of 4.55:1; `git diff --check` passes

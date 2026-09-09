@@ -1,6 +1,6 @@
 # Design System Addendum — Billing Collaboration Platform
 
-This file is this repository's local counterpart to `DESIGN_SYSTEM.md` Appendix A, which inventories unrelated apps (`frontend/dashboard`, `frontend/dashboard-blueprint`, `frontend/survey`, etc.) that do not exist in this repository. This addendum records where `frontend/` (the Billing Collaboration Platform's actual frontend) stands against `DESIGN_SYSTEM.md`'s Part 2 Mandatory Stack, verified directly against `frontend/package.json`.
+This file supplements `DESIGN_SYSTEM.md` Appendix A with dependency-level detail for `frontend/`, the Billing Collaboration Platform's React application. The inventory and this addendum are verified against the current repository rather than inherited from unrelated products.
 
 ## A. Deviations from the mandatory stack
 
