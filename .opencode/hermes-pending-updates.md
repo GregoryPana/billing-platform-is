@@ -1,5 +1,11 @@
 # Hermes Pending Updates
 
+## 2026-09-09 — Combined RG-01 Package 12 + UX-1 local release candidate
+- branch/order: `integration/rg01-package12-ux1-rc`; Package 12 commits were applied before UX-1 while preserving the two source workstreams as distinct commits
+- integration: the only cherry-pick conflicts were concurrent additions to this update log; both Package 12 and UX-1 records were retained, file mode was normalized to `0644`, the duplicate route-error test export was already supplied by Package 12, and no application-code conflict occurred
+- verification: full backend suite passes 130/130; backend/test byte-compilation and whitespace checks pass; frontend design conformance, lint, production build, theme initialization, responsive theme review, blocked-storage persistence, route-error and six-scenario synthetic authentication checks pass; local backend health and built frontend preview returned HTTP 200, including the compiled JavaScript asset
+- flags: local candidate only; no push, shared-branch merge, migration, staging cutover, deployment, production authentication change, operational approval or Finance/Billing acceptance; `npm audit` remains at 19 findings (2 low, 4 moderate, 12 high, 1 critical); real staging Entra and rollback validation remain required
+
 ## 2026-09-09 — Independent review remediation
 - review: independent review passes of `f2119b9` identified six concrete gaps: approval-scope wording in two records, an unrelated repository inventory, inconsistent React-version statements, sub-44px mobile/tablet controls, and blocked-storage dark-system pre-paint initialization
 - fixes: narrowed approval wording; synchronized the UX plan/tracker; replaced the stale inventory and corrected its React version; established 44px mobile/tablet and 40px dense-desktop control sizing; preserved system-dark pre-paint initialization when storage reads fail; added a pre-mount regression scenario
