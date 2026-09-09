@@ -418,89 +418,97 @@ Recommended post-logout URIs:
 - `https://n8n-lan.cwsey.com/billing/`
 - `http://localhost:5173/` for local development if needed
 
-## Testing Strategy Without Separate Environments
+## Entra-only validation and rollout strategy
 
-Because this repository deploys directly from `main` to the live VM, testing must be staged functionally inside the application rather than by using separate infrastructure.
+Package 12 makes production authentication Entra-only. Production configuration
+fails closed unless backend `AUTH_MODE=entra`; the production frontend must use
+`VITE_AUTH_MODE=entra`. Local authentication remains a development/test mode and
+is not a production fallback.
 
 ### Safety rules
 
-1. keep Entra auth behind explicit feature flags until validation is complete
-2. keep local login available during the migration period
-3. avoid removing existing auth flows until Entra sign-in is proven in production
-4. deploy small reversible increments
-5. validate auth using a limited pilot group before broad rollout
+1. validate the candidate against an authorized Entra registration before production
+2. use a staging slot or other isolated deployment target where available; do not use live billing data for first-pass authentication validation
+3. restrict validation to assigned pilot identities representing each application role plus an unauthorized identity
+4. deploy an exact reviewed commit or immutable artifact; do not rebuild a different production artifact after acceptance
+5. verify service restart, migration revision and user-visible Entra behavior as separate proofs
+6. require Finance/Billing, operational and explicit deployment approvals before production
 
 ### Recommended rollout phases
 
-#### Phase A: passive backend support
+#### Phase A: configuration readiness
 
-- deploy backend Entra validation code with `ENTRA_ENABLED=false`
-- confirm local auth still works unchanged
-- verify startup, health, and normal workflow behavior
+- confirm the tenant, application registration, API audience/scope, authority, issuer, JWKS URL and redirect/post-logout URIs
+- store values only in the approved deployment secret store
+- confirm `AUTH_MODE=entra` and `VITE_AUTH_MODE=entra` are unconditional for production
+- confirm required settings fail the deployment before build/restart when absent
 
-#### Phase B: controlled Entra enablement
+#### Phase B: isolated Entra validation
 
-- set backend and frontend Entra env vars
-- keep local login visible
-- test with a very small pilot set of assigned users
+- deploy the exact candidate to an isolated staging target or temporary deployment slot
+- test with a small assigned pilot set
 - validate:
-  - sign-in succeeds
-  - `/auth/me` succeeds with Entra token
-  - correct role is derived
-  - unauthorized users receive `403`
-  - existing local users can still work if rollback is needed
+  - Microsoft redirect and return to `/billing/`
+  - `/auth/me` succeeds with a genuine Entra bearer token
+  - `finance_user`, `billing_user` and `system_admin` map correctly
+  - an unassigned or unauthorized user receives `403`
+  - an inactive linked local user receives `401`
+  - local-login UI and local-JWT fallback are unavailable in production mode
 
-#### Phase C: business workflow testing
+#### Phase C: business and operational acceptance
 
-Test with non-destructive operational paths first:
+Test non-destructive operational paths first:
 
 - overview loads
-- approvals screen access is correct by role
-- request settings access is correct by role
-- audit log shows user access events
-- no unexpected role leakage appears in navigation
+- approvals and request-settings access match the authenticated role
+- audit records identify the correct actor
+- navigation does not expose unauthorized operations
 
-Then test controlled write operations:
+Then use controlled test data for approved write operations:
 
 - create a test billing cycle
 - generate test scripts only
-- do not use live script generation as the first auth validation step
+- do not use live script generation as the first authentication validation step
 
-#### Phase D: cutover planning
+Record Finance/Billing acceptance, operational acceptance and authentication
+acceptance separately. None is implied by successful automated tests.
 
-- once Entra login is stable, decide a date to hide local sign-in from normal users
-- only after a stable period should signup requests and local admin onboarding be retired
+#### Phase D: production authorization and release
+
+- review the final commit/artifact, CI evidence, staging evidence and acceptance record
+- obtain explicit production deployment authorization
+- run migrations to the reviewed target revision before service restart
+- verify all three production proofs and begin monitored pilot use
 
 ### Live verification checklist
 
 After each production deployment, verify:
 
 - `/billing/` loads
-- existing local login still works if expected
-- Microsoft sign-in button appears only when Entra is enabled
-- Entra sign-in returns the user to `/billing/`
-- API calls succeed with Entra bearer token
+- local-login UI is absent
+- Microsoft sign-in returns the user to `/billing/`
+- `/auth/me` and normal API calls succeed with a genuine Entra bearer token
 - `finance_user` cannot access billing-only operations
 - `billing_user` cannot access finance-only review actions intended for finance
 - `system_admin` can access both operational areas and audit/log views
+- service restart time and deployed commit/artifact match the approved release
+- `alembic current` matches the reviewed migration revision
 
-### Rollback strategy
+### Recovery strategy and rehearsal status
 
-**Superseded by Package 12A (2026-09-02):** `ENTRA_ENABLED`/`VITE_ENTRA_ENABLED`
-no longer exist as settings. Since Package 12A, production is a hard
-either/or on `AUTH_MODE` (backend) / `VITE_AUTH_MODE` (frontend) — see the
-"Implementation status (2026-09-02, Package 12A)" section below. A rollback
-from Entra mode now means setting `AUTH_MODE=local` and
-`VITE_AUTH_MODE=local` and redeploying; this is an auth-mode change and, per
-`AGENTS.md`/`CLAUDE.md`, requires Gregory's explicit approval before it is
-performed against production, the same as the original cutover did.
+Production must not be switched to local mode. If an Entra-only release causes a
+production incident:
 
-If Entra rollout causes production issues:
+1. stop further rollout and preserve diagnostic/audit evidence
+2. restore the previous known-good application artifact and its matching approved production configuration
+3. confirm database compatibility before any migration downgrade; do not downgrade destructively without separate authorization
+4. restart the service and verify service time, migration revision and user-visible behavior
+5. escalate tenant/app-registration faults to the authorized Entra administrator
 
-1. set `AUTH_MODE=local` in the backend production config
-2. set `VITE_AUTH_MODE=local` in the frontend production config
-3. redeploy
-4. continue operating with local auth while investigating
+The recovery procedure is defined but its rehearsal is **deferred by decision on
+2026-09-09**. It is not completed or passed. A governance owner must confirm
+whether a rehearsal or formal exception is mandatory before production; the
+deferral must not be treated as production authorization.
 
 ## Suggested Branch Strategy
 
