@@ -109,15 +109,20 @@ setup_case "$case_dir"
 bin_dir="${case_dir}/bin"
 make_fake_bin_dir_with_all_tools "$bin_dir"
 rm -f "${bin_dir}/pg_dump"
+# Isolate PATH so a pg_dump installed on the CI host cannot satisfy the check.
+# Keep only the shell utilities needed to execute the validator and its mocks.
+ln -s /bin/bash "${bin_dir}/bash"
+ln -s /usr/bin/dirname "${bin_dir}/dirname"
+ln -s /usr/bin/grep "${bin_dir}/grep"
 
 set +e
-PATH="${bin_dir}:/usr/bin:/bin" \
+PATH="$bin_dir" \
   HOST_MARKER_FILE="${case_dir}/marker" \
   EXPECTED_HOST_MARKER="billing-production" \
   DEPLOY_ROOT="${case_dir}/parent/opt-billing-parent/billing" \
   SERVICE_NAME=billing-api \
   EXPECTED_SERVICE_USER=billing \
-  bash "$validate_script" 2>/dev/null
+  /bin/bash "$validate_script" 2>/dev/null
 exit_code=$?
 set -e
 check "$([[ $exit_code -ne 0 ]] && echo 0 || echo 1)" "missing required binary fails closed"
