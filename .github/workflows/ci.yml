@@ -1,5 +1,10 @@
 name: ci
 
+# CI only ever tests. Production deployment is a separate, manual-only
+# workflow (deploy-production.yml, workflow_dispatch-only) that resolves
+# an operator-chosen ref to one immutable commit SHA and deploys exactly
+# that SHA - this workflow never deploys or mutates any host.
+
 on:
   push:
     branches: ["main"]
@@ -74,147 +79,12 @@ jobs:
           cd frontend
           npm run build
 
-  deploy:
-    runs-on: [self-hosted, billing]
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    steps:
-      - name: Checkout deploy commit
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Sync repo to /opt/billing
+      - name: Deployment script tests (unit, no host access)
         run: |
           set -e
-          mkdir -p /opt/billing
-          rsync -a --delete \
-            --exclude ".git/" \
-            --exclude "backend/.env" \
-            --exclude "backend/.venv/" \
-            --exclude "**/__pycache__/" \
-            --exclude "**/*.pyc" \
-            --exclude "frontend/.env.production" \
-            --exclude "frontend/node_modules/" \
-            --exclude "frontend/dist/" \
-            ./ /opt/billing/
-
-      - name: Write backend env
-        run: |
-          cat > /opt/billing/backend/.env <<'EOF'
-          APP_NAME="Billing Platform API"
-          ENVIRONMENT="production"
-          DATABASE_URL="${{ secrets.BILLING_DATABASE_URL }}"
-          TIMEZONE_OFFSET_HOURS=4
-          N8N_WEBHOOK_URL="${{ secrets.BILLING_N8N_WEBHOOK_URL }}"
-          N8N_APPROVAL_WEBHOOK_URL="${{ secrets.BILLING_N8N_APPROVAL_WEBHOOK_URL }}"
-          N8N_SIGNUP_WEBHOOK_URL="${{ secrets.BILLING_N8N_SIGNUP_WEBHOOK_URL }}"
-          N8N_SIGNUP_APPROVE_WEBHOOK_URL="${{ secrets.BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL }}"
-          N8N_WEBHOOK_VERIFY=${{ secrets.BILLING_N8N_WEBHOOK_VERIFY || true }}
-          JWT_SECRET="${{ secrets.BILLING_JWT_SECRET }}"
-          JWT_EXP_MINUTES=${{ secrets.BILLING_JWT_EXP_MINUTES || 480 }}
-          AUTH_MODE=entra
-          ENTRA_TENANT_ID="${{ secrets.BILLING_ENTRA_TENANT_ID }}"
-          ENTRA_CLIENT_ID="${{ secrets.BILLING_ENTRA_CLIENT_ID }}"
-          ENTRA_AUTHORITY="${{ secrets.BILLING_ENTRA_AUTHORITY }}"
-          ENTRA_ISSUER="${{ secrets.BILLING_ENTRA_ISSUER }}"
-          ENTRA_AUDIENCE="${{ secrets.BILLING_ENTRA_AUDIENCE }}"
-          ENTRA_JWKS_URL="${{ secrets.BILLING_ENTRA_JWKS_URL }}"
-          ENTRA_FINANCE_GROUP_ID="${{ secrets.BILLING_ENTRA_FINANCE_GROUP_ID }}"
-          ENTRA_BILLING_GROUP_ID="${{ secrets.BILLING_ENTRA_BILLING_GROUP_ID }}"
-          ENTRA_SYSTEM_ADMIN_GROUP_ID="${{ secrets.BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID }}"
-          EOF
-
-      - name: Write frontend env
-        run: |
-          cat > /opt/billing/frontend/.env.production <<'EOF'
-          VITE_API_URL=${{ secrets.BILLING_API_URL }}
-          VITE_APPROVAL_WEBHOOK_URL=${{ secrets.BILLING_APPROVAL_WEBHOOK_URL }}
-          VITE_AUTH_MODE=entra
-          VITE_ENTRA_TENANT_ID=${{ secrets.BILLING_ENTRA_TENANT_ID }}
-          VITE_ENTRA_CLIENT_ID=${{ secrets.BILLING_ENTRA_CLIENT_ID }}
-          VITE_ENTRA_AUTHORITY=${{ secrets.BILLING_ENTRA_AUTHORITY }}
-          VITE_ENTRA_API_SCOPE=${{ secrets.BILLING_ENTRA_API_SCOPE }}
-          VITE_ENTRA_REDIRECT_URI=${{ secrets.BILLING_ENTRA_REDIRECT_URI }}
-          VITE_ENTRA_POST_LOGOUT_REDIRECT_URI=${{ secrets.BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI }}
-          EOF
-
-      - name: Validate required Entra settings are present
-        run: |
-          set -e
-          missing=0
-          check_secret_present() {
-            name="$1"
-            value="$2"
-            if [ -z "$value" ]; then
-              echo "Missing required production Entra setting: ${name}" >&2
-              missing=1
-            fi
-          }
-          # Values are intentionally never echoed - only presence/absence is
-          # reported. AUTH_MODE=entra is unconditional above, so a missing
-          # required setting here must fail the deploy before build/restart,
-          # not silently produce a backend that fails closed at request time.
-          check_secret_present "BILLING_ENTRA_TENANT_ID" "${{ secrets.BILLING_ENTRA_TENANT_ID }}"
-          check_secret_present "BILLING_ENTRA_CLIENT_ID" "${{ secrets.BILLING_ENTRA_CLIENT_ID }}"
-          check_secret_present "BILLING_ENTRA_API_SCOPE" "${{ secrets.BILLING_ENTRA_API_SCOPE }}"
-          check_secret_present "BILLING_ENTRA_REDIRECT_URI" "${{ secrets.BILLING_ENTRA_REDIRECT_URI }}"
-          if [ "$missing" -ne 0 ]; then
-            echo "One or more required Entra settings are missing. Refusing to deploy an Entra-mode build with incomplete configuration." >&2
-            exit 1
-          fi
-          echo "Required Entra settings are present."
-
-      - name: Build frontend
-        run: |
-          cd /opt/billing/frontend
-          npm ci
-          npm run build
-
-      - name: Install backend deps
-        run: |
-          cd /opt/billing/backend
-          python3 -m venv .venv
-          ./.venv/bin/pip install --upgrade pip
-          ./.venv/bin/pip install -r requirements.txt
-
-      - name: Run database migrations
-        run: |
-          cd /opt/billing/backend
-          ./.venv/bin/alembic upgrade head
-          ./.venv/bin/alembic current
-
-      - name: Restart billing API
-        run: sudo systemctl restart billing-api
-
-      - name: Wait for service health
-        run: |
-          for i in $(seq 1 15); do
-            if systemctl is-active --quiet billing-api; then
-              echo "health_status=active" > /tmp/health_status.txt
-              exit 0
-            fi
-            sleep 2
+          python -m pip install -r scripts/deployment/requirements-test.txt
+          python -m pytest -q scripts/deployment/tests
+          for t in scripts/deployment/tests/*.sh; do
+            echo "--- running $t ---"
+            bash "$t"
           done
-          echo "health_status=inactive" > /tmp/health_status.txt
-          echo "billing-api did not report active after restart" >&2
-          exit 1
-
-      - name: Emit deployment metadata
-        env:
-          APP_NAME: billing-platform
-          ENVIRONMENT: production
-        run: |
-          METADATA_FILE="${GITHUB_WORKSPACE}/deploy_metadata.txt"
-          echo "app_name=${APP_NAME}" | tee "${METADATA_FILE}"
-          echo "version=${GITHUB_SHA}" | tee -a "${METADATA_FILE}"
-          echo "deploy_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" | tee -a "${METADATA_FILE}"
-          echo "environment=${ENVIRONMENT}" | tee -a "${METADATA_FILE}"
-          cat /tmp/health_status.txt | tee -a "${METADATA_FILE}"
-          (cd /opt/billing/backend && ./.venv/bin/alembic current) | tee -a "${METADATA_FILE}"
-
-      - name: Upload deployment metadata
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy_metadata
-          path: deploy_metadata.txt

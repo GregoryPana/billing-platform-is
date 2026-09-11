@@ -299,14 +299,22 @@ The backend is configured to run as:
 
 ### CI/CD
 
-GitHub Actions does the following:
+Pushes and pull requests run CI only; they never deploy. Production deployment
+and rollback are separate `workflow_dispatch` workflows. An operator selects an
+exact ref, confirms the production action, and the workflow resolves it once to
+a full commit SHA. The SHA must be reachable from trusted `origin/main` before
+selected-commit code can run with production access.
 
-- runs backend dependency installation and a Python smoke check
-- installs frontend dependencies and builds the production bundle
-- deploys on a self-hosted runner labeled `billing`
-- keeps the checked-out repo at `/opt/billing`
-- rewrites env files from GitHub secrets
-- restarts `billing-api`
+Production uses the `production` GitHub Environment and the self-hosted runner
+labeled `billing`. Releases are retained under `/opt/billing/releases/<sha>`;
+an atomic `current` pointer preserves the existing backend/frontend paths.
+Deployments validate all settings before target mutation, back up Postgres,
+apply Alembic migrations, restart and verify `billing-api`, and upload
+non-secret evidence. Rollback selects a retained verified release and never
+reverses database migrations.
+
+See `docs/PRODUCTION_DEPLOYMENT.md` for setup, operation, evidence and rollback
+constraints.
 
 ### Reverse proxy expectation
 
@@ -325,5 +333,6 @@ The docs and workflow imply an Nginx reverse proxy in front of the app, with pat
 
 - high-level implementation summary: `project.md`
 - architecture notes: `architecture/blueprint.md`
-- deployment notes: `docs/github-deployment-guide.md`
+- controlled production deployment: `docs/PRODUCTION_DEPLOYMENT.md`
+- host and reverse-proxy notes: `docs/github-deployment-guide.md`
 - billing process references: `docs/platform/`

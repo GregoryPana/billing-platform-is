@@ -317,13 +317,16 @@ Local self-service signup and admin-created local accounts were retired in `feat
 
 ## Deployment And Environment Impact
 
-## Current automatic deployment behavior
+## Current controlled deployment behavior
 
-The current GitHub Actions workflow automatically deploys on push to `main`.
+Pushes to `main` run CI but do not deploy. Production changes are applied only
+through the manual exact-commit workflow documented in
+`docs/PRODUCTION_DEPLOYMENT.md`. The resolved commit must be reachable from
+trusted `origin/main` before any of its code can run with production access.
 
 It does:
 
-- repo sync to `/opt/billing`
+- immutable release creation under `/opt/billing/releases/<sha>`
 - backend env rewrite
 - frontend env rewrite
 - frontend build
