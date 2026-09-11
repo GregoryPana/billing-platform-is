@@ -1,0 +1,219 @@
+name: rollback-production
+
+permissions:
+  contents: read
+
+# Manual-only production rollback. Selects a PREVIOUSLY DEPLOYED, still
+# retained, immutable release directory under /opt/billing/releases/<sha>
+# and atomically repoints /opt/billing/current at it.
+#
+# This workflow NEVER runs `alembic upgrade` or `alembic downgrade`. It
+# does not touch the database schema at all - see the "Compare recorded
+# and current database revision" step below. If forward migrations ran
+# after the release being rolled back to, the rolled-back code and the
+# (unchanged, still-migrated) database schema may be incompatible; that
+# risk is surfaced as a hard failure. Reversing a migration
+# is a separate, irreversible, manually-approved action outside this
+# workflow's scope (see docs/DEPLOYMENT_SAFETY.md).
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: 'Full 40-character commit SHA of a previously deployed, still-retained release'
+        required: true
+      confirm:
+        description: 'Type ROLLBACK-PRODUCTION to confirm'
+        required: true
+concurrency:
+  group: billing-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, billing]
+    environment:
+      name: production
+    timeout-minutes: 20
+    env:
+      DEPLOY_ROOT: /opt/billing
+      SERVICE_NAME: billing-api
+      EXPECTED_SERVICE_USER: billing
+      TARGET_SHA: ${{ github.event.inputs.target_sha }}
+      ROLLBACK_PROOF_FILE: ${{ github.workspace }}/billing-rollback-${{ github.run_id }}.proofs
+      RECOVERY_PROOF_FILE: ${{ github.workspace }}/billing-rollback-recovery-${{ github.run_id }}.proofs
+    steps:
+      - name: Require explicit rollback confirmation
+        env:
+          CONFIRMATION: ${{ github.event.inputs.confirm }}
+        run: |
+          if [ "$CONFIRMATION" != "ROLLBACK-PRODUCTION" ]; then
+            echo "Confirmation input did not match ROLLBACK-PRODUCTION; aborting." >&2
+            exit 1
+          fi
+
+      - name: Validate target SHA is a full commit SHA
+        run: |
+          if ! [[ "${TARGET_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "target_sha must be a full 40-character lowercase commit SHA, got: ${TARGET_SHA}" >&2
+            exit 1
+          fi
+
+      - name: Checkout trusted deployment tooling
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require rollback target to be from trusted main history
+        run: bash scripts/deployment/assert_trusted_commit.sh "$TARGET_SHA" . >/dev/null
+
+      - name: Validate host identity and prerequisites
+        env:
+          HOST_MARKER_FILE: /etc/billing-deploy-target
+          EXPECTED_HOST_MARKER: billing-production
+        run: bash scripts/deployment/validate-host.sh
+
+      - name: Validate target release exists and completed successfully
+        run: |
+          set -euo pipefail
+          release_dir="${DEPLOY_ROOT}/releases/${TARGET_SHA}"
+          [[ -d "$release_dir" ]] || { echo "No retained release directory for ${TARGET_SHA}. It may have been pruned; it cannot be rolled back to." >&2; exit 1; }
+          [[ -f "${release_dir}/.deploy-complete" ]] || { echo "Release ${TARGET_SHA} never completed a successful deploy; refusing to activate it." >&2; exit 1; }
+          [[ -f "${release_dir}/.deploy-metadata.json" ]] || { echo "Release ${TARGET_SHA} is missing its deployment metadata ledger entry." >&2; exit 1; }
+
+      - name: Capture currently active release
+        id: current-release
+        run: |
+          set -euo pipefail
+          [[ -L "${DEPLOY_ROOT}/current" ]] || { echo "No managed current release exists; rollback cannot proceed." >&2; exit 1; }
+          current_sha="$(basename "$(readlink -f "${DEPLOY_ROOT}/current")")"
+          [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Current release is not identified by a full SHA" >&2; exit 1; }
+          [[ -f "${DEPLOY_ROOT}/releases/${current_sha}/.deploy-complete" ]] || { echo "Current release is not a known completed release" >&2; exit 1; }
+          [[ "$current_sha" != "$TARGET_SHA" ]] || { echo "Target release is already active; refusing a no-op rollback." >&2; exit 1; }
+          echo "sha=${current_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare recorded and current database revision
+        id: schema-check
+        run: |
+          set -euo pipefail
+          release_dir="${DEPLOY_ROOT}/releases/${TARGET_SHA}"
+          recorded_revision="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["migration_revision"])' "${release_dir}/.deploy-metadata.json")"
+          current_revision="$(cd "${release_dir}/backend" && ./.venv/bin/alembic current | awk '/^[[:xdigit:]]+[[:space:]]/{print $1}')"
+          echo "recorded_revision=${recorded_revision}" >> "$GITHUB_OUTPUT"
+          echo "current_revision=${current_revision:-none}" >> "$GITHUB_OUTPUT"
+          if [ "${recorded_revision}" != "${current_revision:-}" ]; then
+            echo "mismatch=true" >> "$GITHUB_OUTPUT"
+            echo "Refusing to roll back: database revision '${current_revision:-none}' does not exactly match this release's recorded revision '${recorded_revision}'." >&2
+            exit 1
+          else
+            echo "mismatch=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The retained release is immutable: rollback neither rebuilds it nor
+      # rewrites its environment files. It only switches the managed pointer.
+
+      - name: Activate target release (atomic current pointer switch)
+        id: activate
+        run: bash scripts/deployment/release_manager.sh activate "${DEPLOY_ROOT}" "${TARGET_SHA}"
+
+      - name: Restart billing API
+        id: restart
+        run: |
+          set -euo pipefail
+          previous_start="$(systemctl show billing-api --property=ExecMainStartTimestampMonotonic --value)"
+          [[ "$previous_start" =~ ^[0-9]+$ ]] || { echo "Could not read the pre-restart service marker" >&2; exit 1; }
+          echo "previous_start_monotonic=${previous_start}" >> "$GITHUB_OUTPUT"
+          sudo systemctl restart billing-api
+
+      # SKIP_MIGRATION_CHECK=1: rollback never touches the database, so the
+      # database's current revision is recorded for evidence but not
+      # asserted against this (old) release's originally-deployed head.
+      - name: Verify rollback proofs
+        id: verify
+        env:
+          SERVICE_NAME: billing-api
+          PREVIOUS_START_MONOTONIC: ${{ steps.restart.outputs.previous_start_monotonic }}
+          EXPECTED_MIGRATION_REVISION: ${{ steps.schema-check.outputs.recorded_revision }}
+          READINESS_URL: http://127.0.0.1:8010/health
+          PROOF_FILE: ${{ env.ROLLBACK_PROOF_FILE }}
+          BACKEND_DIR: ${{ env.DEPLOY_ROOT }}/backend
+          SKIP_MIGRATION_CHECK: "1"
+        run: bash scripts/deployment/verify-deployment.sh
+
+      - name: Restore original release after failed rollback
+        id: restore-original
+        if: ${{ failure() && steps.activate.outcome == 'success' }}
+        env:
+          ORIGINAL_SHA: ${{ steps.current-release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          bash scripts/deployment/release_manager.sh activate "${DEPLOY_ROOT}" "${ORIGINAL_SHA}"
+          previous_start="$(systemctl show billing-api --property=ExecMainStartTimestampMonotonic --value)"
+          [[ "$previous_start" =~ ^[0-9]+$ ]] || { echo "Could not read the service marker before recovery restart" >&2; exit 1; }
+          sudo systemctl restart billing-api
+          SERVICE_NAME=billing-api \
+          PREVIOUS_START_MONOTONIC="$previous_start" \
+          EXPECTED_MIGRATION_REVISION=skipped \
+          READINESS_URL=http://127.0.0.1:8010/health \
+          PROOF_FILE="$RECOVERY_PROOF_FILE" \
+          BACKEND_DIR="${DEPLOY_ROOT}/backend" \
+          SKIP_MIGRATION_CHECK=1 \
+            bash scripts/deployment/verify-deployment.sh
+
+      - name: Emit rollback metadata
+        if: always()
+        env:
+          RESTORE_OUTCOME: ${{ steps.restore-original.outcome }}
+        run: |
+          set -euo pipefail
+          METADATA_FILE="${GITHUB_WORKSPACE}/rollback_metadata.txt"
+          previous_release="none"
+          if [ -f "${DEPLOY_ROOT}/previous-release.txt" ]; then
+            previous_release="$(basename "$(cat "${DEPLOY_ROOT}/previous-release.txt")")"
+          fi
+          {
+            echo "app_name=billing-platform"
+            echo "rollback_target_sha=${TARGET_SHA}"
+            echo "resolved_sha=${TARGET_SHA}"
+            echo "actor=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "target=production"
+            echo "rollback_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "migration_recorded_revision=${{ steps.schema-check.outputs.recorded_revision }}"
+            echo "migration_database_revision=${{ steps.schema-check.outputs.current_revision }}"
+            echo "migration_schema_mismatch=${{ steps.schema-check.outputs.mismatch }}"
+            echo "migration_action=none - rollback never runs alembic upgrade or downgrade"
+            if [ -L "${DEPLOY_ROOT}/current" ]; then
+              echo "active_release=$(basename "$(readlink -f "${DEPLOY_ROOT}/current")")"
+            else
+              echo "active_release=none"
+            fi
+            echo "previous_release=${previous_release}"
+            echo "backup_path=not-created - rollback does not modify the database"
+            echo "rollback_attempted=true"
+            echo "rollback_result=${{ steps.verify.outcome == 'success' && 'success' || 'failed' }}"
+            echo "original_release_restore=${RESTORE_OUTCOME}"
+            if [ -f "$ROLLBACK_PROOF_FILE" ]; then
+              cat "$ROLLBACK_PROOF_FILE"
+            elif [ -f "$RECOVERY_PROOF_FILE" ]; then
+              cat "$RECOVERY_PROOF_FILE"
+            else
+              echo "proofs=not-verified - restart or readiness verification did not complete"
+            fi
+          } | tee "$METADATA_FILE"
+
+      - name: Upload rollback metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback_metadata
+          path: rollback_metadata.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Remove run-specific proof files
+        if: always()
+        run: rm -f -- "$ROLLBACK_PROOF_FILE" "$RECOVERY_PROOF_FILE"

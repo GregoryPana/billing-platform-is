@@ -1,13 +1,8 @@
 name: stamp-production-db
 
-# One-time, manually-triggered utility to mark production's existing schema as
-# up to date with Alembic, WITHOUT running any DDL (`alembic stamp head`, not
-# `upgrade head`). See docs/DEPLOYMENT_SAFETY.md for why this is required
-# before the normal deploy job's `alembic upgrade head` step is safe to run.
-#
-# This never runs automatically (workflow_dispatch only) and never touches
-# /opt/billing — it checks out into a throwaway directory on the runner and
-# only talks to the database.
+# One-time, manually triggered production database operation. This writes only
+# the Alembic baseline marker (no application DDL), but it is still protected
+# exactly like deployment and requires a validated backup first.
 
 on:
   workflow_dispatch:
@@ -16,53 +11,124 @@ on:
         description: 'Type STAMP-PRODUCTION to proceed'
         required: true
 
+permissions:
+  contents: read
+
+concurrency:
+  group: billing-production-deploy
+  cancel-in-progress: false
+
 jobs:
   stamp:
     runs-on: [self-hosted, billing]
+    environment: production
+    timeout-minutes: 30
+    env:
+      DEPLOY_ROOT: /opt/billing
     steps:
       - name: Require explicit confirmation
+        env:
+          CONFIRMATION: ${{ github.event.inputs.confirm }}
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "STAMP-PRODUCTION" ]; then
+          set -euo pipefail
+          if [ "$CONFIRMATION" != "STAMP-PRODUCTION" ]; then
             echo "Confirmation input did not match STAMP-PRODUCTION; aborting." >&2
             exit 1
           fi
 
-      - name: Checkout into throwaway directory
+      - name: Checkout trusted main into throwaway directory
         uses: actions/checkout@v4
         with:
+          ref: main
           path: stamp-checkout
           fetch-depth: 1
+          persist-credentials: false
 
-      - name: Install backend deps into throwaway venv
+      - name: Install backend dependencies into throwaway venv
         run: |
+          set -euo pipefail
           cd stamp-checkout/backend
           python3 -m venv .venv-stamp
           ./.venv-stamp/bin/pip install --upgrade pip
           ./.venv-stamp/bin/pip install -r requirements.txt
 
-      - name: Alembic current (before stamp)
+      - name: Resolve one exact Alembic head and require an unstamped database
+        id: schema
         env:
           DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
         run: |
+          set -euo pipefail
           cd stamp-checkout/backend
-          echo "Expect: no output (no alembic_version row yet)"
-          ./.venv-stamp/bin/alembic current
+          mapfile -t heads < <(./.venv-stamp/bin/alembic heads --resolve-dependencies | awk '/^[[:xdigit:]]+[[:space:]]/{print $1}')
+          if (( ${#heads[@]} != 1 )); then
+            echo "Expected exactly one Alembic head, found ${#heads[@]}" >&2
+            exit 1
+          fi
+          current="$(./.venv-stamp/bin/alembic current | awk '/^[[:xdigit:]]+[[:space:]]/{print $1}')"
+          if [ -n "$current" ]; then
+            echo "Database is already stamped at a revision; refusing to overwrite its migration state" >&2
+            exit 1
+          fi
+          echo "revision=${heads[0]}" >> "$GITHUB_OUTPUT"
 
-      - name: Alembic stamp head
+      - name: Create and validate pre-stamp PostgreSQL backup
+        id: backup
         env:
           DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+          REVISION: ${{ steps.schema.outputs.revision }}
         run: |
-          cd stamp-checkout/backend
-          ./.venv-stamp/bin/alembic stamp head
+          set -euo pipefail
+          python3 stamp-checkout/scripts/deployment/backup_postgres.py \
+            --output-dir "${DEPLOY_ROOT}/backups" \
+            --revision "$REVISION" \
+            --github-output "$GITHUB_OUTPUT"
 
-      - name: Alembic current (after stamp)
+      - name: Stamp the exact reviewed revision
         env:
           DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+          REVISION: ${{ steps.schema.outputs.revision }}
         run: |
+          set -euo pipefail
           cd stamp-checkout/backend
-          echo "Expect: 6ab1c9b21c7b (head)"
-          ./.venv-stamp/bin/alembic current
+          ./.venv-stamp/bin/alembic stamp "$REVISION"
+
+      - name: Verify exact stamped revision
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+          REVISION: ${{ steps.schema.outputs.revision }}
+        run: |
+          set -euo pipefail
+          cd stamp-checkout/backend
+          current="$(./.venv-stamp/bin/alembic current | awk '/^[[:xdigit:]]+[[:space:]]/{print $1}')"
+          if [ "$current" != "$REVISION" ]; then
+            echo "Database revision does not match the exact stamped revision" >&2
+            exit 1
+          fi
+
+      - name: Write non-secret stamp evidence
+        if: always()
+        env:
+          REVISION: ${{ steps.schema.outputs.revision }}
+          BACKUP_PATH: ${{ steps.backup.outputs.backup_path }}
+        run: |
+          {
+            echo "operation=production-alembic-baseline-stamp"
+            echo "revision=${REVISION:-unresolved}"
+            echo "backup_path=${BACKUP_PATH:-not-created}"
+            echo "actor=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "result=${{ job.status }}"
+          } > stamp_metadata.txt
+
+      - name: Upload stamp evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stamp-production-metadata-${{ github.run_id }}
+          path: stamp_metadata.txt
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Clean up throwaway checkout
         if: always()
-        run: rm -rf stamp-checkout
+        run: rm -rf -- stamp-checkout

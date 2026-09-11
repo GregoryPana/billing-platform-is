@@ -1,0 +1,674 @@
+name: deploy-production
+
+permissions:
+  contents: read
+
+# Manual-only production deploy. There is exactly one real deployment
+# environment (production, bound below). Nothing here ever runs on push or
+# pull_request - the operator's workflow_dispatch input is the only gate.
+#
+# The selected ref is resolved ONCE, in the `resolve` job, to a full
+# 40-character commit SHA. That exact SHA is what gets tested (`test` job)
+# and deployed (`deploy` job) - never a re-resolution of `main` at deploy
+# time. See scripts/deployment/resolve_ref.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to deploy: branch, tag, or commit SHA'
+        required: true
+      confirm:
+        description: 'Type DEPLOY-PRODUCTION to confirm a real production deploy'
+        required: true
+
+concurrency:
+  group: billing-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Require explicit production confirmation
+        env:
+          CONFIRMATION: ${{ github.event.inputs.confirm }}
+        run: |
+          if [ "$CONFIRMATION" != "DEPLOY-PRODUCTION" ]; then
+            echo "Confirmation input did not match DEPLOY-PRODUCTION; aborting before any checkout." >&2
+            exit 1
+          fi
+
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve ref to a single full commit SHA
+        id: resolve
+        env:
+          SELECTED_REF: ${{ github.event.inputs.ref }}
+        run: |
+          set -euo pipefail
+          sha="$(bash scripts/deployment/resolve_ref.sh "$SELECTED_REF" .)"
+          bash scripts/deployment/assert_trusted_commit.sh "$sha" . >/dev/null
+          echo "Resolved selected ref to trusted origin/main commit ${sha}"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: resolve
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: billing
+          POSTGRES_PASSWORD: billing
+          POSTGRES_DB: billing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U billing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout resolved commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Alembic single-head check
+        run: |
+          cd backend
+          alembic heads --resolve-dependencies | tee /tmp/alembic_heads.txt
+          test "$(wc -l < /tmp/alembic_heads.txt)" -eq 1
+
+      - name: Backend tests
+        env:
+          TEST_DATABASE_URL: "postgresql+psycopg://billing:billing@localhost:5432/billing"
+          AUTH_MODE: local
+        run: |
+          cd backend
+          pytest -q
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Frontend build
+        run: |
+          cd frontend
+          npm run build
+
+  deploy:
+    runs-on: [self-hosted, billing]
+    needs: [resolve, test]
+    environment:
+      name: production
+    env:
+      DEPLOY_ROOT: /opt/billing
+      SERVICE_NAME: billing-api
+      EXPECTED_SERVICE_USER: billing
+      RESOLVED_SHA: ${{ needs.resolve.outputs.sha }}
+      SELECTED_REF: ${{ github.event.inputs.ref }}
+      DEPLOY_PROOF_FILE: ${{ github.workspace }}/billing-deployment-${{ github.run_id }}.proofs
+      RECOVERY_PROOF_FILE: ${{ github.workspace }}/billing-recovery-${{ github.run_id }}.proofs
+    steps:
+      - name: Checkout trusted main for the privileged-runner gate
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Reconfirm selected commit is reachable from trusted main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          bash scripts/deployment/assert_trusted_commit.sh "$RESOLVED_SHA" . >/dev/null
+
+      - name: Checkout resolved commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      # First step after checkout, and performs no writes: a failure here
+      # leaves /opt/billing completely untouched.
+      - name: Validate host identity and prerequisites
+        env:
+          HOST_MARKER_FILE: /etc/billing-deploy-target
+          EXPECTED_HOST_MARKER: billing-production
+        run: bash scripts/deployment/validate-host.sh
+
+      - name: Validate all required deployment settings
+        env:
+          BILLING_DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+          BILLING_N8N_WEBHOOK_URL: ${{ secrets.BILLING_N8N_WEBHOOK_URL }}
+          BILLING_N8N_APPROVAL_WEBHOOK_URL: ${{ secrets.BILLING_N8N_APPROVAL_WEBHOOK_URL }}
+          BILLING_JWT_SECRET: ${{ secrets.BILLING_JWT_SECRET }}
+          BILLING_API_URL: ${{ secrets.BILLING_API_URL }}
+          BILLING_APPROVAL_WEBHOOK_URL: ${{ secrets.BILLING_APPROVAL_WEBHOOK_URL }}
+          BILLING_ENTRA_TENANT_ID: ${{ secrets.BILLING_ENTRA_TENANT_ID }}
+          BILLING_ENTRA_CLIENT_ID: ${{ secrets.BILLING_ENTRA_CLIENT_ID }}
+          BILLING_ENTRA_AUTHORITY: ${{ secrets.BILLING_ENTRA_AUTHORITY }}
+          BILLING_ENTRA_ISSUER: ${{ secrets.BILLING_ENTRA_ISSUER }}
+          BILLING_ENTRA_AUDIENCE: ${{ secrets.BILLING_ENTRA_AUDIENCE }}
+          BILLING_ENTRA_JWKS_URL: ${{ secrets.BILLING_ENTRA_JWKS_URL }}
+          BILLING_ENTRA_FINANCE_GROUP_ID: ${{ secrets.BILLING_ENTRA_FINANCE_GROUP_ID }}
+          BILLING_ENTRA_BILLING_GROUP_ID: ${{ secrets.BILLING_ENTRA_BILLING_GROUP_ID }}
+          BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID: ${{ secrets.BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID }}
+          BILLING_ENTRA_API_SCOPE: ${{ secrets.BILLING_ENTRA_API_SCOPE }}
+          BILLING_ENTRA_REDIRECT_URI: ${{ secrets.BILLING_ENTRA_REDIRECT_URI }}
+        run: |
+          bash scripts/deployment/validate-required-env.sh \
+            BILLING_DATABASE_URL \
+            BILLING_N8N_WEBHOOK_URL \
+            BILLING_N8N_APPROVAL_WEBHOOK_URL \
+            BILLING_JWT_SECRET \
+            BILLING_API_URL \
+            BILLING_APPROVAL_WEBHOOK_URL \
+            BILLING_ENTRA_TENANT_ID \
+            BILLING_ENTRA_CLIENT_ID \
+            BILLING_ENTRA_AUTHORITY \
+            BILLING_ENTRA_ISSUER \
+            BILLING_ENTRA_AUDIENCE \
+            BILLING_ENTRA_JWKS_URL \
+            BILLING_ENTRA_FINANCE_GROUP_ID \
+            BILLING_ENTRA_BILLING_GROUP_ID \
+            BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID \
+            BILLING_ENTRA_API_SCOPE \
+            BILLING_ENTRA_REDIRECT_URI
+
+      # Renders the exact backend/frontend value mappings the later "Write
+      # backend env" / "Write frontend env" steps will render, using the
+      # same fail-closed render_dotenv() serializer, entirely inside this
+      # runner's checkout. Never writes under /opt/billing. Must run before
+      # the first /opt/billing mutation (Sync release, below) - a secret
+      # containing `$`, a newline, a CR, or a NUL byte would otherwise only
+      # be caught after rsync had already populated the release directory.
+      - name: Validate deployment configuration is serializer-safe
+        env:
+          BILLING_DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+          BILLING_N8N_WEBHOOK_URL: ${{ secrets.BILLING_N8N_WEBHOOK_URL }}
+          BILLING_N8N_APPROVAL_WEBHOOK_URL: ${{ secrets.BILLING_N8N_APPROVAL_WEBHOOK_URL }}
+          BILLING_N8N_SIGNUP_WEBHOOK_URL: ${{ secrets.BILLING_N8N_SIGNUP_WEBHOOK_URL }}
+          BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL: ${{ secrets.BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL }}
+          BILLING_N8N_WEBHOOK_VERIFY: ${{ secrets.BILLING_N8N_WEBHOOK_VERIFY || 'true' }}
+          BILLING_JWT_SECRET: ${{ secrets.BILLING_JWT_SECRET }}
+          BILLING_JWT_EXP_MINUTES: ${{ secrets.BILLING_JWT_EXP_MINUTES || '480' }}
+          BILLING_API_URL: ${{ secrets.BILLING_API_URL }}
+          BILLING_APPROVAL_WEBHOOK_URL: ${{ secrets.BILLING_APPROVAL_WEBHOOK_URL }}
+          BILLING_ENTRA_TENANT_ID: ${{ secrets.BILLING_ENTRA_TENANT_ID }}
+          BILLING_ENTRA_CLIENT_ID: ${{ secrets.BILLING_ENTRA_CLIENT_ID }}
+          BILLING_ENTRA_AUTHORITY: ${{ secrets.BILLING_ENTRA_AUTHORITY }}
+          BILLING_ENTRA_ISSUER: ${{ secrets.BILLING_ENTRA_ISSUER }}
+          BILLING_ENTRA_AUDIENCE: ${{ secrets.BILLING_ENTRA_AUDIENCE }}
+          BILLING_ENTRA_JWKS_URL: ${{ secrets.BILLING_ENTRA_JWKS_URL }}
+          BILLING_ENTRA_FINANCE_GROUP_ID: ${{ secrets.BILLING_ENTRA_FINANCE_GROUP_ID }}
+          BILLING_ENTRA_BILLING_GROUP_ID: ${{ secrets.BILLING_ENTRA_BILLING_GROUP_ID }}
+          BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID: ${{ secrets.BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID }}
+          BILLING_ENTRA_API_SCOPE: ${{ secrets.BILLING_ENTRA_API_SCOPE }}
+          BILLING_ENTRA_REDIRECT_URI: ${{ secrets.BILLING_ENTRA_REDIRECT_URI }}
+          BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI: ${{ secrets.BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI || '' }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import sys
+
+          sys.path.insert(0, "scripts/deployment")
+          from render_dotenv import UnsafeEnvValueError, render_dotenv
+
+          backend_values = {
+              "APP_NAME": "Billing Platform API",
+              "ENVIRONMENT": "production",
+              "DATABASE_URL": os.environ["BILLING_DATABASE_URL"],
+              "TIMEZONE_OFFSET_HOURS": "4",
+              "N8N_WEBHOOK_URL": os.environ["BILLING_N8N_WEBHOOK_URL"],
+              "N8N_APPROVAL_WEBHOOK_URL": os.environ["BILLING_N8N_APPROVAL_WEBHOOK_URL"],
+              "N8N_SIGNUP_WEBHOOK_URL": os.environ["BILLING_N8N_SIGNUP_WEBHOOK_URL"],
+              "N8N_SIGNUP_APPROVE_WEBHOOK_URL": os.environ["BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL"],
+              "N8N_WEBHOOK_VERIFY": os.environ["BILLING_N8N_WEBHOOK_VERIFY"],
+              "JWT_SECRET": os.environ["BILLING_JWT_SECRET"],
+              "JWT_EXP_MINUTES": os.environ["BILLING_JWT_EXP_MINUTES"],
+              "AUTH_MODE": "entra",
+              "ENTRA_TENANT_ID": os.environ["BILLING_ENTRA_TENANT_ID"],
+              "ENTRA_CLIENT_ID": os.environ["BILLING_ENTRA_CLIENT_ID"],
+              "ENTRA_AUTHORITY": os.environ["BILLING_ENTRA_AUTHORITY"],
+              "ENTRA_ISSUER": os.environ["BILLING_ENTRA_ISSUER"],
+              "ENTRA_AUDIENCE": os.environ["BILLING_ENTRA_AUDIENCE"],
+              "ENTRA_JWKS_URL": os.environ["BILLING_ENTRA_JWKS_URL"],
+              "ENTRA_FINANCE_GROUP_ID": os.environ["BILLING_ENTRA_FINANCE_GROUP_ID"],
+              "ENTRA_BILLING_GROUP_ID": os.environ["BILLING_ENTRA_BILLING_GROUP_ID"],
+              "ENTRA_SYSTEM_ADMIN_GROUP_ID": os.environ["BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID"],
+          }
+          frontend_values = {
+              "VITE_API_URL": os.environ["BILLING_API_URL"],
+              "VITE_APPROVAL_WEBHOOK_URL": os.environ["BILLING_APPROVAL_WEBHOOK_URL"],
+              "VITE_AUTH_MODE": "entra",
+              "VITE_ENTRA_TENANT_ID": os.environ["BILLING_ENTRA_TENANT_ID"],
+              "VITE_ENTRA_CLIENT_ID": os.environ["BILLING_ENTRA_CLIENT_ID"],
+              "VITE_ENTRA_AUTHORITY": os.environ["BILLING_ENTRA_AUTHORITY"],
+              "VITE_ENTRA_API_SCOPE": os.environ["BILLING_ENTRA_API_SCOPE"],
+              "VITE_ENTRA_REDIRECT_URI": os.environ["BILLING_ENTRA_REDIRECT_URI"],
+              "VITE_ENTRA_POST_LOGOUT_REDIRECT_URI": os.environ["BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI"],
+          }
+          try:
+              render_dotenv(backend_values)
+              render_dotenv(frontend_values)
+          except UnsafeEnvValueError as exc:
+              print(f"Refusing to deploy: {exc}", file=sys.stderr)
+              raise SystemExit(1)
+          print("Backend and frontend deployment configuration is serializer-safe.")
+          PY
+
+      - name: Sync resolved commit into its immutable release directory
+        run: |
+          set -euo pipefail
+          release_dir="${DEPLOY_ROOT}/releases/${RESOLVED_SHA}"
+          if [ -e "$release_dir" ]; then
+            echo "Release path already exists and is immutable: $release_dir" >&2
+            exit 1
+          fi
+          mkdir -p "${DEPLOY_ROOT}/releases" "${DEPLOY_ROOT}/backups" "${DEPLOY_ROOT}/shared"
+          mkdir "$release_dir"
+          rsync -a --delete \
+            --exclude ".git/" \
+            --exclude "backend/.env" \
+            --exclude "backend/.venv/" \
+            --exclude "**/__pycache__/" \
+            --exclude "**/*.pyc" \
+            --exclude "frontend/.env.production" \
+            --exclude "frontend/node_modules/" \
+            --exclude "frontend/dist/" \
+            ./ "${release_dir}/"
+
+      - name: Write backend env
+        env:
+          BILLING_DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+          BILLING_N8N_WEBHOOK_URL: ${{ secrets.BILLING_N8N_WEBHOOK_URL }}
+          BILLING_N8N_APPROVAL_WEBHOOK_URL: ${{ secrets.BILLING_N8N_APPROVAL_WEBHOOK_URL }}
+          # No longer read by backend/app/config.py (extra="ignore") but
+          # kept, unvalidated, to preserve prior behavior for any tooling
+          # that still expects them in backend/.env.
+          BILLING_N8N_SIGNUP_WEBHOOK_URL: ${{ secrets.BILLING_N8N_SIGNUP_WEBHOOK_URL }}
+          BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL: ${{ secrets.BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL }}
+          BILLING_N8N_WEBHOOK_VERIFY: ${{ secrets.BILLING_N8N_WEBHOOK_VERIFY || 'true' }}
+          BILLING_JWT_SECRET: ${{ secrets.BILLING_JWT_SECRET }}
+          BILLING_JWT_EXP_MINUTES: ${{ secrets.BILLING_JWT_EXP_MINUTES || '480' }}
+          BILLING_ENTRA_TENANT_ID: ${{ secrets.BILLING_ENTRA_TENANT_ID }}
+          BILLING_ENTRA_CLIENT_ID: ${{ secrets.BILLING_ENTRA_CLIENT_ID }}
+          BILLING_ENTRA_AUTHORITY: ${{ secrets.BILLING_ENTRA_AUTHORITY }}
+          BILLING_ENTRA_ISSUER: ${{ secrets.BILLING_ENTRA_ISSUER }}
+          BILLING_ENTRA_AUDIENCE: ${{ secrets.BILLING_ENTRA_AUDIENCE }}
+          BILLING_ENTRA_JWKS_URL: ${{ secrets.BILLING_ENTRA_JWKS_URL }}
+          BILLING_ENTRA_FINANCE_GROUP_ID: ${{ secrets.BILLING_ENTRA_FINANCE_GROUP_ID }}
+          BILLING_ENTRA_BILLING_GROUP_ID: ${{ secrets.BILLING_ENTRA_BILLING_GROUP_ID }}
+          BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID: ${{ secrets.BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID }}
+        run: |
+          # Secrets are passed via env: (above) and read from the process
+          # environment here, never interpolated into this script, so a
+          # secret value containing quotes/newlines/`$(...)` cannot alter
+          # what this step executes. render_dotenv() escapes each value and
+          # fails closed on one it cannot safely represent.
+          python3 - <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "scripts/deployment")
+          from render_dotenv import UnsafeEnvValueError, render_dotenv
+
+          values = {
+              "APP_NAME": "Billing Platform API",
+              "ENVIRONMENT": "production",
+              "DATABASE_URL": os.environ["BILLING_DATABASE_URL"],
+              "TIMEZONE_OFFSET_HOURS": "4",
+              "N8N_WEBHOOK_URL": os.environ["BILLING_N8N_WEBHOOK_URL"],
+              "N8N_APPROVAL_WEBHOOK_URL": os.environ["BILLING_N8N_APPROVAL_WEBHOOK_URL"],
+              "N8N_SIGNUP_WEBHOOK_URL": os.environ["BILLING_N8N_SIGNUP_WEBHOOK_URL"],
+              "N8N_SIGNUP_APPROVE_WEBHOOK_URL": os.environ["BILLING_N8N_SIGNUP_APPROVE_WEBHOOK_URL"],
+              "N8N_WEBHOOK_VERIFY": os.environ["BILLING_N8N_WEBHOOK_VERIFY"],
+              "JWT_SECRET": os.environ["BILLING_JWT_SECRET"],
+              "JWT_EXP_MINUTES": os.environ["BILLING_JWT_EXP_MINUTES"],
+              "AUTH_MODE": "entra",
+              "ENTRA_TENANT_ID": os.environ["BILLING_ENTRA_TENANT_ID"],
+              "ENTRA_CLIENT_ID": os.environ["BILLING_ENTRA_CLIENT_ID"],
+              "ENTRA_AUTHORITY": os.environ["BILLING_ENTRA_AUTHORITY"],
+              "ENTRA_ISSUER": os.environ["BILLING_ENTRA_ISSUER"],
+              "ENTRA_AUDIENCE": os.environ["BILLING_ENTRA_AUDIENCE"],
+              "ENTRA_JWKS_URL": os.environ["BILLING_ENTRA_JWKS_URL"],
+              "ENTRA_FINANCE_GROUP_ID": os.environ["BILLING_ENTRA_FINANCE_GROUP_ID"],
+              "ENTRA_BILLING_GROUP_ID": os.environ["BILLING_ENTRA_BILLING_GROUP_ID"],
+              "ENTRA_SYSTEM_ADMIN_GROUP_ID": os.environ["BILLING_ENTRA_SYSTEM_ADMIN_GROUP_ID"],
+          }
+          try:
+              content = render_dotenv(values)
+          except UnsafeEnvValueError as exc:
+              print(f"Refusing to write backend .env: {exc}", file=sys.stderr)
+              raise SystemExit(1)
+          root = Path(os.environ["DEPLOY_ROOT"])
+          shared = root / "shared"
+          destination = shared / f".backend.env.{os.environ['GITHUB_RUN_ID']}.candidate"
+          import tempfile
+
+          with tempfile.NamedTemporaryFile(
+              mode="w", encoding="utf-8", dir=shared, prefix=".backend.env.", delete=False
+          ) as handle:
+              candidate = Path(handle.name)
+              handle.write(content)
+              handle.flush()
+              os.fsync(handle.fileno())
+          candidate.chmod(0o600)
+          candidate.replace(destination)
+
+          release_env = root / "releases" / os.environ["RESOLVED_SHA"] / "backend" / ".env"
+          release_env.symlink_to("../../../shared/backend.env")
+          PY
+
+      - name: Write frontend env
+        env:
+          BILLING_API_URL: ${{ secrets.BILLING_API_URL }}
+          BILLING_APPROVAL_WEBHOOK_URL: ${{ secrets.BILLING_APPROVAL_WEBHOOK_URL }}
+          BILLING_ENTRA_TENANT_ID: ${{ secrets.BILLING_ENTRA_TENANT_ID }}
+          BILLING_ENTRA_CLIENT_ID: ${{ secrets.BILLING_ENTRA_CLIENT_ID }}
+          BILLING_ENTRA_AUTHORITY: ${{ secrets.BILLING_ENTRA_AUTHORITY }}
+          BILLING_ENTRA_API_SCOPE: ${{ secrets.BILLING_ENTRA_API_SCOPE }}
+          BILLING_ENTRA_REDIRECT_URI: ${{ secrets.BILLING_ENTRA_REDIRECT_URI }}
+          BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI: ${{ secrets.BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI || '' }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "scripts/deployment")
+          from render_dotenv import UnsafeEnvValueError, render_dotenv
+
+          values = {
+              "VITE_API_URL": os.environ["BILLING_API_URL"],
+              "VITE_APPROVAL_WEBHOOK_URL": os.environ["BILLING_APPROVAL_WEBHOOK_URL"],
+              "VITE_AUTH_MODE": "entra",
+              "VITE_ENTRA_TENANT_ID": os.environ["BILLING_ENTRA_TENANT_ID"],
+              "VITE_ENTRA_CLIENT_ID": os.environ["BILLING_ENTRA_CLIENT_ID"],
+              "VITE_ENTRA_AUTHORITY": os.environ["BILLING_ENTRA_AUTHORITY"],
+              "VITE_ENTRA_API_SCOPE": os.environ["BILLING_ENTRA_API_SCOPE"],
+              "VITE_ENTRA_REDIRECT_URI": os.environ["BILLING_ENTRA_REDIRECT_URI"],
+              "VITE_ENTRA_POST_LOGOUT_REDIRECT_URI": os.environ["BILLING_ENTRA_POST_LOGOUT_REDIRECT_URI"],
+          }
+          try:
+              content = render_dotenv(values)
+          except UnsafeEnvValueError as exc:
+              print(f"Refusing to write frontend .env.production: {exc}", file=sys.stderr)
+              raise SystemExit(1)
+          destination = Path(os.environ["DEPLOY_ROOT"]) / "releases" / os.environ["RESOLVED_SHA"] / "frontend" / ".env.production"
+          destination.write_text(content, encoding="utf-8")
+          PY
+
+      - name: Build frontend
+        run: |
+          set -euo pipefail
+          cd "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}/frontend"
+          npm ci
+          npm run build
+
+      - name: Install backend deps
+        run: |
+          set -euo pipefail
+          cd "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}/backend"
+          python3 -m venv .venv
+          ./.venv/bin/pip install --upgrade pip
+          ./.venv/bin/pip install -r requirements.txt
+
+      - name: Determine exact migration head
+        id: migration-head
+        run: |
+          set -euo pipefail
+          cd "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}/backend"
+          mapfile -t heads < <(./.venv/bin/alembic heads --resolve-dependencies | awk '/^[[:xdigit:]]+[[:space:]]/{print $1}')
+          if (( ${#heads[@]} != 1 )); then
+            echo "Expected exactly one Alembic head, found ${#heads[@]}" >&2
+            exit 1
+          fi
+          echo "revision=${heads[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Capture pre-migration database revision
+        id: pre-migration
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          cd "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}/backend"
+          before="$(./.venv/bin/alembic current | awk '/^[[:xdigit:]]+[[:space:]]/{print $1}')"
+          echo "revision=${before:-none}" >> "$GITHUB_OUTPUT"
+
+      # Fail-closed: any pg_dump/pg_restore error, or an empty dump, stops
+      # the job here - before alembic upgrade head runs.
+      - name: Create and validate pre-migration PostgreSQL backup
+        id: backup
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          python3 scripts/deployment/backup_postgres.py \
+            --output-dir "${DEPLOY_ROOT}/backups" \
+            --revision "${{ steps.migration-head.outputs.revision }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.BILLING_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          cd "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}/backend"
+          ./.venv/bin/alembic upgrade head
+          ./.venv/bin/alembic current
+
+      - name: Record release metadata and mark release ready
+        run: |
+          set -euo pipefail
+          python3 scripts/deployment/record_release_metadata.py \
+            --release-dir "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}" \
+            --sha "${RESOLVED_SHA}" \
+            --migration-revision "${{ steps.migration-head.outputs.revision }}" \
+            --deployed-at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --actor "${{ github.actor }}" \
+            --run-id "${{ github.run_id }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          touch "${DEPLOY_ROOT}/releases/${RESOLVED_SHA}/.release-ready"
+
+      - name: Capture currently active release
+        id: current-release
+        run: |
+          set -euo pipefail
+          current_sha=""
+          if [ -L "${DEPLOY_ROOT}/current" ]; then
+            current_sha="$(basename "$(readlink -f "${DEPLOY_ROOT}/current")")"
+            [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Current release is not identified by a full SHA" >&2; exit 1; }
+            [[ -f "${DEPLOY_ROOT}/releases/${current_sha}/.deploy-complete" ]] || { echo "Current release is not a known completed release" >&2; exit 1; }
+          fi
+          echo "sha=${current_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Activate release (atomic current pointer switch)
+        id: activate
+        run: |
+          set -euo pipefail
+          candidate="${DEPLOY_ROOT}/shared/.backend.env.${GITHUB_RUN_ID}.candidate"
+          destination="${DEPLOY_ROOT}/shared/backend.env"
+          previous="${DEPLOY_ROOT}/shared/.backend.env.previous.${GITHUB_RUN_ID}"
+          [[ -f "$candidate" && ! -L "$candidate" ]] || { echo "Validated backend configuration candidate is missing" >&2; exit 1; }
+          if [[ -f "$destination" && ! -L "$destination" ]]; then
+            cp --preserve=mode -- "$destination" "$previous"
+          elif [[ -e "$destination" || -L "$destination" ]]; then
+            echo "Shared backend configuration is not a regular file" >&2
+            exit 1
+          fi
+          mv -T -- "$candidate" "$destination"
+          if ! bash scripts/deployment/release_manager.sh activate "${DEPLOY_ROOT}" "${RESOLVED_SHA}"; then
+            if [[ -f "$previous" ]]; then
+              mv -T -- "$previous" "$destination"
+            else
+              rm -f -- "$destination"
+            fi
+            echo "Activation failed; restored the pre-deployment backend configuration" >&2
+            exit 1
+          fi
+
+      - name: Restart billing API
+        id: restart
+        run: |
+          set -euo pipefail
+          previous_start="$(systemctl show billing-api --property=ExecMainStartTimestampMonotonic --value)"
+          [[ "$previous_start" =~ ^[0-9]+$ ]] || { echo "Could not read the pre-restart service marker" >&2; exit 1; }
+          echo "previous_start_monotonic=${previous_start}" >> "$GITHUB_OUTPUT"
+          sudo systemctl restart billing-api
+
+      # Three-proof verification: (1) a strictly newer systemd process-start
+      # marker, (2) the database's exact current Alembic revision equals the
+      # resolved deployment head, (3) HTTP readiness at /health returns 200
+      # with the literal body {"status":"ok"}.
+      - name: Verify deployment proofs
+        env:
+          SERVICE_NAME: billing-api
+          PREVIOUS_START_MONOTONIC: ${{ steps.restart.outputs.previous_start_monotonic }}
+          EXPECTED_MIGRATION_REVISION: ${{ steps.migration-head.outputs.revision }}
+          READINESS_URL: http://127.0.0.1:8010/health
+          PROOF_FILE: ${{ env.DEPLOY_PROOF_FILE }}
+          BACKEND_DIR: ${{ env.DEPLOY_ROOT }}/backend
+        run: bash scripts/deployment/verify-deployment.sh
+
+      # Migrations are deliberately not reversed. If activation, restart, or
+      # readiness fails, restore the previously verified release and prove
+      # that it starts against the current (possibly forward-migrated) schema.
+      - name: Restore previous release after failed activation
+        id: restore-previous
+        if: ${{ failure() && steps.activate.outcome == 'success' && steps.current-release.outputs.sha != '' }}
+        env:
+          PREVIOUS_SHA: ${{ steps.current-release.outputs.sha }}
+          MIGRATION_AFTER: ${{ steps.migration-head.outputs.revision }}
+        run: |
+          set -euo pipefail
+          previous_release="${DEPLOY_ROOT}/releases/${PREVIOUS_SHA}"
+          metadata_file="${previous_release}/.deploy-metadata.json"
+          [[ -f "${previous_release}/.deploy-complete" && -f "$metadata_file" ]] || {
+            echo "Previous release is not a verified immutable release; automatic restoration is unsafe" >&2
+            exit 1
+          }
+          previous_revision="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["migration_revision"])' "$metadata_file")"
+          if [ "$previous_revision" != "$MIGRATION_AFTER" ]; then
+            echo "Database revision ${MIGRATION_AFTER} differs from the previous release revision ${previous_revision}; refusing automatic code rollback" >&2
+            exit 1
+          fi
+          previous_config="${DEPLOY_ROOT}/shared/.backend.env.previous.${GITHUB_RUN_ID}"
+          [[ -f "$previous_config" && ! -L "$previous_config" ]] || {
+            echo "Previous backend configuration is unavailable; refusing partial recovery" >&2
+            exit 1
+          }
+          mv -T -- "$previous_config" "${DEPLOY_ROOT}/shared/backend.env"
+          bash scripts/deployment/release_manager.sh activate "${DEPLOY_ROOT}" "${PREVIOUS_SHA}"
+          previous_start="$(systemctl show billing-api --property=ExecMainStartTimestampMonotonic --value)"
+          [[ "$previous_start" =~ ^[0-9]+$ ]] || { echo "Could not read the service marker before recovery restart" >&2; exit 1; }
+          sudo systemctl restart billing-api
+          SERVICE_NAME=billing-api \
+          PREVIOUS_START_MONOTONIC="$previous_start" \
+          EXPECTED_MIGRATION_REVISION=skipped \
+          READINESS_URL=http://127.0.0.1:8010/health \
+          PROOF_FILE="$RECOVERY_PROOF_FILE" \
+          BACKEND_DIR="${DEPLOY_ROOT}/backend" \
+          SKIP_MIGRATION_CHECK=1 \
+            bash scripts/deployment/verify-deployment.sh
+
+      - name: Mark verified release complete
+        run: |
+          set -euo pipefail
+          release_dir="${DEPLOY_ROOT}/releases/${RESOLVED_SHA}"
+          [[ "$(readlink -f "${DEPLOY_ROOT}/current")" == "$(readlink -f "$release_dir")" ]]
+          touch "${release_dir}/.deploy-complete"
+
+      - name: Prune old release directories (keep last 5, never the active one)
+        run: bash scripts/deployment/release_manager.sh prune "${DEPLOY_ROOT}" 5
+
+      - name: Emit deployment metadata
+        if: always()
+        env:
+          APP_NAME: billing-platform
+          RESTORE_OUTCOME: ${{ steps.restore-previous.outcome }}
+        run: |
+          set -euo pipefail
+          METADATA_FILE="${GITHUB_WORKSPACE}/deploy_metadata.txt"
+          previous_release="none"
+          if [ -f "${DEPLOY_ROOT}/previous-release.txt" ]; then
+            previous_release="$(basename "$(cat "${DEPLOY_ROOT}/previous-release.txt")")"
+          fi
+          {
+            echo "app_name=${APP_NAME}"
+            python3 -c 'import json, os; print("selected_ref=" + json.dumps(os.environ["SELECTED_REF"]))'
+            echo "resolved_sha=${RESOLVED_SHA}"
+            echo "actor=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "target=production"
+            echo "deploy_timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "migration_revision_before=${{ steps.pre-migration.outputs.revision }}"
+            echo "migration_revision_after=${{ steps.migration-head.outputs.revision }}"
+            if [ -L "${DEPLOY_ROOT}/current" ]; then
+              echo "active_release=$(basename "$(readlink -f "${DEPLOY_ROOT}/current")")"
+            else
+              echo "active_release=none"
+            fi
+            echo "previous_release=${previous_release}"
+            echo "backup_path=${{ steps.backup.outputs.backup_path }}"
+            case "$RESTORE_OUTCOME" in
+              success|failure) echo "rollback_attempted=true" ;;
+              *) echo "rollback_attempted=false" ;;
+            esac
+            echo "rollback_result=${RESTORE_OUTCOME}"
+            if [ -f "$DEPLOY_PROOF_FILE" ]; then
+              cat "$DEPLOY_PROOF_FILE"
+            elif [ -f "$RECOVERY_PROOF_FILE" ]; then
+              cat "$RECOVERY_PROOF_FILE"
+            else
+              echo "proofs=not-verified"
+            fi
+          } | tee "$METADATA_FILE"
+
+      - name: Upload deployment metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy_metadata-${{ needs.resolve.outputs.sha }}
+          path: deploy_metadata.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Remove temporary backend configuration copies
+        if: always()
+        run: |
+          rm -f -- \
+            "${DEPLOY_ROOT}/shared/.backend.env.${GITHUB_RUN_ID}.candidate" \
+            "${DEPLOY_ROOT}/shared/.backend.env.previous.${GITHUB_RUN_ID}" \
+            "$DEPLOY_PROOF_FILE" \
+            "$RECOVERY_PROOF_FILE"
