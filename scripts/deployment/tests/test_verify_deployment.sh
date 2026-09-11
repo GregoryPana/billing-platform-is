@@ -31,6 +31,7 @@ check() {
 start_fake_readiness_server() {
   local body="$1"
   local port_file="${work_dir}/port.txt"
+  rm -f "$port_file"
   python3 - "$body" "$port_file" > "${work_dir}/server.log" 2>&1 <<'PY' &
 import http.server
 import json
